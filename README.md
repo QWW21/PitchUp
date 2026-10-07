@@ -80,6 +80,13 @@ starts a dev server, exercises the API, and shuts it down.
 
 A pre-commit hook runs ESLint and Prettier on staged files.
 
+## Learning the codebase
+
+`docs/ARCHITECTURE.md` walks through every decision in the infrastructure
+epic — why money is `Decimal`, why the trust tier is derived rather than
+stored, why login compares against a dummy hash — as a problem, the options,
+and the reason one was chosen.
+
 ## Layout
 
 ```
