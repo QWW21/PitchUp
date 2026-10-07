@@ -20,6 +20,6 @@ export const CITIES: readonly City[] = [
   { name: 'Oradea', county: 'Bihor' },
 ] as const
 
-export const CITY_NAMES: readonly string[] = CITIES.map((c) => c.name)
+export const CITY_NAMES: readonly string[] = CITIES.map(c => c.name)
 
 export const DEFAULT_COUNTRY = 'RO'

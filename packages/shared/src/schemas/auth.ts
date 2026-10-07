@@ -13,11 +13,7 @@ function isAtLeastMinAge(dateOfBirth: string): boolean {
   if (Number.isNaN(dob.getTime())) return false
 
   const now = new Date()
-  const todayUtc = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate()
-  )
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
   const birthdayAtMinAge = Date.UTC(
     dob.getUTCFullYear() + AUTH.MIN_AGE_YEARS,
     dob.getUTCMonth(),
@@ -29,10 +25,10 @@ function isAtLeastMinAge(dateOfBirth: string): boolean {
 const dateOfBirthSchema = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date in YYYY-MM-DD format')
-  .refine((value) => !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime()), {
+  .refine(value => !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime()), {
     message: 'Must be a valid date',
   })
-  .refine((value) => new Date(`${value}T00:00:00Z`) <= new Date(), {
+  .refine(value => new Date(`${value}T00:00:00Z`) <= new Date(), {
     message: 'Date of birth cannot be in the future',
   })
   .refine(isAtLeastMinAge, {
@@ -71,7 +67,7 @@ export const ResetPasswordSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine(data => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })
@@ -79,10 +75,7 @@ export const ResetPasswordSchema = z
 export const VerifyOtpSchema = z.object({
   code: z
     .string()
-    .regex(
-      new RegExp(`^\\d{${AUTH.OTP_LENGTH}}$`),
-      `Code must be ${AUTH.OTP_LENGTH} digits`
-    ),
+    .regex(new RegExp(`^\\d{${AUTH.OTP_LENGTH}}$`), `Code must be ${AUTH.OTP_LENGTH} digits`),
 })
 
 export const ChangePasswordSchema = z
@@ -91,7 +84,7 @@ export const ChangePasswordSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine(data => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
   })

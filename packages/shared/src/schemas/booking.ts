@@ -4,18 +4,11 @@ import { REVIEW } from '../constants/review'
 import { SHIRT_COLOURS } from '../constants/shirts'
 import { idSchema } from './common'
 
-const shirtColourSchema = z.enum(
-  SHIRT_COLOURS as unknown as [string, ...string[]]
-)
+const shirtColourSchema = z.enum(SHIRT_COLOURS as unknown as [string, ...string[]])
 
 const teamSchema = z.object({
   colour: shirtColourSchema.optional(),
-  playerCount: z
-    .number()
-    .int()
-    .min(1)
-    .max(BOOKING.MAX_PLAYERS_PER_TEAM)
-    .optional(),
+  playerCount: z.number().int().min(1).max(BOOKING.MAX_PLAYERS_PER_TEAM).optional(),
   shirts: z
     .array(
       z.object({
@@ -31,23 +24,18 @@ export const CreateBookingSchema = z
     pitchId: idSchema,
     startTime: z.string().datetime({ message: 'Must be an ISO-8601 UTC timestamp' }),
     endTime: z.string().datetime({ message: 'Must be an ISO-8601 UTC timestamp' }),
-    teamCount: z
-      .number()
-      .int()
-      .min(BOOKING.MIN_TEAM_COUNT)
-      .max(BOOKING.MAX_TEAM_COUNT),
+    teamCount: z.number().int().min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
     teamsData: z.array(teamSchema).min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
     noteToManager: z.string().max(BOOKING.MAX_NOTE_LENGTH).optional(),
   })
-  .refine((data) => new Date(data.endTime) > new Date(data.startTime), {
+  .refine(data => new Date(data.endTime) > new Date(data.startTime), {
     message: 'End time must be after start time',
     path: ['endTime'],
   })
   .refine(
-    (data) => {
+    data => {
       const hours =
-        (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()) /
-        3_600_000
+        (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()) / 3_600_000
       return hours >= BOOKING.MIN_DURATION_HOURS && hours <= BOOKING.MAX_DURATION_HOURS
     },
     {
@@ -56,7 +44,7 @@ export const CreateBookingSchema = z
     }
   )
   .refine(
-    (data) => {
+    data => {
       // PRD §15: a booking must start and end on the same calendar day.
       // Checked in UTC; the API re-checks against the venue's local day.
       const start = new Date(data.startTime)
@@ -74,7 +62,7 @@ export const CreateBookingSchema = z
       path: ['endTime'],
     }
   )
-  .refine((data) => data.teamsData.length === data.teamCount, {
+  .refine(data => data.teamsData.length === data.teamCount, {
     message: 'teamsData must contain exactly teamCount entries',
     path: ['teamsData'],
   })

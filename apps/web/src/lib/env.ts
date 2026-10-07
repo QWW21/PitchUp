@@ -17,24 +17,19 @@ import { z } from 'zod'
  * so that `pnpm dev` runs on a fresh clone with only a database configured.
  * Each becomes required in the epic that introduces it.
  */
-const optionalUntilIntegrated = <T extends z.ZodTypeAny>(schema: T) =>
-  schema.optional()
+const optionalUntilIntegrated = <T extends z.ZodTypeAny>(schema: T) => schema.optional()
 
 export const env = createEnv({
   server: {
     DATABASE_URL: z.string().url(),
-    NODE_ENV: z
-      .enum(['development', 'test', 'production'])
-      .default('development'),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
     NEXTAUTH_SECRET: z.string().min(32, 'Must be at least 32 characters'),
     NEXTAUTH_URL: z.string().url().optional(),
 
     // E05 — payments
     STRIPE_SECRET_KEY: optionalUntilIntegrated(z.string().startsWith('sk_')),
-    STRIPE_WEBHOOK_SECRET: optionalUntilIntegrated(
-      z.string().startsWith('whsec_')
-    ),
+    STRIPE_WEBHOOK_SECRET: optionalUntilIntegrated(z.string().startsWith('whsec_')),
 
     // E01-10 — image uploads
     CLOUDINARY_API_KEY: optionalUntilIntegrated(z.string().min(1)),
@@ -54,9 +49,7 @@ export const env = createEnv({
 
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url(),
-    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: optionalUntilIntegrated(
-      z.string().min(1)
-    ),
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: optionalUntilIntegrated(z.string().min(1)),
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: optionalUntilIntegrated(z.string().min(1)),
   },
 
@@ -80,10 +73,8 @@ export const env = createEnv({
     FCM_SERVER_KEY: process.env.FCM_SERVER_KEY,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
-      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
   },
 
   /** Lets `next build` and CI run without a full secret set. */

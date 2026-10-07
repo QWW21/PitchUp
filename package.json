@@ -5,9 +5,13 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
-    "lint": "turbo lint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "turbo typecheck",
     "clean": "turbo clean && rm -rf node_modules",
+    "prepare": "husky",
     "db:generate": "pnpm --filter @pitchup/web db:generate",
     "db:push": "pnpm --filter @pitchup/web db:push",
     "db:migrate": "pnpm --filter @pitchup/web db:migrate",
@@ -15,8 +19,15 @@
     "db:seed": "pnpm --filter @pitchup/web db:seed"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^9",
+    "eslint-config-prettier": "^10.1.8",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.9",
     "turbo": "^2.3.3",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.71.1"
   },
   "engines": {
     "node": ">=20.0.0",

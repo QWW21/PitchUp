@@ -3,18 +3,9 @@ import { BOOKING } from '../constants/booking'
 import { SHIRT_COLOURS } from '../constants/shirts'
 import { idSchema } from './common'
 
-const surfaceTypeSchema = z.enum([
-  'NATURAL_GRASS',
-  'ARTIFICIAL_GRASS',
-  'FUTSAL',
-])
+const surfaceTypeSchema = z.enum(['NATURAL_GRASS', 'ARTIFICIAL_GRASS', 'FUTSAL'])
 
-const pitchSizeSchema = z.enum([
-  'FIVE_A_SIDE',
-  'SEVEN_A_SIDE',
-  'ELEVEN_A_SIDE',
-  'CUSTOM',
-])
+const pitchSizeSchema = z.enum(['FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE', 'CUSTOM'])
 
 const amenityTypeSchema = z.enum([
   'SHOWERS_FREE',
@@ -33,9 +24,7 @@ const amenityTypeSchema = z.enum([
   'WIFI',
 ])
 
-const shirtColourSchema = z.enum(
-  SHIRT_COLOURS as unknown as [string, ...string[]]
-)
+const shirtColourSchema = z.enum(SHIRT_COLOURS as unknown as [string, ...string[]])
 
 /** A peak-hours window. Times are the venue's local wall clock. */
 const peakHoursEntrySchema = z
@@ -45,7 +34,7 @@ const peakHoursEntrySchema = z
     startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:MM'),
     endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Must be HH:MM'),
   })
-  .refine((entry) => entry.startTime < entry.endTime, {
+  .refine(entry => entry.startTime < entry.endTime, {
     message: 'Peak window must start before it ends',
     path: ['endTime'],
   })
@@ -76,23 +65,18 @@ export const CreatePitchSchema = z
       .min(BOOKING.MIN_DURATION_HOURS)
       .max(BOOKING.MAX_DURATION_HOURS)
       .default(BOOKING.MAX_DURATION_HOURS),
-    advanceBookingDays: z
-      .number()
-      .int()
-      .min(1)
-      .max(365)
-      .default(BOOKING.MAX_ADVANCE_DAYS_DEFAULT),
+    advanceBookingDays: z.number().int().min(1).max(365).default(BOOKING.MAX_ADVANCE_DAYS_DEFAULT),
     offPeakRate: priceSchema,
     peakRate: priceSchema,
     peakHoursDefinition: PeakHoursSchema.optional(),
     hasShirts: z.boolean().default(false),
     shirtRentalPrice: priceSchema.optional(),
   })
-  .refine((data) => data.minBookingHours <= data.maxBookingHours, {
+  .refine(data => data.minBookingHours <= data.maxBookingHours, {
     message: 'Minimum booking hours cannot exceed maximum',
     path: ['minBookingHours'],
   })
-  .refine((data) => !data.hasShirts || data.shirtRentalPrice !== undefined, {
+  .refine(data => !data.hasShirts || data.shirtRentalPrice !== undefined, {
     message: 'Shirt rental price is required when the pitch offers shirts',
     path: ['shirtRentalPrice'],
   })
@@ -112,8 +96,16 @@ export const UpdatePitchSchema = z
     lengthMeters: z.number().positive().max(200),
     isActive: z.boolean(),
     coverPhotoIndex: z.number().int().min(0),
-    minBookingHours: z.number().int().min(BOOKING.MIN_DURATION_HOURS).max(BOOKING.MAX_DURATION_HOURS),
-    maxBookingHours: z.number().int().min(BOOKING.MIN_DURATION_HOURS).max(BOOKING.MAX_DURATION_HOURS),
+    minBookingHours: z
+      .number()
+      .int()
+      .min(BOOKING.MIN_DURATION_HOURS)
+      .max(BOOKING.MAX_DURATION_HOURS),
+    maxBookingHours: z
+      .number()
+      .int()
+      .min(BOOKING.MIN_DURATION_HOURS)
+      .max(BOOKING.MAX_DURATION_HOURS),
     advanceBookingDays: z.number().int().min(1).max(365),
     offPeakRate: priceSchema,
     peakRate: priceSchema,
@@ -122,7 +114,7 @@ export const UpdatePitchSchema = z
     shirtRentalPrice: priceSchema,
   })
   .partial()
-  .refine((data) => Object.keys(data).length > 0, {
+  .refine(data => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
   })
 
@@ -132,7 +124,7 @@ export const PitchAmenitySchema = z
     isPaid: z.boolean().default(false),
     price: priceSchema.optional(),
   })
-  .refine((data) => !data.isPaid || data.price !== undefined, {
+  .refine(data => !data.isPaid || data.price !== undefined, {
     message: 'Price is required for a paid amenity',
     path: ['price'],
   })

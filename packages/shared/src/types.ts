@@ -10,28 +10,15 @@ export type UserRole = 'PLAYER' | 'MANAGER' | 'ADMIN'
 
 export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED'
 
-export type BookingStatus =
-  | 'PENDING'
-  | 'CONFIRMED'
-  | 'COMPLETED'
-  | 'CANCELLED'
-  | 'NO_SHOW'
+export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
 
-export type DisputeStatus =
-  | 'NONE'
-  | 'OPEN'
-  | 'RESOLVED_PLAYER'
-  | 'RESOLVED_MANAGER'
+export type DisputeStatus = 'NONE' | 'OPEN' | 'RESOLVED_PLAYER' | 'RESOLVED_MANAGER'
 
 export type ModerationStatus = 'APPROVED' | 'PENDING' | 'REMOVED'
 
 export type SurfaceType = 'NATURAL_GRASS' | 'ARTIFICIAL_GRASS' | 'FUTSAL'
 
-export type PitchSize =
-  | 'FIVE_A_SIDE'
-  | 'SEVEN_A_SIDE'
-  | 'ELEVEN_A_SIDE'
-  | 'CUSTOM'
+export type PitchSize = 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'ELEVEN_A_SIDE' | 'CUSTOM'
 
 export type CancelledBy = 'PLAYER' | 'MANAGER' | 'ADMIN' | 'SYSTEM'
 
@@ -52,14 +39,7 @@ export type AmenityType =
   | 'WIFI'
 
 export type ShirtColour =
-  | 'RED'
-  | 'BLUE'
-  | 'GREEN'
-  | 'YELLOW'
-  | 'ORANGE'
-  | 'WHITE'
-  | 'BLACK'
-  | 'PURPLE'
+  'RED' | 'BLUE' | 'GREEN' | 'YELLOW' | 'ORANGE' | 'WHITE' | 'BLACK' | 'PURPLE'
 
 export type TrustScoreReason =
   | 'BOOKING_COMPLETED'
@@ -86,9 +66,4 @@ export type NotificationType =
   | 'PASSWORD_RESET'
 
 /** Trust tier labels. PRD §9.1. */
-export type TrustTierLabel =
-  | 'Excellent'
-  | 'Good'
-  | 'Fair'
-  | 'Poor'
-  | 'Suspended'
+export type TrustTierLabel = 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Suspended'

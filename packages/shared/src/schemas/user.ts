@@ -14,7 +14,7 @@ export const UpdateUserSchema = z
     profilePhotoUrl: z.string().url().nullable(),
   })
   .partial()
-  .refine((data) => Object.keys(data).length > 0, {
+  .refine(data => Object.keys(data).length > 0, {
     message: 'At least one field must be provided',
   })
 
