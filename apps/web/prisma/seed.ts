@@ -6,31 +6,18 @@
  */
 import { PrismaClient, Role, CompanyStatus, SurfaceType, PitchSize } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { AUTH, CITIES, DEFAULT_COUNTRY } from '@pitchup/shared'
 
 const prisma = new PrismaClient()
 
-const BCRYPT_COST = 12
 const DEFAULT_ADMIN_PASSWORD = 'Admin1234!'
-
-const CITIES: Array<{ name: string; county: string }> = [
-  { name: 'București', county: 'București' },
-  { name: 'Cluj-Napoca', county: 'Cluj' },
-  { name: 'Timișoara', county: 'Timiș' },
-  { name: 'Iași', county: 'Iași' },
-  { name: 'Constanța', county: 'Constanța' },
-  { name: 'Craiova', county: 'Dolj' },
-  { name: 'Brașov', county: 'Brașov' },
-  { name: 'Galați', county: 'Galați' },
-  { name: 'Ploiești', county: 'Prahova' },
-  { name: 'Oradea', county: 'Bihor' },
-]
 
 async function seedCities(): Promise<void> {
   for (const city of CITIES) {
     await prisma.city.upsert({
       where: { name: city.name },
       update: {},
-      create: { name: city.name, county: city.county, country: 'RO' },
+      create: { name: city.name, county: city.county, country: DEFAULT_COUNTRY },
     })
   }
   console.log(`✓ Cities seeded (${CITIES.length})`)
@@ -43,7 +30,7 @@ async function seedAdmin(): Promise<void> {
       `⚠ ADMIN_PASSWORD not set — using the default dev password. Set it before seeding any shared environment.`
     )
   }
-  const passwordHash = await bcrypt.hash(password ?? DEFAULT_ADMIN_PASSWORD, BCRYPT_COST)
+  const passwordHash = await bcrypt.hash(password ?? DEFAULT_ADMIN_PASSWORD, AUTH.BCRYPT_COST)
 
   await prisma.user.upsert({
     where: { email: 'admin@pitchup.ro' },
@@ -67,7 +54,7 @@ async function seedDevFixtures(): Promise<void> {
     return
   }
 
-  const passwordHash = await bcrypt.hash('Manager1234!', BCRYPT_COST)
+  const passwordHash = await bcrypt.hash('Manager1234!', AUTH.BCRYPT_COST)
   const manager = await prisma.user.upsert({
     where: { email: 'manager@demo.ro' },
     update: {},

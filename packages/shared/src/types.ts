@@ -1,4 +1,14 @@
+/**
+ * Shared domain types.
+ *
+ * These mirror the Prisma enums in apps/web/prisma/schema.prisma exactly.
+ * Mobile cannot import @prisma/client, so the names are duplicated here and
+ * must be kept in sync by hand. PRD §13 is the source of truth for both.
+ */
+
 export type UserRole = 'PLAYER' | 'MANAGER' | 'ADMIN'
+
+export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED'
 
 export type BookingStatus =
   | 'PENDING'
@@ -7,30 +17,23 @@ export type BookingStatus =
   | 'CANCELLED'
   | 'NO_SHOW'
 
-export type SurfaceType = 'NATURAL_GRASS' | 'ARTIFICIAL_GRASS' | 'FUTSAL'
-
-export type PitchSize = '5V5' | '7V7' | '11V11' | 'CUSTOM'
-
-export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED'
-
 export type DisputeStatus =
   | 'NONE'
   | 'OPEN'
   | 'RESOLVED_PLAYER'
   | 'RESOLVED_MANAGER'
 
-export type NotificationType =
-  | 'BOOKING_CONFIRMED'
-  | 'BOOKING_REMINDER_24H'
-  | 'BOOKING_REMINDER_2H'
-  | 'BOOKING_CANCELLED_PLAYER'
-  | 'BOOKING_CANCELLED_MANAGER'
-  | 'REFUND_PROCESSED'
-  | 'NO_SHOW_REPORTED'
-  | 'PENALTY_CHARGED'
-  | 'DISPUTE_RESOLVED'
-  | 'REVIEW_LEFT'
-  | 'REVIEW_REPLIED'
+export type ModerationStatus = 'APPROVED' | 'PENDING' | 'REMOVED'
+
+export type SurfaceType = 'NATURAL_GRASS' | 'ARTIFICIAL_GRASS' | 'FUTSAL'
+
+export type PitchSize =
+  | 'FIVE_A_SIDE'
+  | 'SEVEN_A_SIDE'
+  | 'ELEVEN_A_SIDE'
+  | 'CUSTOM'
+
+export type CancelledBy = 'PLAYER' | 'MANAGER' | 'ADMIN' | 'SYSTEM'
 
 export type AmenityType =
   | 'SHOWERS_FREE'
@@ -45,7 +48,7 @@ export type AmenityType =
   | 'LOCKERS'
   | 'REFEREE'
   | 'FIRST_AID'
-  | 'WHEELCHAIR_ACCESSIBLE'
+  | 'WHEELCHAIR'
   | 'WIFI'
 
 export type ShirtColour =
@@ -57,3 +60,35 @@ export type ShirtColour =
   | 'WHITE'
   | 'BLACK'
   | 'PURPLE'
+
+export type TrustScoreReason =
+  | 'BOOKING_COMPLETED'
+  | 'REVIEW_LEFT'
+  | 'LATE_CANCEL'
+  | 'VERY_LATE_CANCEL'
+  | 'NO_SHOW'
+  | 'DISPUTE_WON'
+  | 'MONTHLY_RECOVERY'
+
+export type NotificationType =
+  | 'BOOKING_CONFIRMED'
+  | 'BOOKING_REMINDER_24H'
+  | 'BOOKING_REMINDER_2H'
+  | 'BOOKING_CANCELLED_PLAYER'
+  | 'BOOKING_CANCELLED_MANAGER'
+  | 'REFUND_PROCESSED'
+  | 'NO_SHOW_REPORTED'
+  | 'PENALTY_CHARGED'
+  | 'DISPUTE_RESOLVED'
+  | 'REVIEW_LEFT'
+  | 'MANAGER_REPLIED'
+  | 'OTP'
+  | 'PASSWORD_RESET'
+
+/** Trust tier labels. PRD §9.1. */
+export type TrustTierLabel =
+  | 'Excellent'
+  | 'Good'
+  | 'Fair'
+  | 'Poor'
+  | 'Suspended'
