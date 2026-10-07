@@ -1,0 +1,379 @@
+// PitchUp — Prisma schema
+// Reference: PRD.md §13 (Data Models), ticket E01-02
+// All DateTime values are stored in UTC and rendered in the user's local tz.
+
+generator client {
+  provider = "prisma-client-js"
+  // No custom `output`: under pnpm the client must be generated next to the
+  // installed @prisma/client package in the store, not into apps/web/node_modules.
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  PLAYER
+  MANAGER
+  ADMIN
+}
+
+enum CompanyStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum DisputeStatus {
+  NONE
+  OPEN
+  RESOLVED_PLAYER
+  RESOLVED_MANAGER
+}
+
+enum ModerationStatus {
+  APPROVED
+  PENDING
+  REMOVED
+}
+
+enum SurfaceType {
+  NATURAL_GRASS
+  ARTIFICIAL_GRASS
+  FUTSAL
+}
+
+enum PitchSize {
+  FIVE_A_SIDE
+  SEVEN_A_SIDE
+  ELEVEN_A_SIDE
+  CUSTOM
+}
+
+enum AmenityType {
+  SHOWERS_FREE
+  SHOWERS_PAID
+  CHANGING_ROOMS
+  PARKING_FREE
+  PARKING_PAID
+  NIGHT_LIGHTING
+  BALL_RENTAL_FREE
+  BALL_RENTAL_PAID
+  REFRESHMENTS
+  LOCKERS
+  REFEREE
+  FIRST_AID
+  WHEELCHAIR
+  WIFI
+}
+
+enum ShirtColour {
+  RED
+  BLUE
+  GREEN
+  YELLOW
+  ORANGE
+  WHITE
+  BLACK
+  PURPLE
+}
+
+enum TrustScoreReason {
+  BOOKING_COMPLETED
+  REVIEW_LEFT
+  LATE_CANCEL
+  VERY_LATE_CANCEL
+  NO_SHOW
+  DISPUTE_WON
+  MONTHLY_RECOVERY
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_REMINDER_24H
+  BOOKING_REMINDER_2H
+  BOOKING_CANCELLED_PLAYER
+  BOOKING_CANCELLED_MANAGER
+  REFUND_PROCESSED
+  NO_SHOW_REPORTED
+  PENALTY_CHARGED
+  DISPUTE_RESOLVED
+  REVIEW_LEFT
+  MANAGER_REPLIED
+  OTP
+  PASSWORD_RESET
+}
+
+enum CancelledBy {
+  PLAYER
+  MANAGER
+  ADMIN
+  SYSTEM
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  phone            String    @unique
+  passwordHash     String
+  name             String
+  profilePhotoUrl  String?
+  city             String?
+  dateOfBirth      DateTime?
+  role             Role      @default(PLAYER)
+  trustScore       Int       @default(100)
+  stripeCustomerId String?
+  emailVerified    Boolean   @default(false)
+  phoneVerified    Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  company          Company?
+  bookings         Booking[]
+  reviews          Review[]
+  notifications    Notification[]
+  trustScoreEvents TrustScoreEvent[]
+  noShowsReported  NoShow[]          @relation("NoShowReportedByManager")
+  noShowsResolved  NoShow[]          @relation("NoShowResolvedByAdmin")
+
+  @@index([role])
+  @@index([city])
+}
+
+model Company {
+  id              String        @id @default(cuid())
+  ownerId         String        @unique
+  name            String
+  description     String?
+  logoUrl         String?
+  websiteUrl      String?
+  phone           String
+  email           String
+  addressLine1    String
+  addressLine2    String?
+  city            String
+  country         String        @default("RO")
+  postalCode      String?
+  lat             Float?
+  lng             Float?
+  workingHours    Json?
+  stripeAccountId String?
+  status          CompanyStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  pitches Pitch[]
+
+  @@index([city])
+  @@index([status])
+}
+
+model Pitch {
+  id                  String      @id @default(cuid())
+  companyId           String
+  name                String
+  description         String?
+  surfaceType         SurfaceType
+  size                PitchSize
+  widthMeters         Float?
+  lengthMeters        Float?
+  isActive            Boolean     @default(true)
+  coverPhotoIndex     Int         @default(0)
+  minBookingHours     Int         @default(1)
+  maxBookingHours     Int         @default(4)
+  advanceBookingDays  Int         @default(60)
+  offPeakRate         Decimal     @db.Decimal(10, 2)
+  peakRate            Decimal     @db.Decimal(10, 2)
+  peakHoursDefinition Json?
+  shirtRentalPrice    Decimal?    @db.Decimal(10, 2)
+  hasShirts           Boolean     @default(false)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  photos          PitchPhoto[]
+  amenities       PitchAmenity[]
+  shirtInventory  ShirtInventory[]
+  bookings        Booking[]
+  reviews         Review[]
+
+  @@index([companyId])
+  @@index([isActive])
+}
+
+model PitchPhoto {
+  id                 String   @id @default(cuid())
+  pitchId            String
+  url                String
+  cloudinaryPublicId String
+  order              Int      @default(0)
+  createdAt          DateTime @default(now())
+
+  pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@index([pitchId, order])
+}
+
+model PitchAmenity {
+  id          String      @id @default(cuid())
+  pitchId     String
+  amenityType AmenityType
+  isPaid      Boolean     @default(false)
+  price       Decimal?    @db.Decimal(10, 2)
+
+  pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, amenityType])
+  @@index([pitchId])
+}
+
+model ShirtInventory {
+  id       String      @id @default(cuid())
+  pitchId  String
+  colour   ShirtColour
+  quantity Int         @default(0)
+
+  pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, colour])
+  @@index([pitchId])
+}
+
+model Booking {
+  id                    String        @id @default(cuid())
+  pitchId               String
+  playerId              String
+  startTime             DateTime
+  endTime               DateTime
+  teamCount             Int
+  teamsData             Json?
+  noteToManager         String?
+  status                BookingStatus @default(PENDING)
+  cancelledBy           CancelledBy?
+  cancelledAt           DateTime?
+  cancellationReason    String?
+  pitchRateSnapshot     Decimal       @db.Decimal(10, 2)
+  shirtRateSnapshot     Decimal?      @db.Decimal(10, 2)
+  platformFee           Decimal       @db.Decimal(10, 2)
+  totalAmount           Decimal       @db.Decimal(10, 2)
+  refundAmount          Decimal?      @db.Decimal(10, 2)
+  stripePaymentIntentId String?
+  stripeRefundId        String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  pitch  Pitch @relation(fields: [pitchId], references: [id], onDelete: Restrict)
+  player User  @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  noShow           NoShow?
+  review           Review?
+  trustScoreEvents TrustScoreEvent[]
+
+  @@index([pitchId, startTime])
+  @@index([playerId])
+  @@index([status])
+}
+
+model NoShow {
+  id                   String        @id @default(cuid())
+  bookingId            String        @unique
+  reportedByManagerId  String
+  reason               String?
+  penaltyAmount        Decimal       @db.Decimal(10, 2)
+  disputeStatus        DisputeStatus @default(NONE)
+  disputeText          String?
+  disputeEvidenceUrls  Json?
+  resolvedByAdminId    String?
+  resolvedAt           DateTime?
+  createdAt            DateTime      @default(now())
+
+  booking           Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  reportedByManager User    @relation("NoShowReportedByManager", fields: [reportedByManagerId], references: [id], onDelete: Restrict)
+  resolvedByAdmin   User?   @relation("NoShowResolvedByAdmin", fields: [resolvedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([disputeStatus])
+  @@index([reportedByManagerId])
+}
+
+model Review {
+  id               String           @id @default(cuid())
+  bookingId        String           @unique
+  pitchId          String
+  playerId         String
+  rating           Int
+  text             String?
+  photoUrls        Json?
+  isAnonymous      Boolean          @default(false)
+  managerReply     String?
+  managerRepliedAt DateTime?
+  isFlagged        Boolean          @default(false)
+  flagReason       String?
+  moderationStatus ModerationStatus @default(APPROVED)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  pitch   Pitch   @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  player  User    @relation(fields: [playerId], references: [id], onDelete: Restrict)
+
+  @@index([pitchId])
+  @@index([playerId])
+  @@index([moderationStatus])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  sentPush  Boolean          @default(false)
+  sentEmail Boolean          @default(false)
+  sentSms   Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead])
+}
+
+model TrustScoreEvent {
+  id               String           @id @default(cuid())
+  userId           String
+  delta            Int
+  reason           TrustScoreReason
+  relatedBookingId String?
+  createdAt        DateTime         @default(now())
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedBooking Booking? @relation(fields: [relatedBookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+}
+
+model City {
+  id      String @id @default(cuid())
+  name    String @unique
+  county  String
+  country String @default("RO")
+
+  @@index([country])
+}
