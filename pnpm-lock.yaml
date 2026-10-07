@@ -112,6 +112,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@auth/prisma-adapter':
+        specifier: ^2.11.3
+        version: 2.11.3(@prisma/client@5.22.0(prisma@5.22.0))
       '@pitchup/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -127,6 +130,9 @@ importers:
       next:
         specifier: ^15.0.0
         version: 15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      next-auth:
+        specifier: 5.0.0-beta.32
+        version: 5.0.0-beta.32(next@15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)
       react:
         specifier: ^19.0.0
         version: 19.3.0
@@ -182,6 +188,25 @@ packages:
   '@alloc/quick-lru@5.3.0':
     resolution: {integrity: sha512-U4+70Pc5ZS9osnCBCE5Jha/ciHM+Yp+CNMNC/7HvYbNRk1Ldd+f7qO65W5qfhu/TCv+/ozljlXXe9Nj8419DMA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@alloc/quick-lru/-/quick-lru-5.3.0.tgz}
     engines: {node: '>=10'}
+
+  '@auth/core@0.41.3':
+    resolution: {integrity: sha512-sJ3JMHHkXMD3aOjopv7mOBTO1Ocw4b0fAEXJBz6k7YHLpYQI6C40jCUPc5fNvUKxXRXNE1/sRISA15UrwWJBTw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@auth/core/-/core-0.41.3.tgz}
+    peerDependencies:
+      '@simplewebauthn/browser': ^9.0.1
+      '@simplewebauthn/server': ^9.0.2
+      nodemailer: ^7.0.7 || ^8.0.5
+    peerDependenciesMeta:
+      '@simplewebauthn/browser':
+        optional: true
+      '@simplewebauthn/server':
+        optional: true
+      nodemailer:
+        optional: true
+
+  '@auth/prisma-adapter@2.11.3':
+    resolution: {integrity: sha512-jZbpVAO6PTc9zNtdTWc0RLWG8qap4iMc54/3oWaWbuKdj92wHxzPrs3HivWB2mB9975GPW0l3YM/wFUWiUlTlg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@auth/prisma-adapter/-/prisma-adapter-2.11.3.tgz}
+    peerDependencies:
+      '@prisma/client': '>=2.26.0 || >=3 || >=4 || >=5 || >=6'
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@babel/code-frame/-/code-frame-7.29.7.tgz}
@@ -1387,6 +1412,9 @@ packages:
   '@nodelib/fs.walk@1.2.8':
     resolution: {integrity: sha512-oGB+UxlgWcgQkgwo8GcEGwemoTFt3FIO9ababBmaGwXIoBKZ+GTy0pP185beGg7Llih/NSHSV2XAs1lnznocSg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@nodelib/fs.walk/-/fs.walk-1.2.8.tgz}
     engines: {node: '>= 8'}
+
+  '@panva/hkdf@1.2.1':
+    resolution: {integrity: sha512-6oclG6Y3PiDFcoyk8srjLfVKyMfVCKJ27JwNPViuXziFpmdz+MZnZN/aKY0JGXgYuO/VghU0jcOAZgWXZ1Dmrw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@panva/hkdf/-/hkdf-1.2.1.tgz}
 
   '@prisma/client@5.22.0':
     resolution: {integrity: sha512-M0SVXfyHnQREBKxCgyo7sffrKttwE6R8PMq330MIUF0pTwjUhLbW84pFDlf06B27XyCR++VtjugEnIHdr07SVA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@prisma/client/-/client-5.22.0.tgz}
@@ -2667,6 +2695,9 @@ packages:
   joi@17.13.8:
     resolution: {integrity: sha512-iPKOGmiRw1jxf/JOPwxmCcUQAOdF359mdzYiP2DJ+TMX0YK2zjK3D+zYOaGjpumWxOFF/l2xVWjRVK5bGSLdEw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/joi/-/joi-17.13.8.tgz}
 
+  jose@6.2.12:
+    resolution: {integrity: sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/jose/-/jose-6.2.12.tgz}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/js-tokens/-/js-tokens-4.0.0.tgz}
 
@@ -2943,6 +2974,22 @@ packages:
   neo-async@2.6.2:
     resolution: {integrity: sha512-Yd3UES5mWCSqR+qNT93S3UoYUkqAZ9lLg8a7g9rimsWmYGK8cVToA4/sF3RrshdyV3sAGMXVUmpMYOw+dLpOuw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/neo-async/-/neo-async-2.6.2.tgz}
 
+  next-auth@5.0.0-beta.32:
+    resolution: {integrity: sha512-CGlChIEWZ6LltNVxrE5yiySMID+Idpmry47JYA5lLwgD8Sx02a8M65VL0TWVz9nbnOioS/tCW/rP/0+mE7Qp4Q==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/next-auth/-/next-auth-5.0.0-beta.32.tgz}
+    peerDependencies:
+      '@simplewebauthn/browser': ^9.0.1
+      '@simplewebauthn/server': ^9.0.2
+      next: ^14.0.0-0 || ^15.0.0 || ^16.0.0
+      nodemailer: ^7.0.7 || ^8.0.5
+      react: ^18.2.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@simplewebauthn/browser':
+        optional: true
+      '@simplewebauthn/server':
+        optional: true
+      nodemailer:
+        optional: true
+
   next@15.5.27:
     resolution: {integrity: sha512-F82CrlPZ8GRxBH9RIIoR3qU1t5RT3dv1K8moe8SjlDEquiFipvEI13R1Om90TaUOEwShkWCMlg8+gvTNzfMhvg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/next/-/next-15.5.27.tgz}
     engines: {node: ^18.18.0 || ^19.8.0 || >= 20.0.0}
@@ -3006,6 +3053,9 @@ packages:
 
   nullthrows@1.1.1:
     resolution: {integrity: sha512-2vPPEi+Z7WqML2jZYddDIfy5Dqb0r2fze2zTxNNknZaFpVHU3mFB3R+DWeJWGVx0ecvttSGlJTI+WG+8Z4cDWw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/nullthrows/-/nullthrows-1.1.1.tgz}
+
+  oauth4webapi@3.8.8:
+    resolution: {integrity: sha512-8N28E+a/oxfXWBgOMt+ZP/JUf/XR+IFbvkAEPP3gznXOMv9BpAAwiIj0TFNz3tGTPc0ZQ8zmWBNgN1nAys0gng==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/oauth4webapi/-/oauth4webapi-3.8.8.tgz}
 
   ob1@0.81.5:
     resolution: {integrity: sha512-iNpbeXPLmaiT9I5g16gFFFjsF3sGxLpYG2EGP3dfFB4z+l9X60mp/yRzStHhMtuNt8qmf7Ww80nOPQHngHhnIQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/ob1/-/ob1-0.81.5.tgz}
@@ -3186,6 +3236,14 @@ packages:
   postcss@8.5.29:
     resolution: {integrity: sha512-49cGhUbXj8Qenv0iTMxA1cFBzxXoctpC9Ujd77t1WcbJIr6nF/eI7g/8MgxrYldFRuAXvja7xQRwavoW7kgrxQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/postcss/-/postcss-8.5.29.tgz}
     engines: {node: ^10 || ^12 || >=14}
+
+  preact-render-to-string@6.5.11:
+    resolution: {integrity: sha512-ubnauqoGczeGISiOh6RjX0/cdaF8v/oDXIjO85XALCQjwQP+SB4RDXXtvZ6yTYSjG+PC1QRP2AhPgCEsM2EvUw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/preact-render-to-string/-/preact-render-to-string-6.5.11.tgz}
+    peerDependencies:
+      preact: '>=10'
+
+  preact@10.24.3:
+    resolution: {integrity: sha512-Z2dPnBnMUfyQfSQ+GBdsGa16hz35YmLmtTLhM169uW944hYL6xzTYkJjC07j+Wosz733pMWx0fgON3JNw1jJQA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/preact/-/preact-10.24.3.tgz}
 
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/prelude-ls/-/prelude-ls-1.2.1.tgz}
@@ -3825,6 +3883,23 @@ packages:
 snapshots:
 
   '@alloc/quick-lru@5.3.0': {}
+
+  '@auth/core@0.41.3':
+    dependencies:
+      '@panva/hkdf': 1.2.1
+      jose: 6.2.12
+      oauth4webapi: 3.8.8
+      preact: 10.24.3
+      preact-render-to-string: 6.5.11(preact@10.24.3)
+
+  '@auth/prisma-adapter@2.11.3(@prisma/client@5.22.0(prisma@5.22.0))':
+    dependencies:
+      '@auth/core': 0.41.3
+      '@prisma/client': 5.22.0(prisma@5.22.0)
+    transitivePeerDependencies:
+      - '@simplewebauthn/browser'
+      - '@simplewebauthn/server'
+      - nodemailer
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -5114,6 +5189,8 @@ snapshots:
       '@nodelib/fs.scandir': 2.1.5
       fastq: 1.20.3
 
+  '@panva/hkdf@1.2.1': {}
+
   '@prisma/client@5.22.0(prisma@5.22.0)':
     optionalDependencies:
       prisma: 5.22.0
@@ -5425,7 +5502,9 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - '@babel/preset-env'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.76.0': {}
 
@@ -6659,6 +6738,8 @@ snapshots:
       '@sideway/formula': 3.0.1
       '@sideway/pinpoint': 2.0.0
 
+  jose@6.2.12: {}
+
   js-tokens@4.0.0: {}
 
   js-yaml@3.15.2:
@@ -7035,6 +7116,12 @@ snapshots:
 
   neo-async@2.6.2: {}
 
+  next-auth@5.0.0-beta.32(next@15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0):
+    dependencies:
+      '@auth/core': 0.41.3
+      next: 15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      react: 19.3.0
+
   next@15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       '@next/env': 15.5.27
@@ -7084,6 +7171,8 @@ snapshots:
       path-key: 3.1.1
 
   nullthrows@1.1.1: {}
+
+  oauth4webapi@3.8.8: {}
 
   ob1@0.81.5:
     dependencies:
@@ -7249,6 +7338,12 @@ snapshots:
       nanoid: 3.3.20
       picocolors: 1.1.1
       source-map-js: 1.2.2
+
+  preact-render-to-string@6.5.11(preact@10.24.3):
+    dependencies:
+      preact: 10.24.3
+
+  preact@10.24.3: {}
 
   prelude-ls@1.2.1: {}
 

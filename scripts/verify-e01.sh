@@ -117,6 +117,81 @@ else
   echo "  SKIP  no build output (run: pnpm --filter @pitchup/web build)"
 fi
 
+step "API layer and auth (E01-08, E01-09)"
+(cd apps/web && pnpm dev >/tmp/verify-api.log 2>&1 &) 
+api_up=0
+for _ in $(seq 1 45); do
+  curl -sf -o /dev/null http://localhost:3000/api/v1/health 2>/dev/null && { api_up=1; break; }
+  sleep 1
+done
+if [ "$api_up" -eq 0 ]; then
+  bad "dev server did not start (see /tmp/verify-api.log)"
+else
+  sleep 2
+  body=$(curl -s http://localhost:3000/api/v1/health)
+  echo "$body" | grep -q '"status":"ok"' && echo "$body" | grep -q '"error":null' \
+    && ok "GET /api/v1/health returns the success envelope" \
+    || bad "health envelope wrong: $body"
+
+  code=$(curl -s -o /tmp/v401.json -w '%{http_code}' http://localhost:3000/api/v1/me)
+  [ "$code" = "401" ] && grep -q '"code":"UNAUTHORIZED"' /tmp/v401.json \
+    && ok "unauthenticated /api/v1/me returns 401 UNAUTHORIZED" \
+    || bad "expected 401 UNAUTHORIZED, got $code"
+
+  rm -f /tmp/vcj.txt
+  csrf=$(curl -s -c /tmp/vcj.txt http://localhost:3000/api/auth/csrf \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrfToken"])' 2>/dev/null)
+  curl -s -b /tmp/vcj.txt -c /tmp/vcj.txt -o /dev/null \
+    -X POST http://localhost:3000/api/auth/callback/credentials \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-urlencode "csrfToken=$csrf" \
+    --data-urlencode 'email=admin@pitchup.ro' \
+    --data-urlencode "password=${ADMIN_PASSWORD:-Admin1234!}" 2>/dev/null
+  grep -q 'authjs.session-token' /tmp/vcj.txt \
+    && ok "credentials login sets a session cookie" \
+    || bad "login did not set a session cookie"
+
+  curl -s -b /tmp/vcj.txt http://localhost:3000/api/v1/me | grep -q '"role":"ADMIN"' \
+    && ok "authenticated /api/v1/me returns the session user" \
+    || bad "/api/v1/me did not return the signed-in admin"
+
+  # PRD §6.6: a wrong password and an unknown email must be indistinguishable.
+  probe_redirect() {
+    rm -f /tmp/vp.txt
+    local c
+    c=$(curl -s -c /tmp/vp.txt http://localhost:3000/api/auth/csrf \
+      | python3 -c 'import json,sys; print(json.load(sys.stdin)["csrfToken"])' 2>/dev/null)
+    curl -s -b /tmp/vp.txt -o /dev/null -w '%{redirect_url}' \
+      -X POST http://localhost:3000/api/auth/callback/credentials \
+      -H 'Content-Type: application/x-www-form-urlencoded' \
+      --data-urlencode "csrfToken=$c" --data-urlencode "email=$1" \
+      --data-urlencode 'password=DefinitelyWrong1' 2>/dev/null
+  }
+  r1=$(probe_redirect 'admin@pitchup.ro')
+  r2=$(probe_redirect 'nobody@nowhere.invalid')
+  [ -n "$r1" ] && [ "$r1" = "$r2" ] \
+    && ok "wrong password and unknown email are indistinguishable" \
+    || bad "login failures differ: '$r1' vs '$r2'"
+
+  redir=$(curl -s -o /dev/null -w '%{redirect_url}' http://localhost:3000/dashboard)
+  case "$redir" in
+    *"/login"*) ok "/dashboard redirects to /login when signed out" ;;
+    *)          bad "/dashboard did not redirect (got '$redir')" ;;
+  esac
+
+  curl -s -b /tmp/vcj.txt -o /dev/null -w '%{http_code}' http://localhost:3000/dashboard \
+    | grep -q 200 && ok "/dashboard renders when signed in" || bad "/dashboard blocked while signed in"
+
+  limited=0
+  for _ in $(seq 1 70); do
+    [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/v1/health)" = "429" ] \
+      && { limited=1; break; }
+  done
+  [ "$limited" -eq 1 ] && ok "rate limiter returns 429 past the window limit" \
+    || bad "rate limiter never triggered"
+fi
+pkill -f 'next dev' 2>/dev/null || true
+
 step "Typecheck — all three packages"
 pnpm typecheck >/dev/null 2>&1 && ok "web, mobile and shared compile" || bad "typecheck failed (run: pnpm typecheck)"
 
