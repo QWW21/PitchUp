@@ -82,6 +82,41 @@ else
   bad "scripts/verify-shared.ts missing"
 fi
 
+step "Environment validation (E01-05)"
+cat > apps/web/.verify-env.mjs <<'MJS'
+try { await import('./src/lib/env.ts'); console.log('ACCEPTED') }
+catch { console.log('REJECTED') }
+MJS
+envcase() { # label, expected, env assignments...
+  local label="$1" want="$2"; shift 2
+  local got
+  got=$(cd apps/web && env -i PATH="$PATH" HOME="$HOME" "$@" \
+    ./node_modules/.bin/tsx --no-warnings .verify-env.mjs 2>/dev/null | tail -1)
+  [ "$got" = "$want" ] && ok "$label" || bad "$label (got $got, want $want)"
+}
+DB='DATABASE_URL=postgresql://postgres:password@localhost:5432/pitchup_dev?schema=public'
+SEC="NEXTAUTH_SECRET=$(printf 'x%.0s' {1..32})"
+URL='NEXT_PUBLIC_APP_URL=http://localhost:3000'
+envcase "valid env accepted"            ACCEPTED "$DB" "$SEC" "$URL"
+envcase "missing DATABASE_URL rejected" REJECTED        "$SEC" "$URL"
+envcase "malformed DATABASE_URL rejected" REJECTED 'DATABASE_URL=nope' "$SEC" "$URL"
+envcase "short NEXTAUTH_SECRET rejected" REJECTED "$DB" 'NEXTAUTH_SECRET=short' "$URL"
+envcase "empty NEXTAUTH_SECRET rejected" REJECTED "$DB" 'NEXTAUTH_SECRET=' "$URL"
+envcase "bad STRIPE prefix rejected"    REJECTED "$DB" "$SEC" "$URL" 'STRIPE_SECRET_KEY=pk_x'
+envcase "bad TWILIO phone rejected"     REJECTED "$DB" "$SEC" "$URL" 'TWILIO_PHONE_NUMBER=07123'
+rm -f apps/web/.verify-env.mjs
+
+step "Server secrets stay out of the client bundle"
+if [ -d apps/web/.next/static ]; then
+  secret=$(grep '^NEXTAUTH_SECRET' apps/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"')
+  leaked=0
+  [ -n "$secret" ] && grep -rqF "$secret" apps/web/.next/static 2>/dev/null && leaked=1
+  grep -rqF 'pitchup_dev' apps/web/.next/static 2>/dev/null && leaked=1
+  [ "$leaked" -eq 0 ] && ok "no server secret found in .next/static" || bad "a server secret reached the client bundle"
+else
+  echo "  SKIP  no build output (run: pnpm --filter @pitchup/web build)"
+fi
+
 step "Typecheck — all three packages"
 pnpm typecheck >/dev/null 2>&1 && ok "web, mobile and shared compile" || bad "typecheck failed (run: pnpm typecheck)"
 
