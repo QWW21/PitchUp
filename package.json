@@ -1,16 +1,18 @@
 {
   "name": "pitchup",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "clean": "turbo clean && rm -rf node_modules"
+    "clean": "turbo clean && rm -rf node_modules",
+    "db:generate": "pnpm --filter @pitchup/web db:generate",
+    "db:push": "pnpm --filter @pitchup/web db:push",
+    "db:migrate": "pnpm --filter @pitchup/web db:migrate",
+    "db:studio": "pnpm --filter @pitchup/web db:studio",
+    "db:seed": "pnpm --filter @pitchup/web db:seed"
   },
   "devDependencies": {
     "turbo": "^2.3.3",
@@ -18,6 +20,6 @@
   },
   "engines": {
     "node": ">=20.0.0",
-    "npm": ">=10.0.0"
+    "pnpm": ">=9.0.0"
   }
 }
