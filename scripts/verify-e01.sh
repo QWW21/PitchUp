@@ -112,6 +112,8 @@ if [ -d apps/web/.next/static ]; then
   leaked=0
   [ -n "$secret" ] && grep -rqF "$secret" apps/web/.next/static 2>/dev/null && leaked=1
   grep -rqF 'pitchup_dev' apps/web/.next/static 2>/dev/null && leaked=1
+  cloud=$(grep '^CLOUDINARY_API_SECRET' apps/web/.env 2>/dev/null | cut -d= -f2- | tr -d '"')
+  [ -n "$cloud" ] && grep -rqF "$cloud" apps/web/.next/static 2>/dev/null && leaked=1
   [ "$leaked" -eq 0 ] && ok "no server secret found in .next/static" || bad "a server secret reached the client bundle"
 else
   echo "  SKIP  no build output (run: pnpm --filter @pitchup/web build)"
@@ -191,6 +193,23 @@ else
     || bad "rate limiter never triggered"
 fi
 pkill -f 'next dev' 2>/dev/null || true
+
+step "Cloudinary signing (E01-10)"
+cat > apps/web/.verify-sig.ts <<'TS'
+import crypto from 'node:crypto'
+import { v2 as cloudinary } from 'cloudinary'
+const SECRET = 'test_secret_value'
+cloudinary.config({ cloud_name: 'demo', api_key: '1', api_secret: SECRET, secure: true })
+const ts = 1700000000
+const folder = 'pitchup/pitches/abc'
+const ours = cloudinary.utils.api_sign_request({ folder, timestamp: ts }, SECRET)
+const want = crypto.createHash('sha1').update(`folder=${folder}&timestamp=${ts}` + SECRET).digest('hex')
+console.log(ours === want && !ours.includes(SECRET) ? 'OK' : 'BAD')
+TS
+(cd apps/web && ./node_modules/.bin/tsx .verify-sig.ts 2>/dev/null) | grep -q OK \
+  && ok "upload signature matches Cloudinary's sha1 scheme" \
+  || bad "signature algorithm mismatch"
+rm -f apps/web/.verify-sig.ts
 
 step "Typecheck — all three packages"
 pnpm typecheck >/dev/null 2>&1 && ok "web, mobile and shared compile" || bad "typecheck failed (run: pnpm typecheck)"

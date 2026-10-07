@@ -127,6 +127,9 @@ importers:
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
+      cloudinary:
+        specifier: ^2.11.0
+        version: 2.11.0
       next:
         specifier: ^15.0.0
         version: 15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -139,6 +142,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
+      server-only:
+        specifier: ^0.0.1
+        version: 0.0.1
       zod:
         specifier: ^3.23.0
         version: 3.25.76
@@ -2066,6 +2072,10 @@ packages:
     resolution: {integrity: sha512-JQHZ2QMW6l3aH/j6xCqQThY/9OH4D/9ls34cgkUBiEeocRTU04tHfKPBsUK1PqZCUQM7GiA0IIXJSuXHI64Kbg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/clone/-/clone-1.0.4.tgz}
     engines: {node: '>=0.8'}
 
+  cloudinary@2.11.0:
+    resolution: {integrity: sha512-o2pAkDDqrzPFE/mn9GCfFjBIGQmPs++Ts6rtkFl4vY528DNHiMovKWjH16HBjeGa9iwI7eAad24aWN2emT0aww==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/cloudinary/-/cloudinary-2.11.0.tgz}
+    engines: {node: '>=9'}
+
   color-convert@1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/color-convert/-/color-convert-1.9.3.tgz}
 
@@ -2804,6 +2814,9 @@ packages:
   lodash.throttle@4.1.1:
     resolution: {integrity: sha512-wIkUCfVKpVsWo3JSZlc+8MB5it+2AN5W8J7YVMST30UrvcQNZ1Okbj+rbVniijTWE6FGYy4XJq/rHkas8qJMLQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/lodash.throttle/-/lodash.throttle-4.1.1.tgz}
 
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/lodash/-/lodash-4.18.1.tgz}
+
   log-symbols@4.1.0:
     resolution: {integrity: sha512-8XPvpAA8uyhfteu8pIvQxpJZ7SYYdpUivZpGy6sFsBuKRY/7rQGavedeB8aK+Zkyq6upMFVL/9AW6vOYzfRyLg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/log-symbols/-/log-symbols-4.1.0.tgz}
     engines: {node: '>=10'}
@@ -3464,6 +3477,9 @@ packages:
   serve-static@1.16.3:
     resolution: {integrity: sha512-x0RTqQel6g5SY7Lg6ZreMmsOzncHFU7nhnRWkKgWuMTu5NN0DR5oruckMqRvacAN9d5w6ARnRBXl9xhDCgfMeA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/serve-static/-/serve-static-1.16.3.tgz}
     engines: {node: '>= 0.8.0'}
+
+  server-only@0.0.1:
+    resolution: {integrity: sha512-qepMx2JxAa5jjfzxG79yPPq+8BuFToHd1hm7kI+Z4zAq1ftQiP7HcxMhDDItrbtwVeLg/cY2JnKnrcFkmiswNA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/server-only/-/server-only-0.0.1.tgz}
 
   set-blocking@2.0.0:
     resolution: {integrity: sha512-KiKBS8AnWGEyLzofFfmvKwpdPzqiy16LvQfK3yv/fVH7Bj13/wl3JSR1J+rfgRE9q7xUJK4qvgS8raSOeLUehw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/set-blocking/-/set-blocking-2.0.0.tgz}
@@ -5502,9 +5518,7 @@ snapshots:
     transitivePeerDependencies:
       - '@babel/core'
       - '@babel/preset-env'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.76.0': {}
 
@@ -6070,6 +6084,10 @@ snapshots:
       shallow-clone: 3.0.1
 
   clone@1.0.4: {}
+
+  cloudinary@2.11.0:
+    dependencies:
+      lodash: 4.18.1
 
   color-convert@1.9.3:
     dependencies:
@@ -6851,6 +6869,8 @@ snapshots:
 
   lodash.throttle@4.1.1: {}
 
+  lodash@4.18.1: {}
+
   log-symbols@4.1.0:
     dependencies:
       chalk: 4.1.2
@@ -7606,6 +7626,8 @@ snapshots:
       send: 0.19.2
     transitivePeerDependencies:
       - supports-color
+
+  server-only@0.0.1: {}
 
   set-blocking@2.0.0: {}
 
