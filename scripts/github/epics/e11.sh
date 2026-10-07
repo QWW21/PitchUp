@@ -252,8 +252,10 @@ type ManagerBookingDetail = {
     id:           string;
     displayName:  string;
     avatarUrl:    string | null;
-    trustScore:   number;
-    trustTier:    TrustTier;
+    // PRD §9.1: "Score is not visible to managers directly (to avoid
+     // discrimination)". The platform enforces the Poor and Suspended tiers
+     // at booking time; a manager sees behaviour, not a score.
+     totalBookings: number;
     totalBookings: number;       // bookings with this manager's company
     noShowCount:   number;
   };
@@ -798,7 +800,7 @@ Full-page booking detail for a specific booking. Shows all booking info, player 
 │ BOOKING DETAILS          │ PLAYER INFO                      │
 │ Pitch: Pitch A           │ [Avatar 48px] Ali Hassan        │
 │ Date:  Mon 12 Aug 2025   │ Trust Score: ██████░░ 720       │
-│ Time:  14:00 – 16:00     │ Tier: GOLD                      │
+│ Time:  14:00 – 16:00     │ With you: 12 played, 0 no-shows │
 │ Team:  7-a-side          │ No-shows: 0    Total: 12        │
 │ Shirts: Red ×7           │                                  │
 ├──────────────────────────┼─────────────────────────────────┤
@@ -814,14 +816,20 @@ Full-page booking detail for a specific booking. Shows all booking info, player 
 └────────────────────────────────────────────────────────────┘
 ```
 
-## TrustTier badge colours
+## Player reliability, without exposing the score
+
+PRD §9.1 keeps the trust score hidden from managers to avoid discrimination.
+Show observable history for this manager's own venue instead:
+
 ```typescript
-const TIER_COLORS = {
-  BRONZE:   'bg-amber-700  text-white',
-  SILVER:   'bg-gray-400   text-white',
-  GOLD:     'bg-yellow-500 text-white',
-  PLATINUM: 'bg-cyan-600   text-white',
-};
+// Counts scoped to this manager's company — facts about their own bookings,
+// not a platform-wide judgement of the player.
+interface PlayerReliability {
+  totalBookings: number   // with this company
+  completed:     number
+  noShows:       number
+  lateCancels:   number
+}
 ```
 
 ## No-Show Confirm Modal

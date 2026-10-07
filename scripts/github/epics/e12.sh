@@ -11,136 +11,140 @@ echo "→ Using milestone #$MILESTONE (E12 — Penalty & Trust)"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────────────────
-# E12-01 — Backend: applyTrustEvent() engine + TrustEvent model
+# E12-01 — Backend: applyTrustEvent() engine
 # ─────────────────────────────────────────────────────────────────────────────
 title="[E12-01] [Backend] applyTrustEvent() trust score engine — full implementation"
 read -r -d '' body << 'BODY' || true
 ## Summary
-Implement the full `applyTrustEvent()` function that replaces the stub created in E11-04. Applies a delta to a user's trust score, clamps to [0, 1000], updates trust tier, and creates a `TrustEvent` audit row atomically. This is the core trust engine used by no-show marking, dispute resolution, and positive events.
+Implement the full `applyTrustEvent()` function that replaces the stub created in E11-04. Applies a delta to a user's trust score, clamps to [0, 100], and creates a `TrustScoreEvent` audit row atomically. This is the core trust engine used by no-show marking, dispute resolution, and positive events.
 
 ## Reference
 - PRD §11.1 Trust Score Engine
 
 ## Files to create / modify
-- `packages/shared/src/trust/engine.ts` — `applyTrustEvent`, `deriveTier`, `TIER_CONFIG`, `TRUST_EVENTS`
+- `packages/shared/src/trust/engine.ts` — `deriveTier`, `meetsMinTier` (TRUST_SCORE_DELTAS and TRUST_TIERS already exist in `packages/shared/src/constants/trust.ts`)
 - `apps/web/src/lib/trust/applyTrustEvent.ts` — server-side wrapper calling Prisma inside transaction
 - Replace stub in `apps/web/src/lib/trust/stub.ts` with import of real function
 
 ## Trust Event Deltas
 ```typescript
 // packages/shared/src/trust/engine.ts
-export const TRUST_EVENTS = {
-  // Negative
-  NO_SHOW:                   -10,
-  LATE_CANCELLATION:          -5,   // cancel < 2h before
-  DISPUTE_UPHELD_AGAINST:    -15,
-  // Positive
-  BOOKING_COMPLETED:          +2,
-  REVIEW_LEFT:                +3,
-  PROFILE_VERIFIED:          +10,
-  DISPUTE_RESOLVED_IN_FAVOUR: +5,
-} as const;
+// Canonical values live in packages/shared/src/constants/trust.ts as
+// TRUST_SCORE_DELTAS. They are reproduced here for reference only — import
+// them, do not redeclare them. Source: PRD §9.1.
+export const TRUST_SCORE_DELTAS: Record<TrustScoreReason, number> = {
+  BOOKING_COMPLETED:  +2,   // capped at +10 per calendar month
+  REVIEW_LEFT:        +1,
+  LATE_CANCEL:        -5,   // cancelled 2-24h before start
+  VERY_LATE_CANCEL:  -10,   // cancelled < 2h before start
+  NO_SHOW:           -20,
+  DISPUTE_WON:       +10,
+  MONTHLY_RECOVERY:   +1,
+};
 
-export type TrustEventType = keyof typeof TRUST_EVENTS;
+export type TrustScoreReason = keyof typeof TRUST_SCORE_DELTAS;
 ```
 
 ## Tier Config (already used by E08-02 stub — make canonical here)
 ```typescript
-export type TrustTier = 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+// Already implemented in packages/shared/src/constants/trust.ts as
+// TRUST_TIERS. Import it rather than redeclaring. Source: PRD §9.1.
+export type TrustTierLabel = 'Excellent' | 'Good' | 'Fair' | 'Poor' | 'Suspended';
 
-export const TIER_CONFIG: Record<TrustTier, { min: number; max: number; label: string }> = {
-  BRONZE:   { min: 0,   max: 399,  label: 'Bronze'   },
-  SILVER:   { min: 400, max: 649,  label: 'Silver'   },
-  GOLD:     { min: 650, max: 849,  label: 'Gold'     },
-  PLATINUM: { min: 850, max: 1000, label: 'Platinum' },
-};
+// TRUST_TIERS carries the booking restrictions per tier:
+//   Excellent 90-100  no restrictions
+//   Good      70-89   no restrictions
+//   Fair      50-69   requires a card on file
+//   Poor      30-49   requires 100% upfront, max 1 active booking
+//   Suspended  0-29   cannot book
 
-export function deriveTier(score: number): TrustTier {
-  if (score >= 850) return 'PLATINUM';
-  if (score >= 650) return 'GOLD';
-  if (score >= 400) return 'SILVER';
-  return 'BRONZE';
+export function deriveTier(score: number): TrustTierLabel {
+  if (score >= 90) return 'Excellent';
+  if (score >= 70) return 'Good';
+  if (score >= 50) return 'Fair';
+  if (score >= 30) return 'Poor';
+  return 'Suspended';
 }
 ```
 
-## applyTrustEvent (server-side, runs inside Prisma tx)
+## applyTrustEvent (server-side, runs inside a Prisma transaction)
 ```typescript
 // apps/web/src/lib/trust/applyTrustEvent.ts
-import { TRUST_EVENTS, deriveTier, TrustEventType } from '@pitchup/shared';
-import { PrismaClient } from '@prisma/client';
+import { TRUST_SCORE_DELTAS, TRUST_SCORE_MIN, TRUST_SCORE_MAX } from '@pitchup/shared'
+import type { Prisma, TrustScoreReason } from '@prisma/client'
 
 export async function applyTrustEvent(
-  tx: PrismaClient,
+  tx: Prisma.TransactionClient,
   userId: string,
-  event: TrustEventType,
-  bookingId?: string,
+  reason: TrustScoreReason,
+  relatedBookingId?: string
 ) {
-  const delta = TRUST_EVENTS[event];
+  const delta = TRUST_SCORE_DELTAS[reason]
 
-  const user = await tx.user.update({
+  // Read and write in one statement so two concurrent events cannot both
+  // read the same starting score and lose one of the deltas.
+  const current = await tx.user.findUniqueOrThrow({
     where: { id: userId },
-    data: {
-      trustScore: { increment: delta },
-    },
     select: { trustScore: true },
-  });
+  })
 
-  // clamp to [0, 1000]
-  const clampedScore = Math.max(0, Math.min(1000, user.trustScore));
-  if (clampedScore !== user.trustScore) {
-    await tx.user.update({
-      where: { id: userId },
-      data: { trustScore: clampedScore },
-    });
-  }
+  const newScore = Math.max(
+    TRUST_SCORE_MIN,
+    Math.min(TRUST_SCORE_MAX, current.trustScore + delta)
+  )
 
-  const tier = deriveTier(clampedScore);
   await tx.user.update({
     where: { id: userId },
-    data: { trustTier: tier },
-  });
+    data: { trustScore: newScore },
+  })
 
-  await tx.trustEvent.create({
-    data: {
-      userId,
-      event,
-      delta,
-      bookingId: bookingId ?? null,
-      processed: true,
-    },
-  });
+  // The event row records the delta that was requested, even when clamping
+  // meant the score moved less — the history should show what happened.
+  await tx.trustScoreEvent.create({
+    data: { userId, delta, reason, relatedBookingId: relatedBookingId ?? null },
+  })
 
-  return { newScore: clampedScore, newTier: tier, delta };
+  return { newScore, delta, tier: deriveTier(newScore) }
 }
 ```
 
-## Schema additions
+> The tier is **not** stored. `deriveTier(user.trustScore)` is called wherever
+> it is displayed or enforced, so there is only one source of truth.
+
+## Schema — already in place, no additions needed
+
+E01-02 shipped these. Do not add a `trustTier` column: the tier is derived
+from the score with `deriveTier()`, so storing it as well creates two sources
+of truth that can disagree after a manual score adjustment.
+
 ```prisma
 model User {
-  trustScore Int       @default(500)
-  trustTier  TrustTier @default(SILVER)
-  trustEvents TrustEvent[]
+  trustScore       Int               @default(100)   // PRD §9.1
+  trustScoreEvents TrustScoreEvent[]
 }
 
-model TrustEvent {
-  id        String    @id @default(cuid())
-  userId    String
-  event     String
-  delta     Int
-  bookingId String?
-  processed Boolean   @default(true)
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id])
+model TrustScoreEvent {
+  id               String           @id @default(cuid())
+  userId           String
+  delta            Int
+  reason           TrustScoreReason
+  relatedBookingId String?
+  createdAt        DateTime         @default(now())
 
-  @@index([userId])
-  @@index([bookingId])
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  relatedBooking Booking? @relation(fields: [relatedBookingId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
 }
 
-enum TrustTier {
-  BRONZE
-  SILVER
-  GOLD
-  PLATINUM
+enum TrustScoreReason {
+  BOOKING_COMPLETED
+  REVIEW_LEFT
+  LATE_CANCEL
+  VERY_LATE_CANCEL
+  NO_SHOW
+  DISPUTE_WON
+  MONTHLY_RECOVERY
 }
 ```
 
@@ -156,28 +160,29 @@ enum TrustTier {
 ## Acceptance Criteria
 - [ ] `TRUST_EVENTS` map exported from `packages/shared`
 - [ ] `deriveTier` and `TIER_CONFIG` exported from `packages/shared`
-- [ ] Score clamped to [0, 1000] — never goes negative or above 1000
-- [ ] `trustTier` on User updated atomically with score
-- [ ] `TrustEvent` row created for every call
+- [ ] Score clamped to [0, 100] — never goes negative or above 100. PRD §9.1
+- [ ] `TrustScoreEvent` row created for every call, inside the same transaction as the score update
 - [ ] Stub in E11-04 deleted and replaced with real function
-- [ ] Prisma migration created: `trustScore`, `trustTier`, `TrustEvent` table
+- [ ] No migration needed — `trustScore` and `TrustScoreEvent` shipped in E01-02
 
 ## Unit Tests
 ```typescript
 describe('applyTrustEvent', () => {
   it('applies NO_SHOW delta -10');
   it('clamps score at 0 — no negative');
-  it('clamps score at 1000 — no overflow');
-  it('updates trustTier when crossing tier boundary');
-  it('creates TrustEvent row');
+  it('clamps score at 100 — no overflow');
+  it('deriveTier reflects the new score after crossing a boundary');
+  it('creates a TrustScoreEvent row');
 });
 
 describe('deriveTier', () => {
-  it('BRONZE for score 0');
-  it('SILVER for score 400');
-  it('GOLD for score 650');
-  it('PLATINUM for score 850');
-  it('PLATINUM for score 1000');
+  it('Suspended for score 0');
+  it('Suspended for score 29');
+  it('Poor for score 30');
+  it('Fair for score 50');
+  it('Good for score 70');
+  it('Excellent for score 90');
+  it('Excellent for score 100');
 });
 ```
 
@@ -268,30 +273,40 @@ export async function POST(req: NextRequest) {
 ## Acceptance Criteria
 - [ ] Manual complete applies `BOOKING_COMPLETED` trust event inside same transaction
 - [ ] Auto-complete cron processes bookings individually (not `updateMany`)
-- [ ] Each completion creates `TrustEvent` row with `delta: +2`
+- [ ] Each completion creates `TrustScoreEvent` row with `delta: +2`
 - [ ] Cron caps at 500 per run
 - [ ] Single booking failure doesn't abort other completions
 
 ## Edge Cases
 - `applyTrustEvent` throws → tx rolls back → booking stays CONFIRMED → next cron retry
 - Player deleted → skip (catch error, log, continue)
-- Score already at 1000 → clamp → TrustEvent still created with delta +2 but effective delta 0
+- Score already at 100 → clamp → TrustScoreEvent still created with delta +2 but effective change 0
 
 ## Definition of Done
 - [ ] Both files modified
 - [ ] Integration test: complete booking → trustScore increases by 2
-- [ ] Cron batch test: 10 eligible bookings → 10 TrustEvent rows
+- [ ] Cron batch test: 10 eligible bookings → 10 TrustScoreEvent rows
 BODY
 
 create_issue "$title" "$body" '["backend","epic:e12","type:feature"]' "$MILESTONE"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# E12-03 — Backend: LATE_CANCELLATION trust event on cancel
+# E12-03 — Backend: late-cancellation trust events on cancel
 # ─────────────────────────────────────────────────────────────────────────────
-title="[E12-03] [Backend] Apply LATE_CANCELLATION trust event on player cancel < 2h"
+title="[E12-03] [Backend] Apply late-cancellation trust events on player cancel"
 read -r -d '' body << 'BODY' || true
 ## Summary
-Wire trust penalty into the cancellation endpoint (E06-03). If a player cancels less than 2 hours before the booking start time, apply `LATE_CANCELLATION` (-5 trust points) in addition to the refund calculation.
+Wire the trust penalty into the cancellation endpoint (E06-03), alongside the refund calculation.
+
+PRD §9.1 distinguishes two windows, which map to the two reasons already in the `TrustScoreReason` enum:
+
+| Cancelled | Reason | Delta | Refund |
+|---|---|---|---|
+| > 24h before | none | 0 | 100% |
+| 2-24h before | `LATE_CANCEL` | -5 | 50% |
+| < 2h before | `VERY_LATE_CANCEL` | -10 | 0% |
+
+The refund side already exists as `calcRefundAmount` in `packages/shared`; this ticket adds the trust side on the same boundaries.
 
 ## Reference
 - PRD §11.3 Late Cancellation Penalty
@@ -312,7 +327,13 @@ await prisma.$transaction(async (tx) => {
 
   const hoursUntilStart = differenceInHours(booking.startTime, new Date());
   if (hoursUntilStart < 2) {
-    await applyTrustEvent(tx, user.id, 'LATE_CANCELLATION', booking.id);
+    const hoursUntilStart =
+      (booking.startTime.getTime() - Date.now()) / 3_600_000
+    if (hoursUntilStart < 2) {
+      await applyTrustEvent(tx, user.id, 'VERY_LATE_CANCEL', booking.id)
+    } else if (hoursUntilStart < 24) {
+      await applyTrustEvent(tx, user.id, 'LATE_CANCEL', booking.id)
+    }
   }
 
   // existing refund logic...
@@ -321,14 +342,15 @@ await prisma.$transaction(async (tx) => {
 ```
 
 ## Business Rule
-- `< 2h` before start → `LATE_CANCELLATION` penalty (-5)
+- `2-24h` before start → `LATE_CANCEL` (-5); `< 2h` → `VERY_LATE_CANCEL` (-10); `> 24h` → no penalty
 - `≥ 2h` before start → no trust penalty
 - Penalty applied even when refund is 0% (the trust deduction is independent of refund tier)
 - Only applies to player-initiated cancellation (not manager/admin cancellations)
 
 ## Acceptance Criteria
-- [ ] Cancel < 2h → TrustEvent row with `event: 'LATE_CANCELLATION', delta: -5`
-- [ ] Cancel ≥ 2h → no TrustEvent created
+- [ ] Cancel < 2h → TrustScoreEvent row with `reason: 'VERY_LATE_CANCEL', delta: -10`
+- [ ] Cancel 2-24h → TrustScoreEvent row with `reason: 'LATE_CANCEL', delta: -5`
+- [ ] Cancel > 24h → no TrustScoreEvent created. PRD §9.1
 - [ ] Trust deduction inside same transaction as cancellation
 - [ ] Manager-initiated cancellation does NOT apply penalty (check `actorId === booking.playerId`)
 
@@ -339,7 +361,9 @@ await prisma.$transaction(async (tx) => {
 
 ## Unit Tests
 ```typescript
-it('applies LATE_CANCELLATION when < 2h before start');
+it('applies VERY_LATE_CANCEL when < 2h before start');
+it('applies LATE_CANCEL when 2-24h before start');
+it('applies no trust event when > 24h before start');
 it('does NOT apply penalty when exactly 2h before start');
 it('does NOT apply penalty when > 2h before start');
 it('does NOT apply penalty when manager cancels');
@@ -361,7 +385,21 @@ read -r -d '' body << 'BODY' || true
 Complete the dispute flow. E06-04 created `POST /bookings/:id/dispute` (player opens dispute). This ticket adds:
 1. `GET /admin/disputes` — list open disputes for admin panel (E15 uses this)
 2. `PUT /admin/disputes/:id/resolve` — admin resolves dispute, applies trust events to both parties
-3. Trust events: `DISPUTE_UPHELD_AGAINST` (-15) and `DISPUTE_RESOLVED_IN_FAVOUR` (+5)
+3. Trust events on resolution
+
+PRD §9.1 defines one dispute outcome: **"Successful dispute of false no-show: +10 (restored)"** — `DISPUTE_WON`.
+
+A player who wins gets `DISPUTE_WON` (+10), which offsets the -20 the
+disputed no-show cost them. A player who loses keeps the no-show penalty
+already applied; there is no second penalty for having disputed, or players
+would be discouraged from disputing a genuine error.
+
+> **Open question — not covered by the PRD.** This ticket originally
+> penalised the *manager* when a player won. Managers have no trust score in
+> the PRD or the schema: `trustScore` exists on `User`, but no tier rule,
+> display, or booking gate applies to a manager. Decide before implementing:
+> drop manager penalties, or add a separate manager-reliability metric as its
+> own ticket. Do not silently reuse the player trust score for this.
 
 ## Reference
 - PRD §11.4 Dispute Resolution
@@ -429,16 +467,13 @@ export async function PUT(req, { params }) {
       data:  { status: outcome, resolution, resolvedById: admin.id, resolvedAt: new Date() },
     });
 
-    if (outcome === 'UPHELD_FOR_PLAYER') {
-      // player wins: refund + manager trust penalty
-      await applyTrustEvent(tx, dispute.playerId,                     'DISPUTE_RESOLVED_IN_FAVOUR', dispute.bookingId);
-      await applyTrustEvent(tx, dispute.booking.pitch.company.managerId, 'DISPUTE_UPHELD_AGAINST',    dispute.bookingId);
-      await issueDisputeRefund(tx, dispute.booking);
-    } else if (outcome === 'UPHELD_FOR_MANAGER') {
-      // manager wins: player trust penalty
-      await applyTrustEvent(tx, dispute.playerId, 'DISPUTE_UPHELD_AGAINST', dispute.bookingId);
+    if (outcome === 'RESOLVED_PLAYER') {
+      // Player wins: restore the trust the no-show cost them, and refund.
+      await applyTrustEvent(tx, dispute.playerId, 'DISPUTE_WON', dispute.bookingId)
+      await issueDisputeRefund(tx, dispute.booking)
     }
-    // DISMISSED: no trust events
+    // RESOLVED_MANAGER: the no-show penalty already applied stands. No
+    // further penalty — see the open question above on manager reliability.
   });
 
   return NextResponse.json({ success: true });
@@ -454,7 +489,7 @@ export async function PUT(req, { params }) {
 - [ ] `GET /admin/disputes` returns paginated OPEN disputes with booking + player details
 
 ## Edge Cases
-- Manager has no trust score entry yet → `applyTrustEvent` handles (creates from base 500)
+- User has no trust score events yet → `applyTrustEvent` starts from TRUST_SCORE_INITIAL (100)
 - Refund already issued → `issueDisputeRefund` checks idempotency key
 - Booking already CANCELLED → dispute resolution still applies trust events
 
@@ -474,8 +509,8 @@ title="[E12-05] [Backend] Monthly trust score recalculation cron + REVIEW_LEFT e
 read -r -d '' body << 'BODY' || true
 ## Summary
 Two trust engine additions:
-1. Wire `REVIEW_LEFT` (+3) trust event when player submits a review (E06-05)
-2. Monthly cron that recalculates every active user's trust score from scratch using their full `TrustEvent` history, correcting any drift from race conditions
+1. Wire `REVIEW_LEFT` (+1) trust event when player submits a review (E06-05)
+2. Monthly cron that recalculates every active user's trust score from scratch using their full `TrustScoreEvent` history, correcting any drift from race conditions
 
 ## Reference
 - PRD §11.5 Monthly Recalculation
@@ -516,19 +551,19 @@ export async function POST(req: NextRequest) {
   let updated = 0;
   for (const user of users) {
     try {
-      const events = await prisma.trustEvent.findMany({
+      const events = await prisma.trustScoreEvent.findMany({
         where:   { userId: user.id },
         select:  { delta: true },
       });
 
-      const base  = 500; // starting score for new users
-      const total = events.reduce((sum, e) => sum + e.delta, base);
-      const score = Math.max(0, Math.min(1000, total));
-      const tier  = deriveTier(score);
+      // Replaying every event from the initial score, rather than trusting
+      // the running total, repairs any drift from a failed partial write.
+      const total = events.reduce((sum, e) => sum + e.delta, TRUST_SCORE_INITIAL);
+      const score = Math.max(TRUST_SCORE_MIN, Math.min(TRUST_SCORE_MAX, total));
 
       await prisma.user.update({
         where: { id: user.id },
-        data:  { trustScore: score, trustTier: tier },
+        data:  { trustScore: score },
       });
       updated++;
     } catch (err) {
@@ -546,49 +581,59 @@ export async function POST(req: NextRequest) {
 ```
 
 ## Acceptance Criteria
-- [ ] `POST /reviews` (player) applies `REVIEW_LEFT` +3 inside same transaction
+- [ ] `POST /reviews` (player) applies `REVIEW_LEFT` +1 inside same transaction
 - [ ] Review by manager (reply) does NOT trigger REVIEW_LEFT
-- [ ] Monthly cron recalculates score = 500 + sum(all TrustEvent deltas), clamped [0,1000]
-- [ ] Tier updated alongside score
+- [ ] Monthly cron recalculates score = 100 + sum(all TrustScoreEvent deltas), clamped [0,100]
+- [ ] MONTHLY_RECOVERY of +1 applied for a month with no negative events. PRD §9.1
 - [ ] Cron rejects requests without `CRON_SECRET`
 - [ ] User failures don't abort other users
 
 ## Edge Cases
-- User with no TrustEvents → score stays at 500 (base), tier SILVER
-- User with only negative events pushing below 0 → clamped to 0, tier BRONZE
+- User with no TrustScoreEvents → score stays at 100 (initial), tier Excellent
+- User with only negative events pushing below 0 → clamped to 0, tier Suspended
+- Positive events cannot push above 100 — clamped. PRD §9.1
 - Duplicate review attempt (unique constraint) → review tx fails → no trust event applied
 
 ## Definition of Done
 - [ ] Review route modified
 - [ ] Recalc cron created
 - [ ] `vercel.json` updated
-- [ ] Unit test: sum(-10, +3, +2) + 500 = 495, tier SILVER
+- [ ] Unit test: 100 + (-20) + (+1) + (+2) = 83, tier Good
 BODY
 
 create_issue "$title" "$body" '["backend","epic:e12","type:feature"]' "$MILESTONE"
 
 # ─────────────────────────────────────────────────────────────────────────────
-# E12-06 — Backend: Trust tier booking gate + PROFILE_VERIFIED event
+# E12-06 — Backend: Trust tier booking gate
 # ─────────────────────────────────────────────────────────────────────────────
-title="[E12-06] [Backend] Trust tier booking gate + PROFILE_VERIFIED trust event"
+title="[E12-06] [Backend] Trust tier booking gate"
 read -r -d '' body << 'BODY' || true
 ## Summary
-Two trust-related gates:
-1. Pitches can require a minimum trust tier to book (`pitch.minTrustTier`). Gate enforced in `POST /bookings` (E05-07).
-2. `PROFILE_VERIFIED` (+10) trust event awarded once when player completes profile: avatar + phone number set.
+Pitches can require a minimum trust score to book (`pitch.minTrustScore`). The gate is enforced in `POST /bookings` (E05-07).
+
+Two PRD-mandated gates apply regardless of any per-pitch minimum (PRD §9.1):
+- **Suspended** (score < 30) cannot book at all.
+- **Poor** (30-49) may hold at most one active booking and must pay 100% upfront.
+
+> **Dropped from this ticket.** It previously added a `PROFILE_VERIFIED`
+> (+10) event. That is not in PRD §9.1 and not in the `TrustScoreReason`
+> enum. It is also a weak signal — setting an avatar says nothing about
+> whether someone turns up — and +10 is half the cost of a no-show, so it
+> would let a player offset bad behaviour by filling in a profile field. If
+> it is wanted, it needs its own ticket, a PRD change, and a migration to add
+> the enum value.
 
 ## Reference
 - PRD §11.6 Trust Gating
 
 ## Files to modify
 - `apps/web/src/app/api/v1/bookings/route.ts` — add tier gate
-- `apps/web/src/app/api/v1/profile/route.ts` — add PROFILE_VERIFIED event
 - `packages/shared/src/trust/engine.ts` — add `meetsMinTier()` helper
 
 ## Schema addition
 ```prisma
 model Pitch {
-  minTrustTier TrustTier @default(BRONZE)
+  minTrustScore Int @default(0)   // 0 = open to anyone who can book at all
 }
 ```
 
@@ -596,10 +641,11 @@ model Pitch {
 ```typescript
 // packages/shared/src/trust/engine.ts
 const TIER_ORDER: Record<TrustTier, number> = {
-  BRONZE:   0,
-  SILVER:   1,
-  GOLD:     2,
-  PLATINUM: 3,
+  Suspended: 0,
+  Poor:      1,
+  Fair:      2,
+  Good:      3,
+  Excellent: 4,
 };
 
 export function meetsMinTier(userTier: TrustTier, minTier: TrustTier): boolean {
@@ -611,32 +657,15 @@ export function meetsMinTier(userTier: TrustTier, minTier: TrustTier): boolean {
 ```typescript
 // After auth, before conflict check:
 const pitch = await prisma.pitch.findUniqueOrThrow({ where: { id: body.pitchId } });
-if (!meetsMinTier(player.trustTier, pitch.minTrustTier)) {
+if (!meetsMinTier(deriveTier(player.trustScore), pitch.minTrustScore)) {
   return NextResponse.json(
     {
       error:    'Trust tier too low',
-      required: pitch.minTrustTier,
-      current:  player.trustTier,
+      required: deriveTier(pitch.minTrustScore),
+      current:  deriveTier(player.trustScore),
     },
     { status: 403 }
   );
-}
-```
-
-## PROFILE_VERIFIED event (PUT /profile)
-```typescript
-// In PUT /profile, after update:
-const wasVerified = !!existingUser.avatarUrl && !!existingUser.phone;
-const isNowVerified = !!updatedUser.avatarUrl && !!updatedUser.phone;
-
-if (!wasVerified && isNowVerified) {
-  // check not already awarded
-  const existing = await prisma.trustEvent.findFirst({
-    where: { userId: user.id, event: 'PROFILE_VERIFIED' },
-  });
-  if (!existing) {
-    await applyTrustEvent(prisma, user.id, 'PROFILE_VERIFIED');
-  }
 }
 ```
 
@@ -645,18 +674,17 @@ if (!wasVerified && isNowVerified) {
 // 403 from booking gate
 {
   "error":    "Trust tier too low",
-  "required": "GOLD",
-  "current":  "SILVER",
+  "required": "Good",
+  "current":  "Fair",
   "code":     "TRUST_TIER_INSUFFICIENT"
 }
 ```
 
 ## Acceptance Criteria
-- [ ] BRONZE pitch → any user can book
-- [ ] GOLD pitch → SILVER user → 403 with `code: TRUST_TIER_INSUFFICIENT`
-- [ ] GOLD pitch → GOLD user → proceeds to conflict check
-- [ ] `PROFILE_VERIFIED` event awarded exactly once (idempotent)
-- [ ] `PROFILE_VERIFIED` not awarded if only avatar set (both required)
+- [ ] Pitch with no minimum → any user who is not Suspended can book
+- [ ] Pitch requiring Good → a Fair user → 403 with `code: TRUST_TIER_INSUFFICIENT`
+- [ ] Pitch requiring Good → a Good user → proceeds to conflict check
+- [ ] A Suspended user is refused everywhere, regardless of the pitch minimum
 - [ ] `meetsMinTier` exported from `packages/shared`
 
 ## Edge Cases
@@ -666,8 +694,7 @@ if (!wasVerified && isNowVerified) {
 ## Definition of Done
 - [ ] Gate added to booking route with correct 403 shape
 - [ ] `meetsMinTier` in packages/shared with unit tests
-- [ ] PROFILE_VERIFIED awarded on profile completion, idempotent
-- [ ] Prisma migration for `minTrustTier` on Pitch
+- [ ] Prisma migration adding `minTrustScore Int @default(0)` to Pitch
 BODY
 
 create_issue "$title" "$body" '["backend","shared","epic:e12","type:feature"]' "$MILESTONE"
@@ -678,7 +705,7 @@ create_issue "$title" "$body" '["backend","shared","epic:e12","type:feature"]' "
 title="[E12-07] [Mobile] Trust score detail — full event history screen"
 read -r -d '' body << 'BODY' || true
 ## Summary
-Extend the Trust Score Detail screen (E08-05 stub) with full event history list. Shows all `TrustEvent` rows for the player with icon, label, delta badge, and date. Replaces the placeholder "coming soon" state.
+Extend the Trust Score Detail screen (E08-05 stub) with full event history list. Shows all `TrustScoreEvent` rows for the player with icon, label, delta badge, and date. Replaces the placeholder "coming soon" state.
 
 ## Reference
 - PRD §11.7 Player Trust History
@@ -698,7 +725,7 @@ export async function GET(req: NextRequest) {
     Object.fromEntries(req.nextUrl.searchParams)
   );
 
-  const events = await prisma.trustEvent.findMany({
+  const events = await prisma.trustScoreEvent.findMany({
     where:   { userId: user.id },
     orderBy: { createdAt: 'desc' },
     take:    Number(limit) + 1,
@@ -720,15 +747,14 @@ export async function GET(req: NextRequest) {
 ```typescript
 const EVENT_META: Record<TrustEventType, { icon: string; label: string; color: string }> = {
   NO_SHOW:                    { icon: '🚫', label: 'No-show',                color: '#EF4444' },
-  LATE_CANCELLATION:          { icon: '⏰', label: 'Late cancellation',       color: '#F97316' },
-  DISPUTE_UPHELD_AGAINST:     { icon: '⚖️', label: 'Dispute ruled against you', color: '#EF4444' },
+  LATE_CANCEL:                { icon: '⏰', label: 'Late cancellation',       color: '#F97316' },
+  VERY_LATE_CANCEL:           { icon: '⏰', label: 'Very late cancellation',  color: '#F97316' },
   BOOKING_COMPLETED:          { icon: '✅', label: 'Booking completed',        color: '#16A34A' },
   REVIEW_LEFT:                { icon: '⭐', label: 'Review submitted',         color: '#16A34A' },
-  PROFILE_VERIFIED:           { icon: '✓',  label: 'Profile verified',         color: '#16A34A' },
-  DISPUTE_RESOLVED_IN_FAVOUR: { icon: '⚖️', label: 'Dispute resolved in your favour', color: '#16A34A' },
+  DISPUTE_WON:                { icon: '⚖️', label: 'Dispute resolved in your favour', color: '#16A34A' },
 };
 
-export function TrustEventRow({ event }: { event: TrustEvent }) {
+export function TrustEventRow({ event }: { event: TrustScoreEvent }) {
   const meta = EVENT_META[event.event as TrustEventType];
   return (
     <View style={styles.row}>
@@ -751,7 +777,7 @@ export function TrustEventRow({ event }: { event: TrustEvent }) {
 │ ← Trust Score              │
 │ ┌────────────────────────┐ │
 │ │  [SVG ring 120px]      │ │
-│ │  720   GOLD tier       │ │
+│ │   83   Good             │ │
 │ └────────────────────────┘ │
 │ ┌──┬──┬──┬──┐             │
 │ │Br│Si│Go│Pl│  tier table │
@@ -867,7 +893,7 @@ create_issue "$title" "$body" '["frontend","web","epic:e12","type:feature"]' "$M
 title="[E12-09] [Web] Manager pitch editor — minimum trust tier configuration"
 read -r -d '' body << 'BODY' || true
 ## Summary
-Add "Minimum Trust Tier" selector to the pitch editor (E10-07 Basic Info tab). Allows managers to restrict pitch bookings to players above a certain trust tier. Updates `pitch.minTrustTier` via `PUT /pitches/:id`.
+Add a "Minimum trust tier" selector to the pitch editor (E10-07 Basic Info tab), letting managers restrict a pitch to players above a given tier. The selector shows tier names; it writes the tier's lower bound to `pitch.minTrustScore` via `PUT /pitches/:id`, so the stored value stays a score and the tier stays derived.
 
 ## Reference
 - PRD §11.6 Trust Gating (manager side)
@@ -887,14 +913,14 @@ Add "Minimum Trust Tier" selector to the pitch editor (E10-07 Basic Info tab). A
     Players below this tier cannot book this pitch.
   </p>
   <div className="flex gap-2">
-    {(['BRONZE', 'SILVER', 'GOLD', 'PLATINUM'] as const).map((tier) => (
+    {(['Poor', 'Fair', 'Good', 'Excellent'] as const).map((tier) => (
       <button
         key={tier}
         type="button"
         onClick={() => setMinTrustTier(tier)}
         className={cn(
           'px-3 py-1.5 rounded-full text-sm font-medium border transition-colors',
-          minTrustTier === tier
+          deriveTier(minTrustScore) === tier
             ? TIER_SELECTED_COLORS[tier]
             : 'border-gray-200 text-gray-600 hover:border-gray-400'
         )}
@@ -909,23 +935,24 @@ Add "Minimum Trust Tier" selector to the pitch editor (E10-07 Basic Info tab). A
 ## TIER_SELECTED_COLORS
 ```typescript
 const TIER_SELECTED_COLORS: Record<TrustTier, string> = {
-  BRONZE:   'border-amber-700  bg-amber-700  text-white',
-  SILVER:   'border-gray-400   bg-gray-400   text-white',
-  GOLD:     'border-yellow-500 bg-yellow-500 text-white',
-  PLATINUM: 'border-cyan-600   bg-cyan-600   text-white',
+  Suspended: 'border-red-600    bg-red-600    text-white',
+  Poor:      'border-amber-700  bg-amber-700  text-white',
+  Fair:      'border-gray-400   bg-gray-400   text-white',
+  Good:      'border-primary-600 bg-primary-600 text-white',
+  Excellent: 'border-cyan-600   bg-cyan-600   text-white',
 };
 ```
 
 ## Pitch list display
 In the pitch list table (E10-06), add a "Min. Tier" column:
 - Shows coloured tier badge
-- BRONZE shows "–" (open to all) to reduce visual noise
+- No minimum shows "–" (open to all) to reduce visual noise
 
 ## API integration
-- Included in existing `PUT /pitches/:id` body as `minTrustTier` field
-- `PUT /pitches/:id` already handles unknown fields via Zod — add `minTrustTier` to `UpdatePitchSchema`:
+- Included in existing `PUT /pitches/:id` body as `minTrustScore` field
+- `PUT /pitches/:id` already handles unknown fields via Zod — add `minTrustScore` to `UpdatePitchSchema`:
 ```typescript
-minTrustTier: z.enum(['BRONZE','SILVER','GOLD','PLATINUM']).optional()
+minTrustScore: z.number().int().min(0).max(100).optional()
 ```
 
 ## Acceptance Criteria
@@ -933,17 +960,17 @@ minTrustTier: z.enum(['BRONZE','SILVER','GOLD','PLATINUM']).optional()
 - [ ] Selected tier highlighted with correct colour
 - [ ] Value persists on save (PUT /pitches/:id)
 - [ ] Pitch list shows "Min. Tier" column with badge
-- [ ] BRONZE pitch shows "–" in list (open to all)
+- [ ] Pitch with minTrustScore 0 shows "–" in list (open to all)
 
 ## Edge Cases
-- Manager sets PLATINUM → most players blocked → show warning tooltip: "Very few players qualify"
-- Default for new pitches: BRONZE (open to all)
+- Manager sets a minimum of 90 (Excellent) → most players blocked → show warning tooltip: "Very few players qualify"
+- Default for new pitches: 0 (open to anyone who is not Suspended)
 
 ## Definition of Done
 - [ ] Tier selector added to pitch editor
-- [ ] `UpdatePitchSchema` updated to include `minTrustTier`
+- [ ] `UpdatePitchSchema` updated to include `minTrustScore`
 - [ ] Pitch list column added
-- [ ] PLATINUM warning tooltip shown
+- [ ] High-minimum (90+) warning tooltip shown
 BODY
 
 create_issue "$title" "$body" '["frontend","web","epic:e12","type:feature"]' "$MILESTONE"
@@ -970,37 +997,40 @@ Comprehensive unit test suite for the full trust engine in `packages/shared` plu
 ```typescript
 describe('TRUST_EVENTS', () => {
   it('NO_SHOW is -10');
-  it('LATE_CANCELLATION is -5');
-  it('DISPUTE_UPHELD_AGAINST is -15');
+  it('LATE_CANCEL is -5');
+  it('VERY_LATE_CANCEL is -10');
+  it('DISPUTE_WON is +10');
   it('BOOKING_COMPLETED is +2');
-  it('REVIEW_LEFT is +3');
-  it('PROFILE_VERIFIED is +10');
-  it('DISPUTE_RESOLVED_IN_FAVOUR is +5');
+  it('REVIEW_LEFT is +1');
+  it('MONTHLY_RECOVERY is +1');
+  it('BOOKING_COMPLETED is +2');
 });
 
 describe('deriveTier', () => {
   it.each([
-    [0,    'BRONZE'],
-    [399,  'BRONZE'],
-    [400,  'SILVER'],
-    [649,  'SILVER'],
-    [650,  'GOLD'],
-    [849,  'GOLD'],
-    [850,  'PLATINUM'],
-    [1000, 'PLATINUM'],
+    [0,    'Suspended'],
+    [29,   'Suspended'],
+    [30,   'Poor'],
+    [49,   'Poor'],
+    [50,   'Fair'],
+    [69,   'Fair'],
+    [70,   'Good'],
+    [89,   'Good'],
+    [90,   'Excellent'],
+    [100,  'Excellent'],
   ])('score %i → %s', (score, expected) => {
     expect(deriveTier(score)).toBe(expected);
   });
 });
 
 describe('meetsMinTier', () => {
-  it('BRONZE meets BRONZE');
-  it('SILVER meets BRONZE');
-  it('GOLD meets SILVER');
-  it('PLATINUM meets PLATINUM');
-  it('BRONZE does not meet SILVER');
-  it('SILVER does not meet GOLD');
-  it('GOLD does not meet PLATINUM');
+  it('Suspended meets a minimum of 0');
+  it('Fair meets a minimum of 0');
+  it('Good meets a minimum of 50');
+  it('Excellent meets a minimum of 90');
+  it('Poor does not meet a minimum of 50');
+  it('Fair does not meet a minimum of 70');
+  it('Good does not meet a minimum of 90');
 });
 ```
 

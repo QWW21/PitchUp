@@ -103,7 +103,7 @@ Expose trust score detail: current score, tier metadata, booking restrictions, a
     "maxConcurrentBookings": null,
     "requiresCreditCard": false,
     "events": [
-      { "id": "...", "delta": -5, "reason": "LATE_CANCELLATION", "label": "Late cancellation", "bookingId": "...", "createdAt": "..." },
+      { "id": "...", "delta": -5, "reason": "LATE_CANCEL", "label": "Late cancellation", "bookingId": "...", "createdAt": "..." },
       { "id": "...", "delta": 2,  "reason": "BOOKING_COMPLETED",  "label": "Booking completed",  "bookingId": "...", "createdAt": "..." }
     ],
     "nextCursor": null,
@@ -339,8 +339,8 @@ Full-screen Trust Score Detail: 120px animated ring, paginated event history wit
 const REASON_LABELS = {
   BOOKING_COMPLETED: 'Booking completed',
   REVIEW_LEFT: 'Review submitted',
-  LATE_CANCELLATION: 'Late cancellation',
-  VERY_LATE_CANCELLATION: 'Very late cancellation',
+  LATE_CANCEL: 'Late cancellation',
+  VERY_LATE_CANCEL: 'Very late cancellation',
   NO_SHOW: 'No-show recorded',
   DISPUTE_WON: 'Dispute resolved in your favour',
   MONTHLY_RECOVERY: 'Monthly recovery (+1)',

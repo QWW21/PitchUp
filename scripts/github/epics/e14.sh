@@ -460,14 +460,16 @@ export async function GET(req: NextRequest) {
     orderBy: { startTime: 'desc' },
     include: {
       pitch:  { select: { name: true, size: true } },
-      player: { select: { displayName: true, trustTier: true } },
+      player: { select: { displayName: true } },
     },
     take: 10_000,  // cap — warn in response header if truncated
   });
 
   const headers = [
     'BookingID','Date','StartTime','EndTime','Pitch','PitchSize',
-    'PlayerName','PlayerTier','Status','GrossPence','FeePence',
+    // No player tier column: PRD §9.1 keeps the trust score away from
+    // managers, and a CSV leaves the platform entirely.
+    'PlayerName','Status','GrossPence','FeePence',
     'PayoutPence','TeamSize','HasShirts',
   ];
 
@@ -479,7 +481,6 @@ export async function GET(req: NextRequest) {
     b.pitch.name,
     b.pitch.size,
     b.player.displayName,
-    b.player.trustTier,
     b.status,
     b.totalAmount,
     b.platformFee,

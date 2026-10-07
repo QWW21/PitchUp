@@ -224,11 +224,15 @@ Admin user list with search/filter and individual user management: view profile,
 
 ## GET /admin/users
 ```typescript
-// Query: search? | role? | trustTier? | suspended? | cursor? | limit=20
+// Query: search? | role? | tier? | suspended? | cursor? | limit=20
+// `tier` filters on a score range: the tier is derived, not stored.
 export async function GET(req: NextRequest) {
   await requireAdmin(req);
-  const { search, role, trustTier, suspended, cursor, limit } =
+  const { search, role, tier, suspended, cursor, limit } =
     AdminUserQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
+
+  // TRUST_TIERS from @pitchup/shared carries each tier's min and max.
+  const tierRange = tier ? TRUST_TIERS.find(t => t.label === tier) : undefined;
 
   const users = await prisma.user.findMany({
     where: {
@@ -239,7 +243,7 @@ export async function GET(req: NextRequest) {
         ],
       }),
       ...(role      && { role }),
-      ...(trustTier && { trustTier }),
+      ...(tierRange && { trustScore: { gte: tierRange.min, lte: tierRange.max } }),
       ...(suspended !== undefined && { suspendedAt: suspended ? { not: null } : null }),
       ...(cursor    && { id: { lt: cursor } }),
     },
@@ -247,7 +251,7 @@ export async function GET(req: NextRequest) {
     take:    Number(limit) + 1,
     select: {
       id: true, displayName: true, email: true, role: true,
-      trustScore: true, trustTier: true, suspendedAt: true,
+      trustScore: true, suspendedAt: true,   // tier via deriveTier(trustScore)
       createdAt: true, deletedAt: true,
       _count: { select: { bookings: true } },
     },
@@ -263,7 +267,7 @@ export async function GET(req: NextRequest) {
 ```typescript
 export const AdminUserUpdateSchema = z.object({
   suspended:        z.boolean().optional(),
-  trustScoreAdjust: z.number().int().min(-1000).max(1000).optional(),
+  trustScoreAdjust: z.number().int().min(-100).max(100).optional(),
   trustAdjustReason: z.string().min(5).max(200).optional(),
 });
 
@@ -288,8 +292,8 @@ export async function PUT(req, { params }) {
         data:  { trustScore: { increment: body.trustScoreAdjust! } },
         select: { trustScore: true },
       });
-      const clamped = Math.max(0, Math.min(1000, user.trustScore));
-      await tx.user.update({ where: { id: params.userId }, data: { trustScore: clamped, trustTier: deriveTier(clamped) } });
+      const clamped = Math.max(TRUST_SCORE_MIN, Math.min(TRUST_SCORE_MAX, user.trustScore));
+      await tx.user.update({ where: { id: params.userId }, data: { trustScore: clamped } });
       await tx.trustEvent.create({
         data: {
           userId:    params.userId,
@@ -315,7 +319,11 @@ model User {
 ## Acceptance Criteria
 - [ ] `GET /admin/users` filters by role, tier, suspended, search
 - [ ] Suspended users: `suspendedAt` non-null; active = null
-- [ ] Trust adjustment clamped [0,1000] + `TrustEvent` row with `event: 'ADMIN_ADJUSTMENT'`
+- [ ] Trust adjustment clamped [0,100] + a `TrustScoreEvent` audit row
+
+> `ADMIN_ADJUSTMENT` is not in the `TrustScoreReason` enum shipped in E01-02.
+> Either add it (migration) or record the adjustment in a separate admin
+> audit log. Decide before implementing — do not reuse an unrelated reason.
 - [ ] `trustAdjustReason` required when adjusting score
 - [ ] Admin cannot suspend themselves
 
@@ -370,7 +378,7 @@ export async function GET(req: NextRequest) {
       booking: {
         include: {
           pitch:  { select: { name: true, company: { select: { name: true } } } },
-          player: { select: { displayName: true, email: true, trustTier: true } },
+          player: { select: { displayName: true, email: true, trustScore: true } },
         },
       },
     },
@@ -687,7 +695,7 @@ Admin user list with search, role/tier/suspended filters, and a user detail pane
 ## Filters
 - Search (name or email, debounced 400ms)
 - Role dropdown (All / PLAYER / MANAGER / ADMIN)
-- Trust tier dropdown (All / BRONZE / SILVER / GOLD / PLATINUM)
+- Trust tier dropdown (All / Excellent / Good / Fair / Poor / Suspended) — filters on the tier's score range
 - Suspended toggle (All / Active / Suspended)
 
 ## UserDetailPanel
@@ -711,10 +719,10 @@ Admin user list with search, role/tier/suspended filters, and a user detail pane
 ## Trust score progress bar
 ```tsx
 // Visual: 0–1000 range, coloured by tier
-// BRONZE=amber, SILVER=gray, GOLD=yellow, PLATINUM=cyan
+// Suspended=red, Poor=amber, Fair=gray, Good=primary, Excellent=cyan
 <div className="w-full bg-gray-100 rounded-full h-2">
   <div
-    className={`h-2 rounded-full ${TIER_BAR_COLORS[user.trustTier]}`}
+    className={`h-2 rounded-full ${TIER_BAR_COLORS[deriveTier(user.trustScore)]}`}
     style={{ width: `${user.trustScore / 10}%` }}
   />
 </div>
