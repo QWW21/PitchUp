@@ -5,9 +5,10 @@
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
-    "start": "react-native start",
-    "lint": "eslint src --ext .ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "start": "react-native start --port 8082",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "dev": "react-native start --port 8082"
   },
   "dependencies": {
     "@pitchup/shared": "workspace:*",
@@ -24,12 +25,15 @@
     "@babel/core": "^7.25.0",
     "@babel/preset-env": "^7.25.0",
     "@babel/runtime": "^7.25.0",
+    "@react-native-community/cli": "^15",
+    "@react-native-community/cli-platform-android": "^15",
+    "@react-native-community/cli-platform-ios": "^15",
     "@react-native/babel-preset": "0.76.0",
-    "@react-native/eslint-config": "0.76.0",
     "@react-native/metro-config": "0.76.0",
     "@react-native/typescript-config": "0.76.0",
     "@types/jest": "^30.0.0",
     "@types/react": "^18.3.0",
+    "eslint": "^9",
     "typescript": "^5.6.3"
   }
 }

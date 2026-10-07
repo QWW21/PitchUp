@@ -39,6 +39,23 @@ export default tseslint.config(
     },
   },
 
+  // CommonJS config files: Node globals, and require() is the point.
+  {
+    files: ['**/*.cjs', '**/metro.config.js', '**/*.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        module: 'writable',
+        require: 'readonly',
+        process: 'readonly',
+        exports: 'writable',
+      },
+    },
+    rules: { '@typescript-eslint/no-require-imports': 'off' },
+  },
+
   // Seed and verification scripts are CLI tools; their output is the point.
   {
     files: ['apps/web/prisma/seed.ts', 'scripts/**/*.ts'],
