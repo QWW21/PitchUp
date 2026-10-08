@@ -32,6 +32,12 @@ export const SMS_PER_PHONE_RATE_LIMIT: RateLimitRule = {
   windowMs: 60 * 60 * 1000,
 }
 
+/** Ticket E02-11: 3 reset requests per email address per hour. */
+export const PASSWORD_RESET_RATE_LIMIT: RateLimitRule = {
+  limit: 3,
+  windowMs: 60 * 60 * 1000,
+}
+
 /** Same reasoning for email: a mailbox should not be floodable. */
 export const EMAIL_PER_ADDRESS_RATE_LIMIT: RateLimitRule = {
   limit: 5,

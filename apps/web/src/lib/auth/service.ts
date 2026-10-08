@@ -12,12 +12,15 @@ import { AUTH, type RegisterPlayerInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import {
   EMAIL_PER_ADDRESS_RATE_LIMIT,
+  PASSWORD_RESET_RATE_LIMIT,
   SMS_PER_PHONE_RATE_LIMIT,
   checkRateLimit,
 } from '@/lib/api/rate-limit'
 import { getEmailProvider, getSmsProvider } from '@/lib/notifications'
 import { renderAlreadyRegisteredEmail, renderVerificationEmail } from '@/lib/emails/verification'
 import { renderPhoneOtpSms } from '@/lib/emails/phone-otp'
+import { renderPasswordChangedEmail, renderPasswordResetEmail } from '@/lib/emails/password-reset'
+import { env } from '@/lib/env'
 import {
   MAX_CODE_ATTEMPTS,
   emailCodeExpiry,
@@ -32,6 +35,7 @@ import {
   signAccessToken,
   tokensMatch,
 } from './tokens'
+import { randomBytes } from 'node:crypto'
 
 /**
  * Compared against when no user matched, so the "unknown email" path costs
@@ -489,4 +493,108 @@ export async function verifyPhoneCode(
   ])
 
   return { verified: true }
+}
+
+// ─── Password reset ──────────────────────────────────────────────────────────
+
+/**
+ * Starts a password reset.
+ *
+ * Returns nothing in every case — unknown address, suspended account, or
+ * sent — so the caller answers identically and cannot be used to discover
+ * which addresses are registered. PRD §6.3.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const normalised = email.toLowerCase().trim()
+
+  // Keyed on the recipient, so an attacker rotating IPs still cannot flood
+  // one person's inbox with reset mail.
+  const quota = checkRateLimit(`reset-to:${normalised}`, PASSWORD_RESET_RATE_LIMIT)
+  if (!quota.allowed) throw new RecipientThrottledError(quota.retryAfterSeconds)
+
+  const user = await prisma.user.findUnique({
+    where: { email: normalised },
+    select: { id: true, email: true, deletedAt: true },
+  })
+
+  if (!user || user.deletedAt) return
+
+  // Invalidate outstanding tokens. Several live reset links widen the window
+  // in which an old email, perhaps forwarded or sitting in a shared inbox,
+  // still works.
+  await prisma.passwordResetToken.updateMany({
+    where: { userId: user.id, usedAt: null },
+    data: { usedAt: new Date() },
+  })
+
+  // 256 bits from the CSPRNG. This value alone grants account access, so it
+  // has to be unguessable; the database stores only its hash.
+  const rawToken = randomBytes(32).toString('hex')
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(rawToken),
+      expiresAt: new Date(Date.now() + AUTH.PASSWORD_RESET_EXPIRY_MINUTES * 60 * 1000),
+    },
+  })
+
+  const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${rawToken}`
+  const message = renderPasswordResetEmail(resetUrl, AUTH.PASSWORD_RESET_EXPIRY_MINUTES)
+  await getEmailProvider().send({ to: user.email, ...message })
+}
+
+export type ResetPasswordFailure = 'INVALID_TOKEN' | 'TOKEN_EXPIRED'
+
+/**
+ * Completes a password reset.
+ *
+ * On success every refresh token for the user is revoked. Someone resetting
+ * a password has often lost control of the account, and leaving old mobile
+ * sessions alive would let an intruder keep their access.
+ */
+export async function resetPassword(
+  rawToken: string,
+  newPassword: string
+): Promise<{ reset: true } | { failure: ResetPasswordFailure }> {
+  const record = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(rawToken) },
+    include: { user: { select: { id: true, email: true, deletedAt: true } } },
+  })
+
+  // A used or unknown token are the same answer: neither tells the caller
+  // whether the token ever existed.
+  if (!record || record.usedAt) return { failure: 'INVALID_TOKEN' }
+  if (record.expiresAt <= new Date()) return { failure: 'TOKEN_EXPIRED' }
+  if (record.user.deletedAt) return { failure: 'INVALID_TOKEN' }
+
+  const passwordHash = await bcrypt.hash(newPassword, AUTH.BCRYPT_COST)
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: record.userId },
+      data: { passwordHash },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+    // Revoked rather than deleted, so the rows remain as evidence if the
+    // account is later disputed.
+    prisma.refreshToken.updateMany({
+      where: { userId: record.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ])
+
+  // Best-effort: the reset has already succeeded, so a mail failure must not
+  // undo it. This is how a victim learns their password was changed.
+  try {
+    const notice = renderPasswordChangedEmail()
+    await getEmailProvider().send({ to: record.user.email, ...notice })
+  } catch (caught) {
+    console.error('[auth] Could not send the password-changed notice:', caught)
+  }
+
+  return { reset: true }
 }

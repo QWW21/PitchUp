@@ -142,15 +142,16 @@ model User {
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  company          Company?
-  bookings         Booking[]
-  reviews          Review[]
-  notifications    Notification[]
-  trustScoreEvents TrustScoreEvent[]
-  noShowsReported  NoShow[]                @relation("NoShowReportedByManager")
-  noShowsResolved  NoShow[]                @relation("NoShowResolvedByAdmin")
-  verificationCodes VerificationCode[]
-  refreshTokens    RefreshToken[]
+  company             Company?
+  bookings            Booking[]
+  reviews             Review[]
+  notifications       Notification[]
+  trustScoreEvents    TrustScoreEvent[]
+  noShowsReported     NoShow[]             @relation("NoShowReportedByManager")
+  noShowsResolved     NoShow[]             @relation("NoShowResolvedByAdmin")
+  verificationCodes   VerificationCode[]
+  refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([role])
   @@index([city])
@@ -389,12 +390,29 @@ model VerificationCode {
   expiresAt DateTime
   usedAt    DateTime?
   /// Wrong guesses so far; the code is burned past a threshold.
-  attempts  Int       @default(0)
-  createdAt DateTime  @default(now())
+  attempts  Int                 @default(0)
+  createdAt DateTime            @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, channel, createdAt])
+  @@index([expiresAt])
+}
+
+/// A single-use password reset grant. E02-11.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  /// SHA-256 of the token. Only the emailed link carries the plaintext, so
+  /// a leaked database cannot be used to take over accounts.
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@index([expiresAt])
 }
 
