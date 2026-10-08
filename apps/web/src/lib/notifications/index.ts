@@ -1,23 +1,25 @@
 /**
- * Provider selection — E02-08.
+ * Provider selection — E02-08, with the real email adapter from E02-09.
  *
- * Real adapters replace the dev ones in E02-09 (Resend) and E02-10 (Twilio).
- * Until then, missing credentials mean messages are logged rather than the
- * flow failing outright.
+ * Missing credentials fall back to a console logger rather than failing, so
+ * a fresh clone can exercise the whole flow. Setting RESEND_API_KEY switches
+ * to real delivery with no code change.
  */
 import 'server-only'
 import { env } from '@/lib/env'
 import { devEmailProvider, devSmsProvider } from './dev-provider'
+import { resendEmailProvider } from './resend-provider'
 import type { EmailProvider, SmsProvider } from './types'
 
 export function getEmailProvider(): EmailProvider {
-  if (!env.RESEND_API_KEY) return devEmailProvider
-  return devEmailProvider // Resend adapter lands in E02-09.
+  return env.RESEND_API_KEY ? resendEmailProvider : devEmailProvider
 }
 
 export function getSmsProvider(): SmsProvider {
+  // Twilio adapter lands in E02-10.
   if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return devSmsProvider
-  return devSmsProvider // Twilio adapter lands in E02-10.
+  return devSmsProvider
 }
 
+export { EmailDeliveryError } from './resend-provider'
 export type { EmailMessage, EmailProvider, SmsMessage, SmsProvider } from './types'

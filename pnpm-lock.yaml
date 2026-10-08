@@ -145,6 +145,9 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.3.0(react@19.3.0)
+      resend:
+        specifier: ^6.32.1
+        version: 6.32.1
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -1595,6 +1598,9 @@ packages:
   '@sinonjs/fake-timers@10.3.0':
     resolution: {integrity: sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@sinonjs/fake-timers/-/fake-timers-10.3.0.tgz}
 
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@stablelib/base64/-/base64-1.0.1.tgz}
+
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/@swc/helpers/-/helpers-0.5.15.tgz}
 
@@ -2364,6 +2370,9 @@ packages:
 
   fast-levenshtein@2.0.6:
     resolution: {integrity: sha512-DCXu6Ifhqcks7TZKY3Hxp3y6qphY5SJZmrWMDrKcERSOXWQdMhU9Ig/PYrzyw/ul9jOIyh0N4M0tbC5hodg8dw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/fast-levenshtein/-/fast-levenshtein-2.0.6.tgz}
+
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/fast-sha256/-/fast-sha256-1.3.0.tgz}
 
   fast-xml-parser@4.5.7:
     resolution: {integrity: sha512-a6Qh1RMCNbSrU1+sAyAAZH3rTe+OaWJbNZIq0S+ifZciUUOQtlVxBJwoTUE2bYhysmG/RYyI5WJFIKdBahJdrQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/fast-xml-parser/-/fast-xml-parser-4.5.7.tgz}
@@ -3202,6 +3211,9 @@ packages:
     resolution: {integrity: sha512-/E57AYkoeQ25qkxMj5PBOVgF8Kiu/h7cYS30Z5+R7WaiCCBfLq58ZI/dSeaEKb9WVJV5n/03QwrN3IeWIFllvw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/pkg-dir/-/pkg-dir-3.0.0.tgz}
     engines: {node: '>=6'}
 
+  postal-mime@2.7.6:
+    resolution: {integrity: sha512-UUlyE2KlxmvwMGq060onF/VWU3zD6dVW31FwokQ5v26jWd35fbs2MoTFzh+jXnPwAyV2MULMKXcBInGOl5TO6Q==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/postal-mime/-/postal-mime-2.7.6.tgz}
+
   postcss-import@15.1.0:
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/postcss-import/-/postcss-import-15.1.0.tgz}
     engines: {node: '>=14.0.0'}
@@ -3405,6 +3417,15 @@ packages:
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/require-main-filename/-/require-main-filename-2.0.0.tgz}
 
+  resend@6.32.1:
+    resolution: {integrity: sha512-Z9DxkIZt5uvVNkjxjc+r4rCPI0MdDIJ7H+GvU50o9GkhrD0tVTwP6caE8KYEco90sos312l6R72jAEMCBFBiFQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/resend/-/resend-6.32.1.tgz}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@react-email/render': '*'
+    peerDependenciesMeta:
+      '@react-email/render':
+        optional: true
+
   resolve-from@3.0.0:
     resolution: {integrity: sha512-GnlH6vxLymXJNMBo7XP1fJIzBFbdYt49CuTwmB/6N53t+kMPRMFKz783LlQ4tv28XoQfMWinAJX6WCGf2IlaIw==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/resolve-from/-/resolve-from-3.0.0.tgz}
     engines: {node: '>=4'}
@@ -3557,6 +3578,9 @@ packages:
   stacktrace-parser@0.1.11:
     resolution: {integrity: sha512-WjlahMgHmCJpqzU8bIBy4qtsZdU9lRlcZE3Lvyej6t4tuOuv1vk57OW3MBrj6hXBFx/nNoC9MPMTcr5YA7NQbg==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/stacktrace-parser/-/stacktrace-parser-0.1.11.tgz}
     engines: {node: '>=6'}
+
+  standardwebhooks@1.1.1:
+    resolution: {integrity: sha512-bCbX9ZEyFkWPsRz7Bl3NuQUJohmwGSev/yhr7vhaGPlc4AfIrspIRa6cPTBuI1ItmrTDJ4d/S2hCsfe4+vQGnQ==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/standardwebhooks/-/standardwebhooks-1.1.1.tgz}
 
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==, tarball: https://artifactory.bcr.wan:443/artifactory/api/npm/npm-virtual/statuses/-/statuses-1.5.0.tgz}
@@ -5556,6 +5580,8 @@ snapshots:
     dependencies:
       '@sinonjs/commons': 3.0.1
 
+  '@stablelib/base64@1.0.1': {}
+
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.1
@@ -6391,6 +6417,8 @@ snapshots:
   fast-json-stable-stringify@2.1.0: {}
 
   fast-levenshtein@2.0.6: {}
+
+  fast-sha256@1.3.0: {}
 
   fast-xml-parser@4.5.7:
     dependencies:
@@ -7317,6 +7345,8 @@ snapshots:
     dependencies:
       find-up: 3.0.0
 
+  postal-mime@2.7.6: {}
+
   postcss-import@15.1.0(postcss@8.5.29):
     dependencies:
       postcss: 8.5.29
@@ -7550,6 +7580,11 @@ snapshots:
 
   require-main-filename@2.0.0: {}
 
+  resend@6.32.1:
+    dependencies:
+      postal-mime: 2.7.6
+      standardwebhooks: 1.1.1
+
   resolve-from@3.0.0: {}
 
   resolve-from@4.0.0: {}
@@ -7716,6 +7751,11 @@ snapshots:
   stacktrace-parser@0.1.11:
     dependencies:
       type-fest: 0.7.1
+
+  standardwebhooks@1.1.1:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
 
   statuses@1.5.0: {}
 

@@ -11,6 +11,8 @@ import type { Role, User } from '@prisma/client'
 import { AUTH, type RegisterPlayerInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { getEmailProvider, getSmsProvider } from '@/lib/notifications'
+import { renderAlreadyRegisteredEmail, renderVerificationEmail } from '@/lib/emails/verification'
+import { renderPhoneOtpSms } from '@/lib/emails/phone-otp'
 import {
   MAX_CODE_ATTEMPTS,
   emailCodeExpiry,
@@ -60,14 +62,8 @@ export async function sendEmailVerification(userId: string, email: string): Prom
     },
   })
 
-  await getEmailProvider().send({
-    to: email,
-    subject: 'Confirm your PitchUp email',
-    body:
-      `Your verification code is ${code}\n\n` +
-      `It expires in ${AUTH.EMAIL_VERIFICATION_EXPIRY_MINUTES} minutes.\n` +
-      `If you did not sign up for PitchUp, ignore this message.`,
-  })
+  const message = renderVerificationEmail(code, AUTH.EMAIL_VERIFICATION_EXPIRY_MINUTES)
+  await getEmailProvider().send({ to: email, ...message })
 }
 
 /**
@@ -77,15 +73,8 @@ export async function sendEmailVerification(userId: string, email: string): Prom
  * address itself, which only the real owner reads.
  */
 async function sendAlreadyRegisteredNotice(email: string): Promise<void> {
-  await getEmailProvider().send({
-    to: email,
-    subject: 'You already have a PitchUp account',
-    body:
-      `Someone just tried to create a PitchUp account with this email address.\n\n` +
-      `You already have one, so nothing has changed. If it was you, sign in\n` +
-      `instead — or use "Forgot password" if you cannot get in.\n\n` +
-      `If this was not you, you can safely ignore this message.`,
-  })
+  const message = renderAlreadyRegisteredEmail()
+  await getEmailProvider().send({ to: email, ...message })
 }
 
 export async function sendPhoneOtp(userId: string, phone: string): Promise<void> {
@@ -106,7 +95,7 @@ export async function sendPhoneOtp(userId: string, phone: string): Promise<void>
   })
   await getSmsProvider().send({
     to: phone,
-    body: `${code} is your PitchUp verification code. It expires in ${AUTH.PHONE_OTP_EXPIRY_MINUTES} minutes.`,
+    body: renderPhoneOtpSms(code, AUTH.PHONE_OTP_EXPIRY_MINUTES),
   })
 }
 
@@ -173,8 +162,24 @@ export async function registerPlayer(input: RegisterPlayerInput): Promise<Regist
     select: { id: true },
   })
 
-  await sendEmailVerification(user.id, email)
-  await sendPhoneOtp(user.id, input.phone)
+  // The email is the account's only route to being usable: login refuses an
+  // unverified account. If it cannot be sent, the row must not survive as an
+  // unreachable account squatting the address.
+  try {
+    await sendEmailVerification(user.id, email)
+  } catch (caught) {
+    await prisma.user.delete({ where: { id: user.id } })
+    throw caught
+  }
+
+  // SMS is best-effort by comparison. Phone verification is not required to
+  // sign in, and /auth/resend-code can send another, so a Twilio outage
+  // should not undo a registration whose email already went out.
+  try {
+    await sendPhoneOtp(user.id, input.phone)
+  } catch (caught) {
+    console.error('[auth] Could not send the phone OTP at registration:', caught)
+  }
 
   return { outcome: 'CREATED', userId: user.id }
 }

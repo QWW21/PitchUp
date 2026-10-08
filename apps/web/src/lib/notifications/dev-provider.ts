@@ -25,7 +25,7 @@ function banner(kind: string, to: string, body: string): void {
 export const devEmailProvider: EmailProvider = {
   name: 'dev-console',
   async send(message: EmailMessage) {
-    banner('EMAIL', message.to, `${message.subject}\n\n${message.body}`)
+    banner('EMAIL', message.to, `${message.subject}\n\n${message.text}`)
   },
 }
 

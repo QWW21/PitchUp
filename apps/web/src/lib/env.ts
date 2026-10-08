@@ -35,8 +35,12 @@ export const env = createEnv({
     CLOUDINARY_API_KEY: optionalUntilIntegrated(z.string().min(1)),
     CLOUDINARY_API_SECRET: optionalUntilIntegrated(z.string().min(1)),
 
-    // E13 — notifications
+    // E02-09 — transactional email
     RESEND_API_KEY: optionalUntilIntegrated(z.string().startsWith('re_')),
+    /** Sender shown to recipients. Must be a domain verified in Resend. */
+    EMAIL_FROM: optionalUntilIntegrated(z.string().min(1)),
+
+    // E13 — notifications
     TWILIO_ACCOUNT_SID: optionalUntilIntegrated(z.string().startsWith('AC')),
     TWILIO_AUTH_TOKEN: optionalUntilIntegrated(z.string().min(1)),
     TWILIO_PHONE_NUMBER: optionalUntilIntegrated(
@@ -67,6 +71,7 @@ export const env = createEnv({
     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,

@@ -24,7 +24,15 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     })
   }
 
-  const result = await registerPlayer(parsed.data)
+  let result
+  try {
+    result = await registerPlayer(parsed.data)
+  } catch (caught) {
+    // A failed send leaves no account behind (see registerPlayer), so the
+    // client can safely retry. Provider wording never reaches the client.
+    console.error('[auth] Registration failed:', caught)
+    return err('INTERNAL_ERROR', 'Could not complete sign-up, please try again', 500)
+  }
 
   if (result.outcome === 'PHONE_TAKEN') {
     return err('CONFLICT', 'That phone number is already registered', 409, {

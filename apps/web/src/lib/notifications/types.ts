@@ -10,8 +10,11 @@ import 'server-only'
 export interface EmailMessage {
   to: string
   subject: string
-  /** Plain text. HTML templates arrive with the real provider in E02-09. */
-  body: string
+  /** Plain-text alternative. Always set: HTML-only mail scores worse with
+   *  spam filters, and some clients prefer text. */
+  text: string
+  /** Optional HTML body. The dev provider prints the text version. */
+  html?: string
 }
 
 export interface SmsMessage {
