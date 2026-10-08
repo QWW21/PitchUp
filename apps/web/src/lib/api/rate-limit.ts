@@ -19,6 +19,25 @@ export const AUTH_RATE_LIMIT: RateLimitRule = { limit: 5, windowMs: 15 * 60 * 10
 
 export const GENERAL_RATE_LIMIT: RateLimitRule = { limit: 60, windowMs: 60 * 1000 }
 
+/**
+ * Ceiling on messages to one phone number, regardless of who asks.
+ *
+ * Per-IP limits alone do not bound this: an attacker rotating IPs can text
+ * one victim indefinitely, which is both harassment and a bill, since every
+ * SMS is billed. Keyed on the recipient, so the number itself is protected.
+ * Ticket E02-10: 3 sends per phone per hour.
+ */
+export const SMS_PER_PHONE_RATE_LIMIT: RateLimitRule = {
+  limit: 3,
+  windowMs: 60 * 60 * 1000,
+}
+
+/** Same reasoning for email: a mailbox should not be floodable. */
+export const EMAIL_PER_ADDRESS_RATE_LIMIT: RateLimitRule = {
+  limit: 5,
+  windowMs: 60 * 60 * 1000,
+}
+
 interface Counter {
   count: number
   resetAt: number

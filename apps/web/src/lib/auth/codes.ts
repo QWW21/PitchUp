@@ -10,7 +10,7 @@ import { createHash, randomInt } from 'node:crypto'
 import { AUTH } from '@pitchup/shared'
 
 /** Wrong guesses allowed before a code is burned and must be re-sent. */
-export const MAX_CODE_ATTEMPTS = 5
+export const MAX_CODE_ATTEMPTS = 3
 
 /**
  * randomInt, not Math.random: this is a credential, and Math.random is

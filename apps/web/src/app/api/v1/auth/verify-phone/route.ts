@@ -30,13 +30,21 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   const result = await verifyPhoneCode(parsed.data.email, parsed.data.code)
 
   if ('failure' in result) {
-    const message =
-      result.failure === 'CODE_EXPIRED'
-        ? 'That code has expired, request a new one'
-        : result.failure === 'TOO_MANY_ATTEMPTS'
-          ? 'Too many incorrect attempts, request a new code'
-          : 'That code is not correct'
-    return err('VALIDATION_ERROR', message, 400, { reason: result.failure })
+    // The ticket asks for distinct statuses: 410 for an expired code, 429
+    // once the code is burned, 400 for a plain wrong guess.
+    const detail: Record<string, unknown> = { reason: result.failure }
+    if (result.attemptsRemaining !== undefined) {
+      detail.attemptsRemaining = result.attemptsRemaining
+    }
+
+    switch (result.failure) {
+      case 'CODE_EXPIRED':
+        return err('NOT_FOUND', 'That code has expired, request a new one', 410, detail)
+      case 'TOO_MANY_ATTEMPTS':
+        return err('RATE_LIMITED', 'Too many incorrect attempts, request a new code', 429, detail)
+      default:
+        return err('VALIDATION_ERROR', 'That code is not correct', 400, detail)
+    }
   }
 
   return ok({ verified: true })

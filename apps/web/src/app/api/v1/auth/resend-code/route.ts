@@ -3,7 +3,11 @@ import { z } from 'zod'
 import { ok, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
-import { resendEmailVerification, resendPhoneOtp } from '@/lib/auth/service'
+import {
+  RecipientThrottledError,
+  resendEmailVerification,
+  resendPhoneOtp,
+} from '@/lib/auth/service'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +38,24 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     })
   }
 
-  if (parsed.data.channel === 'EMAIL') {
-    await resendEmailVerification(parsed.data.email)
-  } else {
-    await resendPhoneOtp(parsed.data.email)
+  try {
+    if (parsed.data.channel === 'EMAIL') {
+      await resendEmailVerification(parsed.data.email)
+    } else {
+      await resendPhoneOtp(parsed.data.email)
+    }
+  } catch (caught) {
+    if (caught instanceof RecipientThrottledError) {
+      // The per-recipient cap. Reported as the same 429 as the per-IP one,
+      // so it does not reveal whether the quota belongs to this caller or
+      // to the recipient — which would confirm the account exists.
+      return err('RATE_LIMITED', 'Too many requests, try again shortly', 429, {
+        retryAfterSeconds: caught.retryAfterSeconds,
+      })
+    }
+    // A provider outage must not tell the caller whether the account
+    // existed, so it answers as the success case does.
+    console.error('[auth] Could not resend a verification code:', caught)
   }
 
   // Same answer whether or not the address exists, and whether or not it was

@@ -9,6 +9,7 @@ import 'server-only'
 import { env } from '@/lib/env'
 import { devEmailProvider, devSmsProvider } from './dev-provider'
 import { resendEmailProvider } from './resend-provider'
+import { twilioSmsProvider } from './twilio-provider'
 import type { EmailProvider, SmsProvider } from './types'
 
 export function getEmailProvider(): EmailProvider {
@@ -16,10 +17,10 @@ export function getEmailProvider(): EmailProvider {
 }
 
 export function getSmsProvider(): SmsProvider {
-  // Twilio adapter lands in E02-10.
-  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN) return devSmsProvider
-  return devSmsProvider
+  const configured = env.TWILIO_ACCOUNT_SID && env.TWILIO_AUTH_TOKEN && env.TWILIO_PHONE_NUMBER
+  return configured ? twilioSmsProvider : devSmsProvider
 }
 
 export { EmailDeliveryError } from './resend-provider'
+export { SmsDeliveryError } from './twilio-provider'
 export type { EmailMessage, EmailProvider, SmsMessage, SmsProvider } from './types'

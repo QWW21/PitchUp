@@ -10,6 +10,11 @@ import bcrypt from 'bcryptjs'
 import type { Role, User } from '@prisma/client'
 import { AUTH, type RegisterPlayerInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import {
+  EMAIL_PER_ADDRESS_RATE_LIMIT,
+  SMS_PER_PHONE_RATE_LIMIT,
+  checkRateLimit,
+} from '@/lib/api/rate-limit'
 import { getEmailProvider, getSmsProvider } from '@/lib/notifications'
 import { renderAlreadyRegisteredEmail, renderVerificationEmail } from '@/lib/emails/verification'
 import { renderPhoneOtpSms } from '@/lib/emails/phone-otp'
@@ -43,7 +48,24 @@ export interface LoginSuccess {
   refreshToken: string
 }
 
+/**
+ * Thrown when a recipient has been sent too many messages.
+ *
+ * Enforced inside the send functions rather than only at the routes, so
+ * every path — registration, resend, and anything added later — is covered
+ * without each having to remember.
+ */
+export class RecipientThrottledError extends Error {
+  constructor(readonly retryAfterSeconds: number) {
+    super('Too many messages to this recipient')
+    this.name = 'RecipientThrottledError'
+  }
+}
+
 export async function sendEmailVerification(userId: string, email: string): Promise<void> {
+  const quota = checkRateLimit(`email-to:${email.toLowerCase()}`, EMAIL_PER_ADDRESS_RATE_LIMIT)
+  if (!quota.allowed) throw new RecipientThrottledError(quota.retryAfterSeconds)
+
   const code = generateCode()
 
   // Supersede any outstanding codes: two live codes doubles the guessing
@@ -78,6 +100,11 @@ async function sendAlreadyRegisteredNotice(email: string): Promise<void> {
 }
 
 export async function sendPhoneOtp(userId: string, phone: string): Promise<void> {
+  // Keyed on the recipient, not the caller: every SMS is billed, so an
+  // attacker rotating IPs must not be able to text one number repeatedly.
+  const quota = checkRateLimit(`sms-to:${phone}`, SMS_PER_PHONE_RATE_LIMIT)
+  if (!quota.allowed) throw new RecipientThrottledError(quota.retryAfterSeconds)
+
   const code = generateCode()
 
   await prisma.verificationCode.updateMany({
@@ -178,6 +205,8 @@ export async function registerPlayer(input: RegisterPlayerInput): Promise<Regist
   try {
     await sendPhoneOtp(user.id, input.phone)
   } catch (caught) {
+    // Includes RecipientThrottledError: someone re-registering a number
+    // several times in an hour still gets an account, just no new text.
     console.error('[auth] Could not send the phone OTP at registration:', caught)
   }
 
@@ -318,6 +347,16 @@ export async function revokeRefreshToken(presented: string): Promise<void> {
 
 export type VerifyEmailFailure = 'INVALID_CODE' | 'CODE_EXPIRED' | 'TOO_MANY_ATTEMPTS'
 
+export interface VerifyFailureDetail {
+  failure: VerifyEmailFailure
+  /**
+   * Guesses left before the code is burned. Only meaningful for
+   * INVALID_CODE, and only when a code actually exists — it is omitted
+   * where reporting it would confirm an address is registered.
+   */
+  attemptsRemaining?: number
+}
+
 /** Confirms an email address against a code sent earlier. */
 export async function verifyEmailCode(
   email: string,
@@ -398,8 +437,6 @@ export async function resendPhoneOtp(email: string): Promise<void> {
   await sendPhoneOtp(user.id, user.phone)
 }
 
-export type VerifyPhoneFailure = VerifyEmailFailure
-
 /**
  * Confirms a phone number against an OTP.
  *
@@ -409,12 +446,14 @@ export type VerifyPhoneFailure = VerifyEmailFailure
 export async function verifyPhoneCode(
   email: string,
   code: string
-): Promise<{ verified: true } | { failure: VerifyPhoneFailure }> {
+): Promise<{ verified: true } | VerifyFailureDetail> {
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
     select: { id: true },
   })
 
+  // No attemptsRemaining here: reporting a count for an address with no
+  // account would confirm which addresses are registered.
   if (!user) return { failure: 'INVALID_CODE' }
 
   const record = await prisma.verificationCode.findFirst({
@@ -427,11 +466,15 @@ export async function verifyPhoneCode(
   if (record.expiresAt <= new Date()) return { failure: 'CODE_EXPIRED' }
 
   if (!tokensMatch(hashCode(code), record.codeHash)) {
-    await prisma.verificationCode.update({
+    const updated = await prisma.verificationCode.update({
       where: { id: record.id },
       data: { attempts: { increment: 1 } },
+      select: { attempts: true },
     })
-    return { failure: 'INVALID_CODE' }
+    const remaining = Math.max(0, MAX_CODE_ATTEMPTS - updated.attempts)
+    return remaining === 0
+      ? { failure: 'TOO_MANY_ATTEMPTS', attemptsRemaining: 0 }
+      : { failure: 'INVALID_CODE', attemptsRemaining: remaining }
   }
 
   await prisma.$transaction([
