@@ -129,15 +129,34 @@ export async function registerPlayer(input: RegisterPlayerInput): Promise<Regist
   const email = input.email.toLowerCase().trim()
 
   const [existingEmail, existingPhone] = await Promise.all([
-    prisma.user.findUnique({ where: { email }, select: { id: true } }),
-    prisma.user.findUnique({ where: { phone: input.phone }, select: { id: true } }),
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true, emailVerified: true },
+    }),
+    prisma.user.findUnique({
+      where: { phone: input.phone },
+      select: { id: true, emailVerified: true },
+    }),
   ])
 
   if (existingEmail) {
-    await sendAlreadyRegisteredNotice(email)
-    return { outcome: 'EMAIL_TAKEN' }
+    if (existingEmail.emailVerified) {
+      await sendAlreadyRegisteredNotice(email)
+      return { outcome: 'EMAIL_TAKEN' }
+    }
+
+    // The address has an account that was never confirmed, so nobody has
+    // proven they own it. Letting that stand would mean anyone could squat
+    // an address by registering it first, locking out the real owner
+    // permanently. Replace the unverified record instead: whoever can read
+    // the inbox gets the account.
+    await prisma.user.delete({ where: { id: existingEmail.id } })
   }
-  if (existingPhone) return { outcome: 'PHONE_TAKEN' }
+
+  if (existingPhone) {
+    if (existingPhone.emailVerified) return { outcome: 'PHONE_TAKEN' }
+    await prisma.user.delete({ where: { id: existingPhone.id } })
+  }
 
   const passwordHash = await bcrypt.hash(input.password, AUTH.BCRYPT_COST)
 
@@ -199,7 +218,21 @@ export async function loginWithPassword(
 
   if (!user || !passwordMatches) return { failure: 'INVALID_CREDENTIALS' }
   if (user.deletedAt) return { failure: 'ACCOUNT_SUSPENDED' }
-  if (!user.emailVerified) return { failure: 'EMAIL_NOT_VERIFIED' }
+
+  if (!user.emailVerified) {
+    // Correct credentials for an unverified account. Returning a distinct
+    // EMAIL_NOT_VERIFIED here would undo the work the register endpoint does
+    // to hide whether an address exists: an attacker registers the address,
+    // then logs in with the password they chose. EMAIL_NOT_VERIFIED means
+    // the address was free, INVALID_CREDENTIALS means it was taken — full
+    // enumeration in two requests.
+    //
+    // So it answers as a credential failure and re-sends the code. Someone
+    // holding the real password gets a fresh code in their inbox, which is
+    // the action they needed; someone probing learns nothing.
+    await sendEmailVerification(user.id, user.email)
+    return { failure: 'INVALID_CREDENTIALS' }
+  }
 
   const tokens = await issueTokens(user.id, user.role, userAgent)
 
@@ -326,6 +359,84 @@ export async function verifyEmailCode(
     prisma.user.update({
       where: { id: user.id },
       data: { emailVerified: true },
+    }),
+  ])
+
+  return { verified: true }
+}
+
+/**
+ * Re-sends an email verification code.
+ *
+ * Returns nothing in all cases — unknown address, already verified, or sent.
+ * The caller answers identically either way, so this cannot be used to test
+ * whether an address is registered.
+ */
+export async function resendEmailVerification(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true, email: true, emailVerified: true, deletedAt: true },
+  })
+
+  if (!user || user.emailVerified || user.deletedAt) return
+  await sendEmailVerification(user.id, user.email)
+}
+
+/** Re-sends a phone OTP. Same silent-on-every-path contract as above. */
+export async function resendPhoneOtp(email: string): Promise<void> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true, phone: true, phoneVerified: true, deletedAt: true },
+  })
+
+  if (!user || user.phoneVerified || user.deletedAt) return
+  await sendPhoneOtp(user.id, user.phone)
+}
+
+export type VerifyPhoneFailure = VerifyEmailFailure
+
+/**
+ * Confirms a phone number against an OTP.
+ *
+ * Scoped to the PHONE channel, so an emailed code cannot confirm a phone
+ * number any more than the reverse.
+ */
+export async function verifyPhoneCode(
+  email: string,
+  code: string
+): Promise<{ verified: true } | { failure: VerifyPhoneFailure }> {
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true },
+  })
+
+  if (!user) return { failure: 'INVALID_CODE' }
+
+  const record = await prisma.verificationCode.findFirst({
+    where: { userId: user.id, channel: 'PHONE', usedAt: null },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (!record) return { failure: 'INVALID_CODE' }
+  if (record.attempts >= MAX_CODE_ATTEMPTS) return { failure: 'TOO_MANY_ATTEMPTS' }
+  if (record.expiresAt <= new Date()) return { failure: 'CODE_EXPIRED' }
+
+  if (!tokensMatch(hashCode(code), record.codeHash)) {
+    await prisma.verificationCode.update({
+      where: { id: record.id },
+      data: { attempts: { increment: 1 } },
+    })
+    return { failure: 'INVALID_CODE' }
+  }
+
+  await prisma.$transaction([
+    prisma.verificationCode.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    }),
+    prisma.user.update({
+      where: { id: user.id },
+      data: { phoneVerified: true },
     }),
   ])
 

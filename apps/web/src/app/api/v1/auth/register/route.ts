@@ -11,15 +11,18 @@ export const dynamic = 'force-dynamic'
 const REGISTER_RATE_LIMIT = { limit: 3, windowMs: 60 * 60 * 1000 }
 
 export const POST = withErrorHandling(async (request: NextRequest) => {
+  // Validate first, then spend from the budget. Counting malformed requests
+  // would let anyone lock registration for a whole NAT'd office or campus
+  // by posting junk three times.
+  const parsed = await validateBody(request, RegisterPlayerSchema)
+  if (parsed.error) return parsed.error
+
   const rate = checkRateLimit(`register:${getClientIp(request)}`, REGISTER_RATE_LIMIT)
   if (!rate.allowed) {
     return err('RATE_LIMITED', 'Too many registration attempts', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
-
-  const parsed = await validateBody(request, RegisterPlayerSchema)
-  if (parsed.error) return parsed.error
 
   const result = await registerPlayer(parsed.data)
 
