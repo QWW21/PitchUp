@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 // Imported for its side effect: validates the environment at startup so a
 // missing variable fails here rather than deep inside a request. E01-05.
 import '@/lib/env'
+import './globals.css'
 
 export const metadata: Metadata = {
   title: 'PitchUp',
