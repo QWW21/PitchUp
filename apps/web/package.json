@@ -25,6 +25,7 @@
     "@t3-oss/env-nextjs": "^0.13.11",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.11.0",
+    "jose": "^6.2.12",
     "next": "^15.0.0",
     "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",

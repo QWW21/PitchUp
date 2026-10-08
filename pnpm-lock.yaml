@@ -130,6 +130,9 @@ importers:
       cloudinary:
         specifier: ^2.11.0
         version: 2.11.0
+      jose:
+        specifier: ^6.2.12
+        version: 6.2.12
       next:
         specifier: ^15.0.0
         version: 15.5.27(@types/node@22.20.5)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)

@@ -22,9 +22,18 @@ export interface ApiErrorBody {
   }
 }
 
-export function ok<T>(data: T, meta?: Record<string, unknown>): NextResponse<ApiSuccess<T>> {
+export function ok<T>(
+  data: T,
+  meta?: Record<string, unknown>,
+  status = 200
+): NextResponse<ApiSuccess<T>> {
   const body: ApiSuccess<T> = meta ? { data, error: null, meta } : { data, error: null }
-  return NextResponse.json(body)
+  return NextResponse.json(body, { status })
+}
+
+/** 201 for a route that created something. */
+export function created<T>(data: T, meta?: Record<string, unknown>): NextResponse<ApiSuccess<T>> {
+  return ok(data, meta, 201)
 }
 
 export function err(

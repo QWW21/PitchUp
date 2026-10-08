@@ -147,8 +147,10 @@ model User {
   reviews          Review[]
   notifications    Notification[]
   trustScoreEvents TrustScoreEvent[]
-  noShowsReported  NoShow[]          @relation("NoShowReportedByManager")
-  noShowsResolved  NoShow[]          @relation("NoShowResolvedByAdmin")
+  noShowsReported  NoShow[]                @relation("NoShowReportedByManager")
+  noShowsResolved  NoShow[]                @relation("NoShowResolvedByAdmin")
+  verificationCodes VerificationCode[]
+  refreshTokens    RefreshToken[]
 
   @@index([role])
   @@index([city])
@@ -205,12 +207,12 @@ model Pitch {
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
-  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  photos          PitchPhoto[]
-  amenities       PitchAmenity[]
-  shirtInventory  ShirtInventory[]
-  bookings        Booking[]
-  reviews         Review[]
+  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  photos         PitchPhoto[]
+  amenities      PitchAmenity[]
+  shirtInventory ShirtInventory[]
+  bookings       Booking[]
+  reviews        Review[]
 
   @@index([companyId])
   @@index([isActive])
@@ -290,17 +292,17 @@ model Booking {
 }
 
 model NoShow {
-  id                   String        @id @default(cuid())
-  bookingId            String        @unique
-  reportedByManagerId  String
-  reason               String?
-  penaltyAmount        Decimal       @db.Decimal(10, 2)
-  disputeStatus        DisputeStatus @default(NONE)
-  disputeText          String?
-  disputeEvidenceUrls  Json?
-  resolvedByAdminId    String?
-  resolvedAt           DateTime?
-  createdAt            DateTime      @default(now())
+  id                  String        @id @default(cuid())
+  bookingId           String        @unique
+  reportedByManagerId String
+  reason              String?
+  penaltyAmount       Decimal       @db.Decimal(10, 2)
+  disputeStatus       DisputeStatus @default(NONE)
+  disputeText         String?
+  disputeEvidenceUrls Json?
+  resolvedByAdminId   String?
+  resolvedAt          DateTime?
+  createdAt           DateTime      @default(now())
 
   booking           Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   reportedByManager User    @relation("NoShowReportedByManager", fields: [reportedByManagerId], references: [id], onDelete: Restrict)
@@ -367,6 +369,53 @@ model TrustScoreEvent {
   relatedBooking Booking? @relation(fields: [relatedBookingId], references: [id], onDelete: SetNull)
 
   @@index([userId, createdAt])
+}
+
+/// Which channel a verification code was sent over. Email and phone codes
+/// live in one table but must never be interchangeable: a code texted to a
+/// phone must not verify an email address.
+enum VerificationChannel {
+  EMAIL
+  PHONE
+}
+
+/// A short-lived code sent to confirm an email address or phone number. E02-08.
+model VerificationCode {
+  id        String              @id @default(cuid())
+  userId    String
+  channel   VerificationChannel
+  /// SHA-256 of the 6-digit code. A leaked database must not grant access.
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  /// Wrong guesses so far; the code is burned past a threshold.
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, channel, createdAt])
+  @@index([expiresAt])
+}
+
+/// Long-lived mobile session token. Web uses a NextAuth cookie instead. E02-08.
+model RefreshToken {
+  id           String    @id @default(cuid())
+  userId       String
+  /// SHA-256 of the token. Only the client ever holds the plaintext.
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  /// Set when this token is rotated, pointing at its successor, so reuse of
+  /// an already-rotated token can be detected as theft.
+  replacedById String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model City {
