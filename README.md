@@ -80,6 +80,11 @@ starts a dev server, exercises the API, and shuts it down.
 
 A pre-commit hook runs ESLint and Prettier on staged files.
 
+## Where things stand
+
+`docs/HANDOVER.md` — what is done, what is next, which decisions are settled
+and which gaps are known.
+
 ## Learning the codebase
 
 `docs/ARCHITECTURE.md` walks through every decision in the infrastructure
