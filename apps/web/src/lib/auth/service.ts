@@ -8,7 +8,7 @@
 import 'server-only'
 import bcrypt from 'bcryptjs'
 import type { Role, User } from '@prisma/client'
-import { AUTH, type RegisterPlayerInput } from '@pitchup/shared'
+import { AUTH, type RegisterManagerInput, type RegisterPlayerInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import {
   EMAIL_PER_ADDRESS_RATE_LIMIT,
@@ -146,6 +146,29 @@ export type RegisterResult =
  * reported.
  */
 export async function registerPlayer(input: RegisterPlayerInput): Promise<RegisterResult> {
+  return registerAccount({ ...input, role: 'PLAYER' })
+}
+
+/**
+ * Creates a manager account. PRD §6.2 asks only for name, email, phone and
+ * password here — company details and date of birth come later in the
+ * onboarding wizard (E09).
+ */
+export async function registerManager(input: RegisterManagerInput): Promise<RegisterResult> {
+  return registerAccount({ ...input, role: 'MANAGER' })
+}
+
+type RegisterAccountInput = {
+  name: string
+  email: string
+  phone: string
+  password: string
+  role: Role
+  city?: string
+  dateOfBirth?: string
+}
+
+async function registerAccount(input: RegisterAccountInput): Promise<RegisterResult> {
   const email = input.email.toLowerCase().trim()
 
   const [existingEmail, existingPhone] = await Promise.all([
@@ -186,9 +209,9 @@ export async function registerPlayer(input: RegisterPlayerInput): Promise<Regist
       phone: input.phone,
       passwordHash,
       name: input.name.trim(),
-      city: input.city,
-      dateOfBirth: new Date(`${input.dateOfBirth}T00:00:00Z`),
-      role: 'PLAYER',
+      city: input.city ?? null,
+      dateOfBirth: input.dateOfBirth ? new Date(`${input.dateOfBirth}T00:00:00Z`) : null,
+      role: input.role,
     },
     select: { id: true },
   })

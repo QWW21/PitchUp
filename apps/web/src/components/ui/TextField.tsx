@@ -4,8 +4,14 @@ import { useId, useState, type InputHTMLAttributes } from 'react'
 
 interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   label: string
-  /** Field-level error. Announced to screen readers when it appears. */
-  error?: string
+  /**
+   * Field-level error. Announced to screen readers when it appears.
+   *
+   * Explicitly allows undefined because the workspace sets
+   * exactOptionalPropertyTypes, which otherwise rejects passing a value
+   * that may be undefined.
+   */
+  error?: string | undefined
   /** Renders a show/hide toggle and starts masked. */
   revealable?: boolean
 }
