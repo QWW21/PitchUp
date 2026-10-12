@@ -8,7 +8,7 @@ scaffolded the mobile app.
 **E01 — Infrastructure: complete.** All ten tickets closed.
 `bash scripts/verify-e01.sh` re-runs every acceptance check (26 of them).
 
-**E02 — Auth: six of fourteen closed.**
+**E02 — Auth: seven of fourteen closed.**
 
 | Ticket                          | State                                                |
 | ------------------------------- | ---------------------------------------------------- |
@@ -16,30 +16,37 @@ scaffolded the mobile app.
 | E02-09 Resend email             | closed — adapter + templates, inactive without a key |
 | E02-10 Twilio SMS               | closed — adapter, inactive without credentials       |
 | E02-11 password reset           | closed                                               |
+| E02-12 mobile API client        | closed — authApi, authStore, navigation wiring       |
 | E02-13 web manager login        | closed                                               |
 | E02-14 web manager registration | closed                                               |
 
 ## Next
 
-**E02-12 (mobile API client) is half done** and committed in that state.
+**E02-12 is complete.** All mobile infrastructure is in place.
 
-Already written:
+Committed in two sessions:
 
 - `apps/mobile/src/lib/tokenStorage.ts` — Keychain wrapper
 - `apps/mobile/src/lib/apiClient.ts` — axios instance, refresh interceptor
 - `apps/mobile/src/lib/authEvents.ts` — unauthorised signal
 - `apps/mobile/src/config.ts` — base URL per platform
+- `apps/mobile/src/lib/authApi.ts` — typed wrappers: register, login (stores tokens), verifyEmail, resendCode, forgotPassword, resetPassword, fetchMe, logout
+- `apps/mobile/src/stores/authStore.ts` — Zustand: checkSession (validates stored tokens via /me on launch), setUser, logout
+- `apps/mobile/App.tsx` — NavigationContainer with AuthStack/AppStack; driven by store status; authEvents wired to logout
 
-Still to write for E02-12:
+**Next: the seven mobile screens — E02-01 through E02-07:**
 
-- an auth API module wrapping register / login / verify / resend / reset
-- a session store (zustand is already a dependency)
-- navigation wiring, so `authEvents.emitUnauthorized()` actually sends the
-  user to the login screen — nothing listens to it yet
+| Ticket | Screen                                    |
+| ------ | ----------------------------------------- |
+| E02-01 | Splash + onboarding                       |
+| E02-02 | Player registration (step 1)              |
+| E02-03 | Player registration (step 2)              |
+| E02-04 | Phone OTP verification                    |
+| E02-05 | Login                                     |
+| E02-06 | Forgot password                           |
+| E02-07 | Social login (deferred if no credentials) |
 
-Then the seven mobile screens: E02-01 splash and onboarding, E02-02 and
-E02-03 registration, E02-04 phone OTP, E02-05 login, E02-06 forgot
-password, E02-07 social login.
+Start with E02-05 (Login) — it's the simplest screen and exercises the full auth flow end-to-end.
 
 ## Decisions that are settled
 
