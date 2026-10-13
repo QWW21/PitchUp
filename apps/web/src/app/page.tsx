@@ -1,8 +1,7 @@
-export default function HomePage() {
-  return (
-    <main>
-      <h1>PitchUp</h1>
-      <p>Infrastructure is up. Feature work starts at E02.</p>
-    </main>
-  )
+import { redirect } from 'next/navigation'
+import { auth } from '@/auth'
+
+export default async function HomePage() {
+  const session = await auth()
+  redirect(session?.user ? '/dashboard' : '/login')
 }
