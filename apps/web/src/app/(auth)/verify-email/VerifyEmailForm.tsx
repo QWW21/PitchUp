@@ -29,7 +29,7 @@ export function VerifyEmailForm({ email }: { email: string }) {
     const body = await response.json().catch(() => null)
 
     if (response.ok) {
-      router.push('/login?verified=1')
+      router.push(`/registration-confirmed?email=${encodeURIComponent(email)}`)
       return
     }
 
