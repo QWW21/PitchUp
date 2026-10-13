@@ -21,14 +21,19 @@ export function LoginForm() {
     setError(null)
     setLoading(true)
 
-    const result = await signIn('credentials', { email, password, redirect: false })
+    try {
+      const result = await signIn('credentials', { email, password, redirect: false })
 
-    if (result?.ok) {
-      // Honour where the middleware was taking them before the redirect.
-      const callbackUrl = searchParams.get('callbackUrl')
-      router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/dashboard')
-      router.refresh()
-      return
+      if (result?.ok) {
+        // Honour where the middleware was taking them before the redirect.
+        const callbackUrl = searchParams.get('callbackUrl')
+        router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/dashboard')
+        router.refresh()
+        return
+      }
+    } catch {
+      // NextAuth v5 throws CallbackRouteError on credential failure instead
+      // of returning { ok: false } — fall through to the error state below.
     }
 
     // One message for every failure. The API deliberately does not
