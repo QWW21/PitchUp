@@ -12,6 +12,10 @@
 #   e02-close    Comment on and close the E02 mobile tickets (#11-16, #22)
 #   e02-bugs     File the defects found during E02, each already fixed
 #   e02-gaps     File the follow-ups for what E02 closed without building
+#   e03-close    Close E03-01/08 (#25, #32); comment on the mobile ones (#26-31),
+#                which stay open for the mobile tester
+#   e03-bugs     File the defects found during E03, each already fixed
+#   e03-gaps     File the follow-ups E03 left
 #
 # Prerequisites:
 #   - jq installed (brew install jq)
@@ -30,6 +34,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib.sh"
 
 BODIES="$SCRIPT_DIR/bodies/e02"
+E03_BODIES="$SCRIPT_DIR/bodies/e03"
 
 # ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -115,6 +120,7 @@ file_followup() {
 
 AUTH=2  # milestone: E02 — Auth
 INFRA=1 # milestone: E01 — Infrastructure
+DISCOVER=3 # milestone: E03 — Player: Discover
 
 cmd_e02_close() {
   echo "Commenting on and closing the E02 mobile tickets…"
@@ -195,10 +201,51 @@ cmd_e02_gaps() {
     '["epic: auth","type: cross-platform","priority: high"]' $AUTH
 }
 
+cmd_e03_close() {
+  echo "Closing the E03 backend and web tickets…"
+  local n
+  for n in 25 32; do
+    comment_issue "$n" "$E03_BODIES/close-$n.md"
+    close_issue "$n"
+  done
+  echo "Commenting on the E03 mobile tickets (left open for the mobile tester)…"
+  for n in 26 27 28 29 30 31; do
+    comment_issue "$n" "$E03_BODIES/status-$n.md"
+  done
+}
+
+cmd_e03_bugs() {
+  echo "Filing the defects found during E03 (all already fixed)…"
+  file_fixed_defect \
+    "[BUG] Discover map pills ignore clicks — Google Maps swallows events before React" \
+    "$E03_BODIES/bug-mappill.md" \
+    '["bug","epic: player-discover","platform: web","priority: high"]' $DISCOVER
+  file_fixed_defect \
+    "[BUG] pnpm-lock.yaml pins tarballs to the corporate Artifactory, so installs fail off-network" \
+    "$E03_BODIES/bug-lockfile.md" \
+    '["bug","epic: infrastructure","priority: high"]' $INFRA
+}
+
+cmd_e03_gaps() {
+  echo "Filing the follow-ups E03 left…"
+  file_followup \
+    "[E03 gap] Mobile tab bar — Discover is a bare stack screen" \
+    "$E03_BODIES/gap-tabbar.md" \
+    '["epic: player-discover","platform: mobile","type: feature","priority: medium"]' $DISCOVER
+  file_followup \
+    "[E03 gap] No sign-out on mobile since Discover replaced the placeholder Home" \
+    "$E03_BODIES/gap-signout.md" \
+    '["epic: player-discover","platform: mobile","type: feature","priority: low"]' $DISCOVER
+  file_followup \
+    "[E03-08 gap] Lighthouse score for /discover not measured" \
+    "$E03_BODIES/gap-lighthouse.md" \
+    '["epic: player-discover","platform: web","testing","priority: low"]' $DISCOVER
+}
+
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 if [[ $# -eq 0 ]]; then
-  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 fi
 
@@ -209,6 +256,9 @@ for arg in "$@"; do
     e02-close) cmd_e02_close ;;
     e02-bugs)  cmd_e02_bugs ;;
     e02-gaps)  cmd_e02_gaps ;;
+    e03-close) cmd_e03_close ;;
+    e03-bugs)  cmd_e03_bugs ;;
+    e03-gaps)  cmd_e03_gaps ;;
     *) echo "Unknown command: $arg"; exit 1 ;;
   esac
 done

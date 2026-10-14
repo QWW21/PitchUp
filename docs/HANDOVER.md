@@ -65,6 +65,20 @@ Both company-detail targets — web `/discover/[companyId]` and the mobile
 
 **E04 — Player: Pitch Detail** replaces the two company-detail placeholders.
 
+**How testing is split from E03 on:** backend and web are verified as part of
+each epic; mobile is built to the point of compiling and bundling, then
+handed to a separate mobile tester. So E03-01 (#25) and E03-08 (#32) close
+with the epic, while the six mobile tickets (#26–#31) stay open with a
+"built, awaiting mobile testing" comment listing what to check. The tester
+closes them.
+
+GitHub state for E03 is scripted like E02's:
+`GITHUB_TOKEN=… bash scripts/github/state.sh e03-close e03-bugs e03-gaps`.
+Comment bodies are in `scripts/github/bodies/e03/`. The script needs `bash`
+and `jq`. It files two already-fixed defects (map pills ignoring clicks; the
+lockfile's Artifactory URLs) and three follow-ups (mobile tab bar, mobile
+sign-out, Lighthouse for `/discover`).
+
 **E02-07 (social login)** is still open, blocked on credentials rather than
 on code.
 
