@@ -40,6 +40,7 @@ export function UserMenu({ name, signOutAction }: UserMenuProps) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
+        aria-label={`Account menu for ${name}`}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-neutral-100"

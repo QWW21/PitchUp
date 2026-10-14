@@ -8,6 +8,22 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 
+/**
+ * Only a path on this site. `startsWith('/')` alone let `//evil.example`
+ * (protocol-relative) and `/\evil.example` (browsers read `\` as `/`) through,
+ * turning the login page into an open redirect for phishing links.
+ */
+function safeCallbackPath(callbackUrl: string | null): string {
+  if (!callbackUrl) return '/dashboard'
+  try {
+    const url = new URL(callbackUrl, window.location.origin)
+    if (url.origin !== window.location.origin) return '/dashboard'
+    return `${url.pathname}${url.search}${url.hash}`
+  } catch {
+    return '/dashboard'
+  }
+}
+
 export function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -24,16 +40,23 @@ export function LoginForm() {
     try {
       const result = await signIn('credentials', { email, password, redirect: false })
 
-      if (result?.ok) {
+      // `ok` alone is not success: Auth.js answers a rejected sign-in with
+      // HTTP 200 and the reason in the redirect URL, so next-auth/react
+      // returns { ok: true, error: 'CredentialsSignin' }. Treating that as
+      // success sent the user to /dashboard, the middleware bounced them
+      // back here, and the form stayed stuck on "Signing in…".
+      if (result?.ok && !result.error) {
         // Honour where the middleware was taking them before the redirect.
-        const callbackUrl = searchParams.get('callbackUrl')
-        router.push(callbackUrl && callbackUrl.startsWith('/') ? callbackUrl : '/dashboard')
+        router.push(safeCallbackPath(searchParams.get('callbackUrl')))
         router.refresh()
         return
       }
     } catch {
-      // NextAuth v5 throws CallbackRouteError on credential failure instead
-      // of returning { ok: false } — fall through to the error state below.
+      // signIn only throws when the request itself fails (no connection, or
+      // a non-JSON server error); a wrong password comes back as a result.
+      setError('Could not connect. Check your connection and try again.')
+      setLoading(false)
+      return
     }
 
     // One message for every failure. The API deliberately does not

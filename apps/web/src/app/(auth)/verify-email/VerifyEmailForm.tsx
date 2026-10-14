@@ -21,11 +21,19 @@ export function VerifyEmailForm({ email }: { email: string }) {
     setNotice(null)
     setLoading(true)
 
-    const response = await fetch('/api/v1/auth/verify-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-    })
+    let response: Response
+    try {
+      response = await fetch('/api/v1/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code }),
+      })
+    } catch {
+      // A dropped connection rejects; without this the button spins for good.
+      setError('Could not connect. Check your connection and try again.')
+      setLoading(false)
+      return
+    }
     const body = await response.json().catch(() => null)
 
     if (response.ok) {
@@ -45,15 +53,20 @@ export function VerifyEmailForm({ email }: { email: string }) {
   async function handleResend() {
     setError(null)
     setResending(true)
-    await fetch('/api/v1/auth/resend-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, channel: 'EMAIL' }),
-    })
-    // The endpoint answers identically whether or not the address exists,
-    // so this message cannot confirm one either.
-    setNotice('If that account needs verifying, a new code is on its way.')
-    setResending(false)
+    try {
+      await fetch('/api/v1/auth/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, channel: 'EMAIL' }),
+      })
+      // The endpoint answers identically whether or not the address exists,
+      // so this message cannot confirm one either.
+      setNotice('If that account needs verifying, a new code is on its way.')
+    } catch {
+      setError('Could not connect. Check your connection and try again.')
+    } finally {
+      setResending(false)
+    }
   }
 
   return (

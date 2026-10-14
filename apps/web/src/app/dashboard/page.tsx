@@ -4,6 +4,9 @@ import { auth, signOut } from '@/auth'
 export default async function DashboardPage() {
   const session = await auth()
   if (!session?.user) redirect('/login')
+  // The dashboard is the manager area. Players who sign in on the web
+  // belong on Discover (PRD §5.3), not on a page with nothing for them.
+  if (session.user.role === 'PLAYER') redirect('/discover')
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">

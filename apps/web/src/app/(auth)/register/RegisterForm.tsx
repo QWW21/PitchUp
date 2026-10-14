@@ -34,9 +34,14 @@ export function RegisterForm() {
   const [loading, setLoading] = useState(false)
 
   /** Strips spaces and a leading zero, which Romanian numbers are usually
-   *  written with but E.164 does not allow. */
+   *  written with but E.164 does not allow. A number typed or pasted in full
+   *  international form (+40… or 0040…) is kept as it is; prefixing the
+   *  picker's code onto it produced +4040…, and the SMS went nowhere. */
   function toE164(): string {
-    const digits = localNumber.replace(/\D/g, '').replace(/^0+/, '')
+    const typed = localNumber.trim()
+    if (typed.startsWith('+')) return `+${typed.replace(/\D/g, '')}`
+    if (typed.startsWith('00')) return `+${typed.replace(/\D/g, '').slice(2)}`
+    const digits = typed.replace(/\D/g, '').replace(/^0+/, '')
     return `${dialCode}${digits}`
   }
 
@@ -64,11 +69,20 @@ export function RegisterForm() {
     setFieldErrors({})
     setLoading(true)
 
-    const response = await fetch('/api/v1/auth/register/manager', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, phone, password }),
-    })
+    let response: Response
+    try {
+      response = await fetch('/api/v1/auth/register/manager', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password }),
+      })
+    } catch {
+      // A dropped connection rejects instead of returning a response; without
+      // this the button would stay on its spinner for good.
+      setFormError('Could not connect. Check your connection and try again.')
+      setLoading(false)
+      return
+    }
     const body = await response.json().catch(() => null)
 
     if (!response.ok) {

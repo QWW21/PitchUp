@@ -225,8 +225,19 @@ E03:
   say, the enumeration defence would not be caught by anything.
   `scripts/verify-e03.ts` is a script, not a test suite, and needs a running
   server.
-- **No browser testing.** The web pages were checked by inspecting markup, not
-  by rendering. No viewport testing at 375 / 768 / 1280.
+- **Web auth was walked through in a browser** against a production build
+  (`next start`), after the E03 session: login (right, wrong, unknown,
+  unverified), `callbackUrl`, signed-in redirects, sign-out from both the
+  dashboard and the player menu, manager registration with validation, email
+  verification (wrong code, resend, right code), re-registering an existing
+  address, forgot password, and the new `/reset-password` (bad link, weak and
+  mismatched passwords, success, reused link, old password rejected). Six
+  defects found on the way are fixed and filed. Still unchecked: real email
+  and SMS delivery, and viewports other than desktop and 375px.
+- **A password reset does not end existing web sessions.** Mobile refresh
+  tokens are revoked, but web sessions are stateless JWT cookies and stay
+  valid until they expire. Closing that needs a `passwordChangedAt` (or token
+  version) on `User` checked in the `jwt` callback.
 - **Android was verified as far as the onboarding screen.** The build, the
   bundle and the first render are confirmed. The seven auth screens have not
   been walked through on a device against a live API;
@@ -244,9 +255,10 @@ E03:
 - `PROFILE_VERIFIED`, a manager trust score, and `ADMIN_ADJUSTMENT` appear
   in later tickets but are not in the PRD or the schema. Flagged in place
   on E12 and E15; each needs a call before that epic starts.
-- **`/reset-password` does not exist.** The reset email links to it. The
-  `/forgot-password` page and both API routes are built, so the flow dead-ends
-  at the last step. This is not in any E02 ticket.
+- **Players who sign in on the web go to `/discover`**, not `/dashboard`.
+  E02-13 sends every login to `/dashboard`, which is the manager area and has
+  nothing for a player. The dashboard now redirects players; managers and
+  admins are unaffected.
 - **When to upgrade React Native.** The 0.76 pin is already forcing an
   rn-screens downgrade and two patches, and that cost will grow.
 - The GitHub token in use is shared in the session transcript and should be

@@ -35,8 +35,15 @@ const dateOfBirthSchema = z
     message: `Must be at least ${AUTH.MIN_AGE_YEARS} years old`,
   })
 
+/** Shown under the name field on web and mobile, so it is worded for people. */
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, 'Enter your full name')
+  .max(100, 'Name must be 100 characters or fewer')
+
 export const RegisterPlayerSchema = z.object({
-  name: z.string().trim().min(2).max(100),
+  name: nameSchema,
   email: emailSchema,
   phone: phoneSchema,
   password: passwordSchema,
@@ -45,7 +52,7 @@ export const RegisterPlayerSchema = z.object({
 })
 
 export const RegisterManagerSchema = z.object({
-  name: z.string().trim().min(2).max(100),
+  name: nameSchema,
   email: emailSchema,
   phone: phoneSchema,
   password: passwordSchema,
