@@ -596,7 +596,10 @@ export async function resetPassword(
   await prisma.$transaction([
     prisma.user.update({
       where: { id: record.userId },
-      data: { passwordHash },
+      // passwordChangedAt ends web sessions started before now (see the jwt
+      // callback in src/auth.ts); the refresh-token revocation below does
+      // the same for mobile.
+      data: { passwordHash, passwordChangedAt: new Date() },
     }),
     prisma.passwordResetToken.update({
       where: { id: record.id },

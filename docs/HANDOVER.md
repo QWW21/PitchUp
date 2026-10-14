@@ -234,10 +234,11 @@ E03:
   mismatched passwords, success, reused link, old password rejected). Six
   defects found on the way are fixed and filed. Still unchecked: real email
   and SMS delivery, and viewports other than desktop and 375px.
-- **A password reset does not end existing web sessions.** Mobile refresh
-  tokens are revoked, but web sessions are stateless JWT cookies and stay
-  valid until they expire. Closing that needs a `passwordChangedAt` (or token
-  version) on `User` checked in the `jwt` callback.
+- **A password reset ends every session.** Mobile refresh tokens are revoked;
+  web sessions (stateless JWT cookies) are rejected by the `jwt` callback once
+  `User.passwordChangedAt` is later than the session's sign-in time. That is
+  one primary-key lookup per session read. Deleted users are signed out the
+  same way.
 - **Android was verified as far as the onboarding screen.** The build, the
   bundle and the first render are confirmed. The seven auth screens have not
   been walked through on a device against a live API;

@@ -125,22 +125,26 @@ enum CancelledBy {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id               String    @id @default(cuid())
-  email            String    @unique
-  phone            String    @unique
-  passwordHash     String
-  name             String
-  profilePhotoUrl  String?
-  city             String?
-  dateOfBirth      DateTime?
-  role             Role      @default(PLAYER)
-  trustScore       Int       @default(100)
-  stripeCustomerId String?
-  emailVerified    Boolean   @default(false)
-  phoneVerified    Boolean   @default(false)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  deletedAt        DateTime?
+  id                String    @id @default(cuid())
+  email             String    @unique
+  phone             String    @unique
+  passwordHash      String
+  name              String
+  profilePhotoUrl   String?
+  city              String?
+  dateOfBirth       DateTime?
+  role              Role      @default(PLAYER)
+  trustScore        Int       @default(100)
+  stripeCustomerId  String?
+  emailVerified     Boolean   @default(false)
+  phoneVerified     Boolean   @default(false)
+  /// Web sessions (stateless JWTs) issued before this are rejected, so a
+  /// password reset signs out every browser. Mobile uses refresh-token
+  /// revocation instead.
+  passwordChangedAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
 
   company             Company?
   bookings            Booking[]

@@ -99,11 +99,28 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
-    jwt({ token, user }) {
+    async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string
         token.role = user.role
+        // Our own timestamp in ms rather than the JWT's `iat`, which is in
+        // whole seconds and would reject a sign-in made in the same second
+        // as the reset.
+        token.authAt = Date.now()
+        return token
       }
+
+      // The session is a stateless cookie, so a password reset cannot delete
+      // it. Instead every check compares when this session began with when
+      // the password last changed; returning null signs the browser out.
+      // One indexed lookup by primary key per session read.
+      const current = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { passwordChangedAt: true, deletedAt: true },
+      })
+      if (!current || current.deletedAt) return null
+      const authAt = typeof token.authAt === 'number' ? token.authAt : 0
+      if (current.passwordChangedAt && current.passwordChangedAt.getTime() > authAt) return null
       return token
     },
 
