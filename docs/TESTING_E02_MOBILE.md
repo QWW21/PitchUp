@@ -93,7 +93,7 @@ Create one via the API directly (or via Test 3 below first, then come back):
 1. Navigate to the Login screen.
 2. Enter a valid email + password.
 3. Tap **Sign in**.
-4. **Expect:** Spinner on button, then navigate to Home screen showing the user's name.
+4. **Expect:** Spinner on button, then navigate to the Discover screen.
 5. Open the Keychain / Keystore inspector (see below) to confirm tokens stored.
 
 **iOS — inspect Keychain:**
@@ -109,7 +109,7 @@ xcrun simctl keychain booted dump | grep pitchup
 ```bash
 adb shell run-as com.pitchup.mobile cat /data/data/com.pitchup.mobile/shared_prefs/...
 # Keystore-backed entries are not readable directly; verify indirectly by restarting
-# the app and confirming you land on Home (checkSession succeeded).
+# the app and confirming you land on Discover (checkSession succeeded).
 ```
 
 ---
@@ -180,7 +180,7 @@ adb shell run-as com.pitchup.mobile cat /data/data/com.pitchup.mobile/shared_pre
 4. Type the code — digits appear in boxes as you type.
 5. Tap **Verify**.
 6. **Expect:** Navigate to Login screen.
-7. Log in with the new account → lands on Home. ✓
+7. Log in with the new account → lands on Discover. ✓
 
 **Resend flow:**
 
@@ -229,10 +229,10 @@ Or watch the Next.js server logs — Resend in dev mode logs the email payload t
 
 ## Test 9 — Session persistence (checkSession)
 
-1. Log in successfully → land on Home.
+1. Log in successfully → land on Discover.
 2. Kill the app (swipe away from recent apps).
 3. Relaunch.
-4. **Expect:** Spinner briefly, then Home screen again — no login required.
+4. **Expect:** Spinner briefly, then the Discover screen again — no login required.
    This confirms tokens survived in the Keychain and `/me` validated them.
 
 ---
@@ -274,7 +274,7 @@ Simulates a revoked session (refresh token deleted from DB).
 After running all tests, confirm:
 
 - [ ] Onboarding shows once, never again after completion
-- [ ] Login navigates to Home on success, shows error on failure
+- [ ] Login navigates to Discover on success, shows error on failure
 - [ ] Registration step 1 validates all fields before advancing
 - [ ] Registration step 2 validates DOB age, password policy, confirm match
 - [ ] Successful registration navigates to Verify Email

@@ -1,0 +1,62 @@
+import type { AmenityType, PitchSize, SurfaceType } from '../types'
+
+/** Discover list and filters. PRD §7.2, UIUX_SPEC §5. */
+export const DISCOVER = {
+  PAGE_SIZE_DEFAULT: 20,
+  PAGE_SIZE_MAX: 50,
+  /** "Available now" means a pitch is free for this long from now. PRD §7.2. */
+  AVAILABLE_NOW_WINDOW_HOURS: 2,
+  /** Price filter bounds, RON per hour. UIUX_SPEC §5.4. */
+  PRICE_MIN: 20,
+  PRICE_MAX: 500,
+  PRICE_STEP: 10,
+  SEARCH_DEBOUNCE_MS: 300,
+  /** Venues are in Romania; working hours are local wall-clock times. */
+  TIME_ZONE: 'Europe/Bucharest',
+} as const
+
+export const COMPANY_SORTS = ['distance', 'rating', 'price', 'newest'] as const
+export type CompanySort = (typeof COMPANY_SORTS)[number]
+
+export const SORT_LABELS: Record<CompanySort, string> = {
+  distance: 'Nearest',
+  rating: 'Top rated',
+  price: 'Lowest price',
+  newest: 'Newest',
+}
+
+export const SURFACE_LABELS: Record<SurfaceType, string> = {
+  NATURAL_GRASS: 'Natural grass',
+  ARTIFICIAL_GRASS: 'Artificial',
+  FUTSAL: 'Futsal',
+}
+
+/** CUSTOM is a pitch size but not something a player filters by. */
+export const FILTERABLE_SIZES = ['FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE'] as const
+
+export const SIZE_LABELS: Record<PitchSize, string> = {
+  FIVE_A_SIDE: '5v5',
+  SEVEN_A_SIDE: '7v7',
+  ELEVEN_A_SIDE: '11v11',
+  CUSTOM: 'Custom',
+}
+
+/**
+ * What the player picks in the amenity filter. Free and paid variants are one
+ * choice — someone who wants showers does not care, at this stage, whether
+ * they cost extra. The API receives the expanded enum values and requires
+ * every selected group to be present on the same pitch.
+ */
+export const AMENITY_FILTERS: readonly { key: string; label: string; types: AmenityType[] }[] = [
+  { key: 'showers', label: 'Showers', types: ['SHOWERS_FREE', 'SHOWERS_PAID'] },
+  { key: 'changing', label: 'Changing rooms', types: ['CHANGING_ROOMS'] },
+  { key: 'parking', label: 'Parking', types: ['PARKING_FREE', 'PARKING_PAID'] },
+  { key: 'lighting', label: 'Night lighting', types: ['NIGHT_LIGHTING'] },
+  { key: 'ball', label: 'Ball rental', types: ['BALL_RENTAL_FREE', 'BALL_RENTAL_PAID'] },
+  { key: 'refreshments', label: 'Refreshments', types: ['REFRESHMENTS'] },
+  { key: 'lockers', label: 'Lockers', types: ['LOCKERS'] },
+  { key: 'referee', label: 'Referee', types: ['REFEREE'] },
+  { key: 'firstAid', label: 'First aid', types: ['FIRST_AID'] },
+  { key: 'wifi', label: 'Wi-Fi', types: ['WIFI'] },
+  { key: 'wheelchair', label: 'Wheelchair', types: ['WHEELCHAIR'] },
+]

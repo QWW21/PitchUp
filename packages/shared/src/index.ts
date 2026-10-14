@@ -5,11 +5,14 @@
 // bundled by Metro for React Native as well as by Next.js.
 
 export * from './types'
+export * from './geo'
+export * from './discover-query'
 
 export * from './constants/auth'
 export * from './constants/booking'
 export * from './constants/cancellation'
 export * from './constants/cities'
+export * from './constants/discover'
 export * from './constants/penalties'
 export * from './constants/review'
 export * from './constants/shirts'
@@ -19,6 +22,7 @@ export * from './schemas/auth'
 export * from './schemas/booking'
 export * from './schemas/common'
 export * from './schemas/company'
+export * from './schemas/discover'
 export * from './schemas/pitch'
 export * from './schemas/review'
 export * from './schemas/user'

@@ -7,3 +7,20 @@
     @apply bg-neutral-50 text-neutral-900 antialiased;
   }
 }
+
+/* Twin range slider (PriceRange): the inputs overlap, so only the thumbs take
+   pointer events, otherwise the upper input would swallow every click. */
+@layer components {
+  .range-thumb {
+    @apply pointer-events-none appearance-none bg-transparent;
+  }
+  .range-thumb::-webkit-slider-thumb {
+    @apply pointer-events-auto h-6 w-6 cursor-pointer appearance-none rounded-full border-2 border-primary-600 bg-white shadow-sm;
+  }
+  .range-thumb::-moz-range-thumb {
+    @apply pointer-events-auto h-6 w-6 cursor-pointer rounded-full border-2 border-primary-600 bg-white shadow-sm;
+  }
+  .range-thumb:focus-visible::-webkit-slider-thumb {
+    @apply ring-2 ring-primary-600 ring-offset-2;
+  }
+}

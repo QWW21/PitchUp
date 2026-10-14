@@ -84,6 +84,15 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Discover map (E03-07). Set GOOGLE_MAPS_API_KEY in the environment or
+        // in ~/.gradle/gradle.properties; never commit it. Without one the app
+        // still runs and markers still render, on a blank map — the SDK
+        // crashes on a missing key, so a placeholder is always supplied.
+        manifestPlaceholders = [
+            googleMapsApiKey: System.getenv("GOOGLE_MAPS_API_KEY")
+                ?: project.findProperty("GOOGLE_MAPS_API_KEY")
+                ?: "NO_GOOGLE_MAPS_KEY_CONFIGURED"
+        ]
     }
     signingConfigs {
         debug {
@@ -116,6 +125,11 @@ configurations.all {
         force "androidx.core:core-ktx:1.15.0"
     }
 }
+
+// Icon font for react-native-vector-icons (UIUX_SPEC §2.6). Only the one
+// family the app uses is copied into the APK.
+project.ext.vectoricons = [iconFontNames: ["MaterialCommunityIcons.ttf"]]
+apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")
 
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin

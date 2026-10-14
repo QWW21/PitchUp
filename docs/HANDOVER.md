@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that got the Android build running.
+Last updated at the end of the session that implemented E03 (Player: Discover).
 
 ## Done
 
@@ -40,12 +40,33 @@ Web pages added since the last handover: `/forgot-password`,
 `/registration-confirmed`, a sign-out button on the dashboard, and `/` now
 redirects to `/login` or `/dashboard` instead of showing a placeholder.
 
+**E03 — Player: Discover: all eight tickets implemented.**
+
+| Ticket                           | State                                                        |
+| -------------------------------- | ------------------------------------------------------------ |
+| E03-01 `GET /companies`          | done — every filter, sort and pagination; 45 checks pass     |
+| E03-02 location + city detection | done — permission flow, nearest-city match, CityBlocker      |
+| E03-03 city selector             | done — diacritic-insensitive search, detect row              |
+| E03-04 Discover list screen      | done — header, banner, debounced search, sort chips, paging  |
+| E03-05 CompanyCard + states      | done — skeleton shimmer, empty, error                        |
+| E03-06 filters sheet             | done — chips, amenity grid, twin-thumb price slider, toggles |
+| E03-07 map view                  | done — price pills, clustering, preview sheet, my-location   |
+| E03-08 web `/discover`           | done — sidebar/drawer, URL state, city dialog, map           |
+
+`scripts/verify-e03.ts` re-runs the E03-01 acceptance checks against a running
+server, plus the opening-hours and nearest-city helpers. The seed now creates
+sixteen Discover venues with pitches, amenities, hours, bookings and reviews;
+see README "Seeded accounts".
+
+Both company-detail targets — web `/discover/[companyId]` and the mobile
+`CompanyDetail` route — are placeholders until E04.
+
 ## Next
 
-**E02-07 (social login)** is the only open item in the epic, and it is blocked
-on credentials rather than on code.
+**E04 — Player: Pitch Detail** replaces the two company-detail placeholders.
 
-Otherwise E02 is done and **E03 — Player: Discover** is next.
+**E02-07 (social login)** is still open, blocked on credentials rather than
+on code.
 
 Two things worth doing before moving on, neither of which is a ticket:
 
@@ -128,7 +149,52 @@ Each is also recorded on its GitHub issue.
 - **Social login is a placeholder** (E02-07). The screen exists and is wired
   into the navigator, but no native OAuth is configured.
 
+E03:
+
+- **City detection snaps to the nearest supported city** (E03-02, E03-08)
+  instead of calling Google reverse geocoding. The answer has to be one of
+  `CITIES` anyway; this needs no API key or network, and a suburb such as
+  Florești resolves to Cluj-Napoca instead of an unmatched locality. Cities
+  gained `lat`/`lng` for this and for centring the map.
+- **`@react-native-community/geolocation`**, already installed, rather than
+  `react-native-geolocation-service`.
+- **Clustering with `supercluster` directly** (E03-07), not
+  `react-native-map-clustering`, which wraps MapView and lags behind
+  react-native-maps; the pinned maps version is fragile enough already.
+- **The selected marker is not spring-animated.** Markers use
+  `tracksViewChanges={false}` as the ticket requires, which makes Android
+  snapshot them once; selection re-mounts the marker at 1.1× instead.
+- **`avgRating` is null below three reviews** (PRD §11.2), so a hidden rating
+  never leaves the server. Company rating is the mean of its pitches' means.
+- **Amenity filter:** free and paid variants are one choice (Showers =
+  `SHOWERS_FREE` or `SHOWERS_PAID`), and every chosen amenity must be on the
+  same pitch as the other pitch filters. The ticket's single `in` list would
+  have made Showers + Parking mean "either".
+- **`availableNow`** = open now and a matching pitch with no pending or
+  confirmed booking in the next two hours. No five-minute cache: it is one
+  indexed query.
+- **Sorting and paging happen in memory** over the whole filtered city, since
+  rating, price and distance are derived. Fine for v1.0 volumes; denormalise
+  rating/price and use PostGIS before it is not.
+- **The filters sheet edits a draft** applied when the sheet closes, so the
+  list refetches once rather than per tap. "Show X results" asks the API for
+  `limit=1` and reads `total`.
+- **Web uses plain Tailwind components** rather than shadcn/ui, matching the
+  existing `components/ui`; the price slider is two native range inputs.
+- **Mobile `HomeScreen` is gone.** Discover is now the signed-in root, so the
+  app has no sign-out button until Profile (E08). `docs/TESTING_E02_MOBILE.md`
+  says Discover where it said Home.
+
 ## Known gaps
+
+- **Mobile Discover is built but not run.** Typecheck, lint, Metro bundle and
+  the Android APK build pass; screens, the native map and clustering are for
+  the mobile tester. The web map is verified against real Google tiles: pills
+  render, click selects and opens the preview, map click dismisses. Pill
+  clicks are native listeners because Google Maps swallows events before
+  React sees them (see `PricePill` in `MapView.tsx`). Keys: README "Maps".
+- **No tab bar.** PRD §5.1 puts Discover in a four-tab bar; no epic so far
+  has built it, so Discover is a plain stack screen.
 
 - **iOS has never built.** It is stuck at a linker error: undefined `_RNS*Cls`
   symbols referenced from the generated
@@ -143,6 +209,8 @@ Each is also recorded on its GitHub issue.
 - **No automated tests.** Everything was verified by hand — curl against a
   running server for the backend, a live emulator for Android. A regression in,
   say, the enumeration defence would not be caught by anything.
+  `scripts/verify-e03.ts` is a script, not a test suite, and needs a running
+  server.
 - **No browser testing.** The web pages were checked by inspecting markup, not
   by rendering. No viewport testing at 375 / 768 / 1280.
 - **Android was verified as far as the onboarding screen.** The build, the

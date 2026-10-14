@@ -66,6 +66,22 @@ Development fixtures only; skipped when `NODE_ENV=production`.
 | ------------------ | --------------------------------- | ------- |
 | `admin@pitchup.ro` | `ADMIN_PASSWORD`, or `Admin1234!` | ADMIN   |
 | `manager@demo.ro`  | `Manager1234!`                    | MANAGER |
+| `player@demo.ro`   | `Player1234!`                     | PLAYER  |
+
+The seed also creates sixteen Discover venues (mostly Cluj-Napoca, two in
+București), each owned by a `venue-<slug>@demo.ro` manager with the player
+password, plus completed bookings and reviews so ratings and sorting have data.
+
+### Maps
+
+The Discover map needs a Google Maps key; everything else works without one.
+
+- **Web:** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` in `apps/web/.env`. Without it the
+  map tab shows a message instead.
+- **Android:** `GOOGLE_MAPS_API_KEY` in the environment or in
+  `~/.gradle/gradle.properties`, read at build time. Without it the map renders
+  blank, with markers. Never commit the key.
+- **iOS** uses Apple Maps and needs no key.
 
 ## Checks
 
@@ -76,10 +92,12 @@ pnpm format:check   # Prettier
 pnpm build          # production build
 
 bash scripts/verify-e01.sh   # every E01 acceptance criterion, end to end
+(cd apps/web && ./node_modules/.bin/tsx ../../scripts/verify-e03.ts)   # E03-01 + Discover helpers
 ```
 
 `verify-e01.sh` needs Postgres running and `apps/web/.env` filled in. It
-starts a dev server, exercises the API, and shuts it down.
+starts a dev server, exercises the API, and shuts it down. `verify-e03.ts`
+expects a server already running on :3000 and a seeded database.
 
 A pre-commit hook runs ESLint and Prettier on staged files.
 

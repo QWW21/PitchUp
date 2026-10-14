@@ -3,7 +3,7 @@
  *
  * Navigation structure:
  *   AuthStack  — shown while unauthenticated (Login, Register, Verify, etc.)
- *   AppStack   — shown while authenticated (Home, …)
+ *   AppStack   — shown while authenticated (Discover, CompanyDetail, …)
  *
  * Which stack is rendered is driven purely by authStore.status so that any
  * part of the app can trigger a logout and navigation reacts automatically.
@@ -13,6 +13,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from './src/theme/tokens'
 import { authEvents } from './src/lib/authEvents'
@@ -24,7 +25,8 @@ import { RegisterStep2Screen } from './src/screens/auth/RegisterStep2Screen'
 import { VerifyEmailScreen } from './src/screens/auth/VerifyEmailScreen'
 import { ForgotPasswordScreen } from './src/screens/auth/ForgotPasswordScreen'
 import { SocialLoginScreen } from './src/screens/auth/SocialLoginScreen'
-import { HomeScreen } from './src/screens/app/HomeScreen'
+import { DiscoverScreen } from './src/screens/discover/DiscoverScreen'
+import { CompanyDetailScreen } from './src/screens/company/CompanyDetailScreen'
 
 // ---------------------------------------------------------------------------
 // Navigation param types — exported so screen files can import them without
@@ -41,10 +43,13 @@ export type AuthStackParamList = {
 }
 
 export type AppStackParamList = {
-  Home: undefined
+  Discover: undefined
+  /** `name` lets the screen show a title before its own data loads. */
+  CompanyDetail: { id: string; name?: string }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
+const queryClient = new QueryClient()
 const AppStack = createNativeStackNavigator<AppStackParamList>()
 
 function AuthNavigator({ showOnboarding }: { showOnboarding: boolean }) {
@@ -67,7 +72,8 @@ function AuthNavigator({ showOnboarding }: { showOnboarding: boolean }) {
 function AppNavigator() {
   return (
     <AppStack.Navigator screenOptions={{ headerShown: false }}>
-      <AppStack.Screen name="Home" component={HomeScreen} />
+      <AppStack.Screen name="Discover" component={DiscoverScreen} />
+      <AppStack.Screen name="CompanyDetail" component={CompanyDetailScreen} />
     </AppStack.Navigator>
   )
 }
@@ -104,15 +110,17 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        {status === 'authenticated' ? (
-          <AppNavigator />
-        ) : (
-          <AuthNavigator showOnboarding={showOnboarding} />
-        )}
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <QueryClientProvider client={queryClient}>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          {status === 'authenticated' ? (
+            <AppNavigator />
+          ) : (
+            <AuthNavigator showOnboarding={showOnboarding} />
+          )}
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </QueryClientProvider>
   )
 }
 
