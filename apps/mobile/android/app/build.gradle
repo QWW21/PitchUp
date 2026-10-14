@@ -107,6 +107,16 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        // react-native-screens 4.29 pulls androidx.core(-ktx) 1.17.0, which demands
+        // compileSdk 36 + AGP 8.9.1. React Native 0.76 pins AGP 8.6.0 / compileSdk 35,
+        // so hold androidx.core at the last version that matrix supports.
+        force "androidx.core:core:1.15.0"
+        force "androidx.core:core-ktx:1.15.0"
+    }
+}
+
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")

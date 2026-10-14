@@ -1,0 +1,43 @@
+diff --git a/android/src/main/java/com/facebook/react/uimanager/ViewManagerWithGeneratedInterface.java b/android/src/main/java/com/facebook/react/uimanager/ViewManagerWithGeneratedInterface.java
+new file mode 100644
+index 0000000000000000000000000000000000000000..b796b13a9db9697d2c01018c44bb5fd2a91881cf
+--- /dev/null
++++ b/android/src/main/java/com/facebook/react/uimanager/ViewManagerWithGeneratedInterface.java
+@@ -0,0 +1,11 @@
++package com.facebook.react.uimanager;
++
++/**
++ * Marker interface that react-native-maps' generated view-manager interfaces extend.
++ *
++ * React Native only started shipping this class after 0.76, so compiling
++ * react-native-maps 1.29.11 against RN 0.76 fails with "cannot find symbol".
++ * It carries no members, so declaring it here is equivalent to the upstream one.
++ * Remove this patch once the app is on an RN version that provides it.
++ */
++public interface ViewManagerWithGeneratedInterface {}
+diff --git a/android/src/main/jni/CMakeLists.txt b/android/src/main/jni/CMakeLists.txt
+index ddb85f556261701a560e009ebe2a6f8f6b91e52d..7ebe18688161f2b7733573b8d618ebff5fc16a4f 100644
+--- a/android/src/main/jni/CMakeLists.txt
++++ b/android/src/main/jni/CMakeLists.txt
+@@ -25,4 +25,20 @@ target_link_libraries(
+   reactnative
+ )
+ 
+-target_compile_reactnative_options(react_codegen_RNMapsSpecs PRIVATE)
++# target_compile_reactnative_options() only exists from React Native 0.77 on.
++# On 0.76 nothing sets the compile options for this target, so the codegen
++# sources end up built without -std=c++20 and fail on the C++20 constructs in
++# React Native's headers. Set the same flags other 0.76-era codegen targets use.
++if(COMMAND target_compile_reactnative_options)
++  target_compile_reactnative_options(react_codegen_RNMapsSpecs PRIVATE)
++else()
++  target_compile_options(
++    react_codegen_RNMapsSpecs
++    PRIVATE
++    -DLOG_TAG=\"ReactNative\"
++    -fexceptions
++    -frtti
++    -std=c++20
++    -Wall
++  )
++endif()

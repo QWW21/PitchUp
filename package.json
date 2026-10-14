@@ -37,6 +37,10 @@
     "overrides": {
       "@types/react": "^19.3.0",
       "@types/react-dom": "^19.3.0"
+    },
+    "patchedDependencies": {
+      "@react-native/codegen@0.76.0": "patches/@react-native__codegen@0.76.0.patch",
+      "react-native-maps@1.29.11": "patches/react-native-maps@1.29.11.patch"
     }
   }
 }

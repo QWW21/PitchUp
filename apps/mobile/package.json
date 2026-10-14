@@ -4,11 +4,11 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android",
-    "ios": "react-native run-ios",
-    "start": "react-native start --port 8082",
+    "ios": "DEVELOPER_DIR=/Applications/Xcode_16.app/Contents/Developer react-native run-ios",
+    "start": "react-native start --port 8081",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "dev": "react-native start --port 8082"
+    "dev": "react-native start --port 8081"
   },
   "dependencies": {
     "@pitchup/shared": "workspace:*",
@@ -21,9 +21,9 @@
     "react": "18.3.1",
     "react-native": "0.76.0",
     "react-native-keychain": "^10.0.0",
-    "react-native-maps": "^1.18.0",
+    "react-native-maps": "1.29.11",
     "react-native-safe-area-context": "^5.10.1",
-    "react-native-screens": "^4.28.0",
+    "react-native-screens": "4.16.0",
     "zod": "^3.23.0",
     "zustand": "^5.0.0"
   },
@@ -35,6 +35,8 @@
     "@react-native-community/cli-platform-android": "^15",
     "@react-native-community/cli-platform-ios": "^15",
     "@react-native/babel-preset": "0.76.0",
+    "@react-native/codegen": "0.76.0",
+    "@react-native/gradle-plugin": "0.76.0",
     "@react-native/metro-config": "0.76.0",
     "@react-native/typescript-config": "0.76.0",
     "@types/jest": "^30.0.0",

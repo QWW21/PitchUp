@@ -1,0 +1,175 @@
+diff --git a/lib/parsers/typescript/components/commands.js b/lib/parsers/typescript/components/commands.js
+index 9c76cd65316e41961eeeeea178f78dcc02ef8b83..c68d881d13b027e731710bdc303c8bb0e50294fe 100644
+--- a/lib/parsers/typescript/components/commands.js
++++ b/lib/parsers/typescript/components/commands.js
+@@ -31,7 +31,8 @@ function buildCommandSchemaInternal(name, optional, parameters, types) {
+       ((_firstParam$typeAnnot2 = firstParam.typeAnnotation.typeName.right) ===
+         null || _firstParam$typeAnnot2 === void 0
+         ? void 0
+-        : _firstParam$typeAnnot2.name) === 'ElementRef'
++        : (_firstParam$typeAnnot2.name === 'ElementRef' ||
++           _firstParam$typeAnnot2.name === 'ComponentRef'))
+     )
+   ) {
+     throw new Error(
+@@ -78,15 +79,19 @@ function buildCommandSchemaInternal(name, optional, parameters, types) {
+           ),
+         };
+         break;
+-      case 'TSArrayType':
++      case 'TSArrayType': {
++        const _elemType = paramValue.elementType.type;
+         returnType = {
+           type: 'ArrayTypeAnnotation',
+           elementType: {
+-            // TODO: T172453752 support complex type annotation for array element
+-            type: getPrimitiveTypeAnnotation(paramValue.elementType.type).type,
++            // TSTypeReference elements (complex types) are treated as objects.
++            type: _elemType === 'TSTypeReference'
++              ? 'ObjectTypeAnnotation'
++              : getPrimitiveTypeAnnotation(_elemType).type,
+           },
+         };
+         break;
++      }
+       default:
+         type;
+         throw new Error(
+diff --git a/lib/parsers/typescript/components/componentsUtils.js b/lib/parsers/typescript/components/componentsUtils.js
+index 3ba47fe367a87983d6ca69b17daa475f76b383cd..e2badfe9b2170aeae30522269c054d30ac35e2d4 100644
+--- a/lib/parsers/typescript/components/componentsUtils.js
++++ b/lib/parsers/typescript/components/componentsUtils.js
+@@ -293,18 +293,21 @@ function getTypeAnnotationForArray(
+     }
+     return arrayType;
+   }
+-  const type =
+-    extractedTypeAnnotation.elementType === 'TSTypeReference'
+-      ? extractedTypeAnnotation.elementType.typeName.name
+-      : ((_extractedTypeAnnotat = extractedTypeAnnotation.elementType) ===
+-          null || _extractedTypeAnnotat === void 0
+-          ? void 0
+-          : _extractedTypeAnnotat.type) ||
+-        ((_extractedTypeAnnotat2 = extractedTypeAnnotation.typeName) === null ||
+-        _extractedTypeAnnotat2 === void 0
+-          ? void 0
+-          : _extractedTypeAnnotat2.name) ||
+-        extractedTypeAnnotation.type;
++  // Resolve the element type name, handling namespace-qualified refs like CT.Double.
++  var _extractedTypeAnnotat = extractedTypeAnnotation.elementType;
++  var type;
++  if (_extractedTypeAnnotat != null) {
++    type = _extractedTypeAnnotat.type === 'TSTypeReference'
++      ? parser.getTypeAnnotationName(_extractedTypeAnnotat)
++      : _extractedTypeAnnotat.type;
++  } else {
++    var _extractedTypeAnnotat2 = extractedTypeAnnotation.typeName;
++    type = (_extractedTypeAnnotat2 != null
++      ? (_extractedTypeAnnotat2.type === 'TSQualifiedName'
++          ? _extractedTypeAnnotat2.right.name
++          : _extractedTypeAnnotat2.name)
++      : null) || extractedTypeAnnotation.type;
++  }
+   const common = getCommonTypeAnnotation(
+     name,
+     true,
+diff --git a/lib/parsers/typescript/components/extends.js b/lib/parsers/typescript/components/extends.js
+index 4c1f72301273c484a9e943f30145245fb1d02612..a57af506603ff9968beb8cf53f6848aba353fc8e 100644
+--- a/lib/parsers/typescript/components/extends.js
++++ b/lib/parsers/typescript/components/extends.js
+@@ -17,7 +17,9 @@ function isEvent(typeAnnotation) {
+     return false;
+   }
+   const eventNames = new Set(['BubblingEventHandler', 'DirectEventHandler']);
+-  return eventNames.has(typeAnnotation.typeName.name);
++  const typeName = typeAnnotation.typeName;
++  const name = typeName.type === 'TSQualifiedName' ? typeName.right.name : typeName.name;
++  return eventNames.has(name);
+ }
+ 
+ // $FlowFixMe[unclear-type] TODO(T108222691): Use flow-types for @babel/parser
+diff --git a/lib/parsers/typescript/parseTopLevelType.js b/lib/parsers/typescript/parseTopLevelType.js
+index 0ef998d8920c009e8144804de51f7b6b3ddb395b..6cf425a2b02f8a8d94fea219cd8ff300eb1e8034 100644
+--- a/lib/parsers/typescript/parseTopLevelType.js
++++ b/lib/parsers/typescript/parseTopLevelType.js
+@@ -88,10 +88,13 @@ function handleUnionAndParen(type, result, knownTypes) {
+       }
+       break;
+     }
+-    case 'TSTypeReference':
+-      if (type.typeName.name === 'Readonly') {
++    case 'TSTypeReference': {
++      const _typeRefName = type.typeName.type === 'TSQualifiedName'
++        ? type.typeName.right.name
++        : type.typeName.name;
++      if (_typeRefName === 'Readonly') {
+         handleUnionAndParen(type.typeParameters.params[0], result, knownTypes);
+-      } else if (type.typeName.name === 'WithDefault') {
++      } else if (_typeRefName === 'WithDefault') {
+         if (result.optional) {
+           throw new Error(
+             'WithDefault<> is optional and does not need to be marked as optional. Please remove the union of undefined and/or null',
+@@ -124,6 +127,7 @@ function handleUnionAndParen(type, result, knownTypes) {
+         }
+       }
+       break;
++    }
+     default:
+       result.unions.push(type);
+   }
+@@ -165,14 +169,17 @@ function handleIntersectionAndParen(type, result, knownTypes) {
+       }
+       break;
+     }
+-    case 'TSTypeReference':
+-      if (type.typeName.name === 'Readonly') {
++    case 'TSTypeReference': {
++      const _typeRefName2 = type.typeName.type === 'TSQualifiedName'
++        ? type.typeName.right.name
++        : type.typeName.name;
++      if (_typeRefName2 === 'Readonly') {
+         handleIntersectionAndParen(
+           type.typeParameters.params[0],
+           result,
+           knownTypes,
+         );
+-      } else if (type.typeName.name === 'WithDefault') {
++      } else if (_typeRefName2 === 'WithDefault') {
+         throw new Error('WithDefault<> is now allowed in intersection types.');
+       } else if (!knownTypes) {
+         result.push(type);
+@@ -188,6 +195,7 @@ function handleIntersectionAndParen(type, result, knownTypes) {
+         }
+       }
+       break;
++    }
+     default:
+       result.push(type);
+   }
+diff --git a/lib/parsers/typescript/parser.js b/lib/parsers/typescript/parser.js
+index da4afe30e2ab3698c45a45f9ac9c0a0573f1ff33..f02665f20e38c52893d2da3155561ac8fc4d7980 100644
+--- a/lib/parsers/typescript/parser.js
++++ b/lib/parsers/typescript/parser.js
+@@ -101,12 +101,19 @@ class TypeScriptParser {
+   }
+   getTypeAnnotationName(typeAnnotation) {
+     var _typeAnnotation$typeN;
+-    return typeAnnotation === null ||
++    if (
++      typeAnnotation === null ||
+       typeAnnotation === void 0 ||
+       (_typeAnnotation$typeN = typeAnnotation.typeName) === null ||
+       _typeAnnotation$typeN === void 0
+-      ? void 0
+-      : _typeAnnotation$typeN.name;
++    ) {
++      return void 0;
++    }
++    // TSQualifiedName (e.g. CT.WithDefault) — return the rightmost identifier
++    if (_typeAnnotation$typeN.type === 'TSQualifiedName') {
++      return _typeAnnotation$typeN.right.name;
++    }
++    return _typeAnnotation$typeN.name;
+   }
+   checkIfInvalidModule(typeArguments) {
+     return (
