@@ -16,6 +16,8 @@
 #                correct #159, update #165, file the new fixed bugs and a gap
 #   e03-close    Close E03-01/08 (#25, #32); comment on the mobile ones (#26-31),
 #                which stay open for the mobile tester
+#   e04          Close E04-01/02/03/08 (#33-35, #40); comment on the mobile ones
+#                (#36-39), left open for the mobile tester; file the Bearer fix
 #   e03-bugs     File the defects found during E03, each already fixed
 #   e03-gaps     File the follow-ups E03 left
 #
@@ -242,6 +244,23 @@ cmd_e02_web() {
     '["epic: auth","platform: web","type: feature","priority: medium"]' $AUTH
 }
 
+cmd_e04() {
+  local b="$SCRIPT_DIR/bodies/e04" n
+  echo "Closing the E04 backend and web tickets…"
+  for n in 33 34 35 40; do
+    comment_issue "$n" "$b/close-$n.md"
+    close_issue "$n"
+  done
+  echo "Commenting on the E04 mobile tickets (left open for the mobile tester)…"
+  for n in 36 37 38 39; do
+    comment_issue "$n" "$b/status-mobile.md"
+  done
+  file_fixed_defect \
+    "[BUG] Mobile Bearer token ignored by requireAuth — every app API call is 401" \
+    "$b/bug-bearer.md" \
+    '["bug","epic: auth","platform: backend","priority: critical"]' $AUTH
+}
+
 cmd_e03_close() {
   echo "Closing the E03 backend and web tickets…"
   local n
@@ -286,7 +305,7 @@ cmd_e03_gaps() {
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 if [[ $# -eq 0 ]]; then
-  sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,35p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 fi
 
@@ -298,6 +317,7 @@ for arg in "$@"; do
     e02-bugs)  cmd_e02_bugs ;;
     e02-gaps)  cmd_e02_gaps ;;
     e02-web)   cmd_e02_web ;;
+    e04)       cmd_e04 ;;
     e03-close) cmd_e03_close ;;
     e03-bugs)  cmd_e03_bugs ;;
     e03-gaps)  cmd_e03_gaps ;;
