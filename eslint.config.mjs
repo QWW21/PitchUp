@@ -41,7 +41,7 @@ export default tseslint.config(
 
   // CommonJS config files: Node globals, and require() is the point.
   {
-    files: ['**/*.cjs', '**/metro.config.js', '**/*.config.js'],
+    files: ['**/*.cjs', '**/metro.config.js', '**/*.config.js', '**/jest.setup.js'],
     languageOptions: {
       sourceType: 'commonjs',
       globals: {
@@ -51,6 +51,7 @@ export default tseslint.config(
         require: 'readonly',
         process: 'readonly',
         exports: 'writable',
+        jest: 'readonly',
       },
     },
     rules: { '@typescript-eslint/no-require-imports': 'off' },

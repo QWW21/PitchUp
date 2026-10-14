@@ -6,6 +6,7 @@ import { RegisterManagerSchema } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { PasswordStrength } from '@/components/ui/PasswordStrength'
+import { toE164 } from '@/lib/auth/phone'
 import { TextField } from '@/components/ui/TextField'
 
 /** Dial codes offered in the picker. Romania first, per the spec. */
@@ -33,23 +34,11 @@ export function RegisterForm() {
   const [formError, setFormError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  /** Strips spaces and a leading zero, which Romanian numbers are usually
-   *  written with but E.164 does not allow. A number typed or pasted in full
-   *  international form (+40… or 0040…) is kept as it is; prefixing the
-   *  picker's code onto it produced +4040…, and the SMS went nowhere. */
-  function toE164(): string {
-    const typed = localNumber.trim()
-    if (typed.startsWith('+')) return `+${typed.replace(/\D/g, '')}`
-    if (typed.startsWith('00')) return `+${typed.replace(/\D/g, '').slice(2)}`
-    const digits = typed.replace(/\D/g, '').replace(/^0+/, '')
-    return `${dialCode}${digits}`
-  }
-
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setFormError(null)
 
-    const phone = toE164()
+    const phone = toE164(dialCode, localNumber)
     const parsed = RegisterManagerSchema.safeParse({ name, email, phone, password })
 
     const errors: FieldErrors = {}

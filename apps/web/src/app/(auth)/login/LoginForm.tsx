@@ -7,22 +7,7 @@ import Link from 'next/link'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
-
-/**
- * Only a path on this site. `startsWith('/')` alone let `//evil.example`
- * (protocol-relative) and `/\evil.example` (browsers read `\` as `/`) through,
- * turning the login page into an open redirect for phishing links.
- */
-function safeCallbackPath(callbackUrl: string | null): string {
-  if (!callbackUrl) return '/dashboard'
-  try {
-    const url = new URL(callbackUrl, window.location.origin)
-    if (url.origin !== window.location.origin) return '/dashboard'
-    return `${url.pathname}${url.search}${url.hash}`
-  } catch {
-    return '/dashboard'
-  }
-}
+import { safeCallbackPath } from '@/lib/auth/callback'
 
 export function LoginForm() {
   const router = useRouter()
@@ -47,7 +32,7 @@ export function LoginForm() {
       // back here, and the form stayed stuck on "Signing in…".
       if (result?.ok && !result.error) {
         // Honour where the middleware was taking them before the redirect.
-        router.push(safeCallbackPath(searchParams.get('callbackUrl')))
+        router.push(safeCallbackPath(searchParams.get('callbackUrl'), window.location.origin))
         router.refresh()
         return
       }

@@ -1,0 +1,283 @@
+/**
+ * Auth API — T-04. Every E02 security decision recorded in docs/HANDOVER.md
+ * has a case here: no enumeration, refresh rotation, reuse detection, Bearer
+ * auth (#177), sessions ended on reset (#176).
+ */
+import { expect, test } from '@playwright/test'
+import { get, post } from '../support/api'
+import { createResetToken, db, setVerificationCode, uniqueEmail, uniquePhone } from '../support/db'
+import { resetRateLimits } from '../support/helpers'
+
+const PASSWORD = 'Testing123'
+
+const player = (email: string, phone = uniquePhone()) => ({
+  name: 'E2E Player',
+  email,
+  phone,
+  password: PASSWORD,
+  city: 'Cluj-Napoca',
+  dateOfBirth: '1995-05-05',
+})
+
+interface Tokens {
+  accessToken: string
+  refreshToken: string
+  user: { id: string; email: string }
+}
+
+test.beforeEach(async ({ request }) => {
+  await resetRateLimits(request)
+})
+
+test.describe('registration', () => {
+  test('rejects an invalid body with field errors', async ({ request }) => {
+    const r = await post(request, '/auth/register', { ...player('not-an-email'), password: 'weak' })
+    expect(r.status).toBe(400)
+    expect(r.error?.code).toBe('VALIDATION_ERROR')
+  })
+
+  test('creates an unverified player', async ({ request }) => {
+    const email = uniqueEmail('reg')
+    const r = await post(request, '/auth/register', player(email))
+    expect(r.status).toBe(201)
+    const user = await db.user.findUniqueOrThrow({ where: { email } })
+    expect(user).toMatchObject({ role: 'PLAYER', emailVerified: false, phoneVerified: false })
+    expect(user.passwordHash).not.toContain(PASSWORD)
+  })
+
+  test('answers an existing email exactly like a new one (no enumeration)', async ({ request }) => {
+    const fresh = await post(request, '/auth/register', player(uniqueEmail('reg')))
+    const taken = await post(request, '/auth/register', player('player@demo.ro'))
+    expect(taken.status).toBe(fresh.status)
+    expect(taken.data).toEqual(fresh.data)
+  })
+
+  test('refuses a phone number that a verified account already uses', async ({ request }) => {
+    const r = await post(request, '/auth/register', player(uniqueEmail('reg'), '+40700000002'))
+    expect(r.status).toBe(409)
+    expect(r.error?.details).toEqual({ field: 'phone' })
+  })
+
+  test('limits attempts per IP, counting only valid requests', async ({ request }) => {
+    // Junk does not spend the budget…
+    for (let i = 0; i < 5; i++) {
+      expect((await post(request, '/auth/register', { email: 'junk' })).status).toBe(400)
+    }
+    // …so three real attempts still go through, and the fourth is limited.
+    for (let i = 0; i < 3; i++) {
+      expect((await post(request, '/auth/register', player(uniqueEmail('rl')))).status).toBe(201)
+    }
+    expect((await post(request, '/auth/register', player(uniqueEmail('rl')))).status).toBe(429)
+  })
+
+  test('manager registration creates a MANAGER', async ({ request }) => {
+    const email = uniqueEmail('mgr')
+    const r = await post(request, '/auth/register/manager', {
+      name: 'E2E Manager',
+      email,
+      phone: uniquePhone(),
+      password: PASSWORD,
+    })
+    expect(r.status).toBe(201)
+    expect((await db.user.findUniqueOrThrow({ where: { email } })).role).toBe('MANAGER')
+  })
+})
+
+test.describe('email verification', () => {
+  test('wrong code, then the right one, then login works', async ({ request }) => {
+    const email = uniqueEmail('verify')
+    await post(request, '/auth/register', player(email))
+    await setVerificationCode(email, '123456')
+
+    const wrong = await post(request, '/auth/verify-email', { email, code: '000000' })
+    expect(wrong.status).toBe(400)
+    expect(wrong.error?.message).toBe('That code is not correct')
+
+    const right = await post(request, '/auth/verify-email', { email, code: '123456' })
+    expect(right.status).toBe(200)
+    expect((await db.user.findUniqueOrThrow({ where: { email } })).emailVerified).toBe(true)
+
+    const used = await post(request, '/auth/verify-email', { email, code: '123456' })
+    expect(used.status).toBe(400)
+  })
+
+  test('burns the code after three wrong guesses', async ({ request }) => {
+    const email = uniqueEmail('burn')
+    await post(request, '/auth/register', player(email))
+    await setVerificationCode(email, '654321')
+    for (let i = 0; i < 3; i++) await post(request, '/auth/verify-email', { email, code: '111111' })
+    const r = await post(request, '/auth/verify-email', { email, code: '654321' })
+    expect(r.status).toBe(400)
+    expect(r.error?.message).toMatch(/too many|expired|not correct/i)
+  })
+
+  test('resend answers the same for any address', async ({ request }) => {
+    const known = await post(request, '/auth/resend-code', {
+      email: 'player@demo.ro',
+      channel: 'EMAIL',
+    })
+    const unknown = await post(request, '/auth/resend-code', {
+      email: 'nobody@e2e.test',
+      channel: 'EMAIL',
+    })
+    expect(known.status).toBe(200)
+    expect(unknown.data).toEqual(known.data)
+  })
+})
+
+test.describe('mobile login, refresh and logout', () => {
+  test('one error for a wrong password, an unknown email and an unverified account', async ({
+    request,
+  }) => {
+    const unverified = uniqueEmail('unv')
+    await post(request, '/auth/register', player(unverified))
+
+    const answers = await Promise.all([
+      post(request, '/auth/mobile/login', { email: 'player@demo.ro', password: 'WrongPass1' }),
+      post(request, '/auth/mobile/login', { email: 'nobody@e2e.test', password: PASSWORD }),
+      post(request, '/auth/mobile/login', { email: unverified, password: PASSWORD }),
+    ])
+    for (const a of answers) {
+      expect(a.status).toBe(401)
+      expect(a.error).toEqual({ code: 'UNAUTHORIZED', message: 'Incorrect email or password' })
+    }
+  })
+
+  test('returns a token pair and a user on success', async ({ request }) => {
+    const r = await post<Tokens>(request, '/auth/mobile/login', {
+      email: 'player@demo.ro',
+      password: 'Player1234!',
+    })
+    expect(r.status).toBe(200)
+    expect(r.data?.accessToken).toMatch(/^ey/)
+    expect(r.data?.refreshToken).toMatch(/^[a-f0-9]{64}$/)
+    expect(r.data?.user.email).toBe('player@demo.ro')
+  })
+
+  test('refresh rotates, and reusing an old token ends every session', async ({ request }) => {
+    const login = (
+      await post<Tokens>(request, '/auth/mobile/login', {
+        email: 'player@demo.ro',
+        password: 'Player1234!',
+      })
+    ).data!
+    const first = await post<Tokens>(request, '/auth/mobile/refresh', {
+      refreshToken: login.refreshToken,
+    })
+    expect(first.status).toBe(200)
+    expect(first.data!.refreshToken).not.toBe(login.refreshToken)
+
+    // The original token was rotated away; presenting it again looks like theft.
+    const reuse = await post(request, '/auth/mobile/refresh', { refreshToken: login.refreshToken })
+    expect(reuse.status).toBe(401)
+    // …and the legitimate successor dies with it.
+    const successor = await post(request, '/auth/mobile/refresh', {
+      refreshToken: first.data!.refreshToken,
+    })
+    expect(successor.status).toBe(401)
+  })
+
+  test('logout revokes the refresh token and never reveals whether it existed', async ({
+    request,
+  }) => {
+    const login = (
+      await post<Tokens>(request, '/auth/mobile/login', {
+        email: 'player@demo.ro',
+        password: 'Player1234!',
+      })
+    ).data!
+    const out = await post(request, '/auth/logout', { refreshToken: login.refreshToken })
+    const bogus = await post(request, '/auth/logout', { refreshToken: 'not-a-real-token' })
+    expect(out.status).toBe(200)
+    expect(bogus.data).toEqual(out.data)
+    expect(
+      (await post(request, '/auth/mobile/refresh', { refreshToken: login.refreshToken })).status
+    ).toBe(401)
+  })
+})
+
+test.describe('/me', () => {
+  test('accepts the mobile Bearer token (#177)', async ({ request }) => {
+    const login = (
+      await post<Tokens>(request, '/auth/mobile/login', {
+        email: 'player@demo.ro',
+        password: 'Player1234!',
+      })
+    ).data!
+    const me = await get<{ email: string; trustScore: number }>(request, '/me', {
+      Authorization: `Bearer ${login.accessToken}`,
+    })
+    expect(me.status).toBe(200)
+    expect(me.data).toMatchObject({ email: 'player@demo.ro', role: 'PLAYER', trustScore: 100 })
+  })
+
+  test('refuses a bad token and no credentials', async ({ request }) => {
+    expect((await get(request, '/me', { Authorization: 'Bearer not.a.token' })).status).toBe(401)
+    expect((await get(request, '/me')).status).toBe(401)
+  })
+
+  test('stops honouring a token once the account is deleted', async ({ request }) => {
+    const email = uniqueEmail('del')
+    await post(request, '/auth/register', player(email))
+    await db.user.update({ where: { email }, data: { emailVerified: true } })
+    const login = (await post<Tokens>(request, '/auth/mobile/login', { email, password: PASSWORD }))
+      .data!
+    await db.user.update({ where: { email }, data: { deletedAt: new Date() } })
+    expect(
+      (await get(request, '/me', { Authorization: `Bearer ${login.accessToken}` })).status
+    ).toBe(401)
+  })
+})
+
+test.describe('password reset', () => {
+  test('forgot-password answers the same for any address', async ({ request }) => {
+    const known = await post(request, '/auth/forgot-password', { email: 'player@demo.ro' })
+    const unknown = await post(request, '/auth/forgot-password', { email: 'nobody@e2e.test' })
+    expect(known.status).toBe(200)
+    expect(unknown.data).toEqual(known.data)
+  })
+
+  test('a reset changes the password, works once, and revokes mobile sessions', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('reset')
+    await post(request, '/auth/register', player(email))
+    await db.user.update({ where: { email }, data: { emailVerified: true } })
+    const login = (await post<Tokens>(request, '/auth/mobile/login', { email, password: PASSWORD }))
+      .data!
+
+    const token = await createResetToken(email)
+    expect((await post(request, '/auth/reset-password', { token, password: 'weak' })).status).toBe(
+      400
+    )
+    expect(
+      (await post(request, '/auth/reset-password', { token, password: 'Changed123' })).status
+    ).toBe(200)
+    expect(
+      (await post(request, '/auth/reset-password', { token, password: 'Another123' })).status
+    ).toBe(400)
+
+    expect((await post(request, '/auth/mobile/login', { email, password: PASSWORD })).status).toBe(
+      401
+    )
+    expect(
+      (await post(request, '/auth/mobile/login', { email, password: 'Changed123' })).status
+    ).toBe(200)
+    expect(
+      (await post(request, '/auth/mobile/refresh', { refreshToken: login.refreshToken })).status
+    ).toBe(401)
+    expect((await db.user.findUniqueOrThrow({ where: { email } })).passwordChangedAt).not.toBeNull()
+  })
+
+  test('rejects a malformed or unknown token', async ({ request }) => {
+    expect(
+      (await post(request, '/auth/reset-password', { token: 'abc', password: 'Changed123' })).status
+    ).toBe(400)
+    const unknown = await post(request, '/auth/reset-password', {
+      token: 'a'.repeat(64),
+      password: 'Changed123',
+    })
+    expect(unknown.status).toBe(400)
+    expect(unknown.error?.message).toBe('That reset link is not valid')
+  })
+})

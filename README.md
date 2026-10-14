@@ -86,22 +86,25 @@ The Discover map needs a Google Maps key; everything else works without one.
 ## Checks
 
 ```bash
-pnpm typecheck      # tsc --noEmit across all three packages
+pnpm typecheck      # tsc --noEmit across all packages
 pnpm lint           # ESLint
-pnpm format:check   # Prettier
 pnpm build          # production build
 
-bash scripts/verify-e01.sh   # every E01 acceptance criterion, end to end
-(cd apps/web && ./node_modules/.bin/tsx ../../scripts/verify-e03.ts)   # E03-01 + Discover helpers
-(cd apps/web && ./node_modules/.bin/tsx ../../scripts/verify-e04.ts)   # E04 detail, availability, reviews
+pnpm test           # unit tests: shared + web (Vitest), no database needed
+pnpm test:mobile    # mobile unit + component tests (Jest), no device needed
+pnpm test:e2e       # API + browser tests (Playwright) on a fresh test database
 ```
 
-`verify-e01.sh` needs Postgres running and `apps/web/.env` filled in. It
-starts a dev server, exercises the API, and shuts it down. `verify-e03.ts`
-and `verify-e04.ts` expect a server already running on :3000 and a seeded
-database.
+`pnpm test:e2e` needs Postgres running. It recreates and seeds its own
+`pitchup_test` database, builds the app and serves it on :3100, so it never
+touches development data. `docs/TESTING.md` covers each layer, the screenshot
+evidence and CI.
 
-A pre-commit hook runs ESLint and Prettier on staged files.
+`bash scripts/verify-e01.sh` re-runs the E01 acceptance checks (needs
+`apps/web/.env`).
+
+A pre-commit hook runs ESLint and Prettier on staged files. GitHub Actions
+runs typecheck, lint and every test layer on each push.
 
 ## Where things stand
 

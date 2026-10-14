@@ -49,6 +49,9 @@ export const env = createEnv({
     FCM_SERVER_KEY: optionalUntilIntegrated(z.string().min(1)),
 
     ADMIN_PASSWORD: z.string().optional(),
+
+    /** E2E only: enables /api/v1/dev/* on a production build. Never set in a real deployment. */
+    ALLOW_TEST_HOOKS: z.enum(['1']).optional(),
   },
 
   client: {
@@ -77,6 +80,7 @@ export const env = createEnv({
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
     FCM_SERVER_KEY: process.env.FCM_SERVER_KEY,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,

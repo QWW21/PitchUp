@@ -16,7 +16,12 @@
     "db:push": "pnpm --filter @pitchup/web db:push",
     "db:migrate": "pnpm --filter @pitchup/web db:migrate",
     "db:studio": "pnpm --filter @pitchup/web db:studio",
-    "db:seed": "pnpm --filter @pitchup/web db:seed"
+    "db:seed": "pnpm --filter @pitchup/web db:seed",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "pnpm --filter @pitchup/web test:e2e",
+    "test:mobile": "pnpm --filter @pitchup/mobile test",
+    "test:all": "pnpm test && pnpm test:mobile && pnpm test:e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -27,7 +32,8 @@
     "prettier": "^3.9.9",
     "turbo": "^2.3.3",
     "typescript": "^5.6.3",
-    "typescript-eslint": "^8.71.1"
+    "typescript-eslint": "^8.71.1",
+    "vitest": "^3"
   },
   "engines": {
     "node": ">=20.0.0",

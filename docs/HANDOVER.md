@@ -53,8 +53,8 @@ redirects to `/login` or `/dashboard` instead of showing a placeholder.
 | E03-07 map view                  | done — price pills, clustering, preview sheet, my-location   |
 | E03-08 web `/discover`           | done — sidebar/drawer, URL state, city dialog, map           |
 
-`scripts/verify-e03.ts` re-runs the E03-01 acceptance checks against a running
-server, plus the opening-hours and nearest-city helpers. The seed now creates
+The E03-01 acceptance checks are API tests (`apps/web/e2e/api/discover.spec.ts`),
+the opening-hours and nearest-city helpers unit tests. The seed now creates
 sixteen Discover venues with pitches, amenities, hours, bookings and reviews;
 see README "Seeded accounts".
 
@@ -71,7 +71,7 @@ see README "Seeded accounts".
 | E04-07 reviews list                    | `GET /reviews` done and verified; mobile breakdown + cards built      |
 | E04-08 web company + pitch pages       | done, verified in a browser — SSR, tabs, gallery, sidebar, 7-day grid |
 
-`scripts/verify-e04.ts` re-runs the backend acceptance checks (56). The seed
+The backend acceptance checks are API tests (`apps/web/e2e/api/venues.spec.ts`). The seed
 now gives the Discover venues photos (placeholder images), descriptions,
 dimensions, peak hours, shirt rental, review text with a manager reply and an
 anonymous review, fourteen reviews on Cluj Arena Park for paging, and on Arena
@@ -112,11 +112,16 @@ sign-out, Lighthouse for `/discover`).
 **E02-07 (social login)** is still open, blocked on credentials rather than
 on code.
 
-Two things worth doing before moving on, neither of which is a ticket:
+**Tests (E16, #178–#187)** — see `docs/TESTING.md`. Unit (Vitest: shared +
+web), mobile (Jest + RN Testing Library), API and browser E2E (Playwright on
+its own `pitchup_test` database, production build on :3100), and CI running
+all of it. Web screenshot evidence lives in `docs/test-evidence/web/`. Mobile
+device tests and screenshots (#187) wait for the manual mobile pass. New
+features should land with tests in the matching layer.
+
+Worth doing before moving on, not a ticket:
 
 - **iOS has never built.** It is stuck at a linker error; see the known gaps.
-- **There are no automated tests at all.** Every claim in this document was
-  verified by hand.
 
 ## React Native version constraints
 
@@ -289,11 +294,14 @@ E04:
   against rn-screens 4.29.0, and the pin has since moved to 4.16.0, which has
   no `gamma/` directory at all. Run `pod install` and rebuild before spending
   any time on the stubs.
-- **No automated tests.** Everything was verified by hand — curl against a
-  running server for the backend, a live emulator for Android. A regression in,
-  say, the enumeration defence would not be caught by anything.
-  `scripts/verify-e03.ts` and `verify-e04.ts` are scripts, not a test suite,
-  and need a running server and a seeded database.
+- **Test coverage stops at the device.** Unit, API and browser E2E cover
+  backend and web; mobile has unit/component tests with mocked native modules
+  only. Nothing runs the app on a device yet (#187). `pnpm format:check` is
+  not in CI until its CRLF noise on Windows is sorted out (docs/TESTING.md).
+- **Rate limits trust `X-Forwarded-For` as sent** (`getClientIp` in
+  `lib/api/rate-limit.ts`), so any client can dodge every limit by setting
+  the header. Filed as a bug; the fix depends on how the app is deployed
+  (only trust the header from a known proxy).
 - **Lighthouse not run** for the web pitch page (E04-08 asks for SEO ≥ 90) or
   `/discover`. Titles, descriptions and Open Graph images are set per page.
 - **Web auth was walked through in a browser** against a production build
