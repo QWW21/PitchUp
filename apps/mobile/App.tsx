@@ -26,7 +26,9 @@ import { VerifyEmailScreen } from './src/screens/auth/VerifyEmailScreen'
 import { ForgotPasswordScreen } from './src/screens/auth/ForgotPasswordScreen'
 import { SocialLoginScreen } from './src/screens/auth/SocialLoginScreen'
 import { DiscoverScreen } from './src/screens/discover/DiscoverScreen'
-import { CompanyDetailScreen } from './src/screens/company/CompanyDetailScreen'
+import { CompanyDetailScreen } from './src/screens/discover/CompanyDetailScreen'
+import { PitchDetailScreen } from './src/screens/discover/PitchDetailScreen'
+import { BookingFlowScreen } from './src/screens/booking/BookingFlowScreen'
 
 // ---------------------------------------------------------------------------
 // Navigation param types — exported so screen files can import them without
@@ -45,7 +47,23 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   Discover: undefined
   /** `name` lets the screen show a title before its own data loads. */
-  CompanyDetail: { id: string; name?: string }
+  CompanyDetail: {
+    id: string
+    name?: string
+    /** "See all reviews" on a pitch opens here, filtered to that pitch. */
+    initialTab?: 'pitches' | 'reviews'
+    pitchId?: string | undefined
+  }
+  PitchDetail: { pitchId: string; companyId: string }
+  /** E05. Opened from Book Now or an availability day. */
+  BookingFlow: {
+    pitchId: string
+    pitchName: string
+    companyName: string
+    offPeakRate: number
+    peakRate: number
+    date?: string
+  }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -74,6 +92,12 @@ function AppNavigator() {
     <AppStack.Navigator screenOptions={{ headerShown: false }}>
       <AppStack.Screen name="Discover" component={DiscoverScreen} />
       <AppStack.Screen name="CompanyDetail" component={CompanyDetailScreen} />
+      <AppStack.Screen name="PitchDetail" component={PitchDetailScreen} />
+      <AppStack.Screen
+        name="BookingFlow"
+        component={BookingFlowScreen}
+        options={{ presentation: 'modal' }}
+      />
     </AppStack.Navigator>
   )
 }

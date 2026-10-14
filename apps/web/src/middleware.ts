@@ -8,7 +8,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/bookings', '/profile']
+const PROTECTED_PREFIXES = ['/dashboard', '/admin', '/booking', '/bookings', '/profile']
 
 /**
  * Presence check only — the cookie is not verified here. Middleware runs on
@@ -40,5 +40,11 @@ export function middleware(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/admin/:path*', '/bookings/:path*', '/profile/:path*'],
+  matcher: [
+    '/dashboard/:path*',
+    '/admin/:path*',
+    '/booking/:path*',
+    '/bookings/:path*',
+    '/profile/:path*',
+  ],
 }

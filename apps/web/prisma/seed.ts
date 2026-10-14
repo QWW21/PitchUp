@@ -14,7 +14,16 @@ import {
   type AmenityType,
 } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { AUTH, CITIES, DEFAULT_COUNTRY, PLATFORM_FEE_PERCENT } from '@pitchup/shared'
+import {
+  AUTH,
+  CITIES,
+  DEFAULT_COUNTRY,
+  PLATFORM_FEE_PERCENT,
+  addDays,
+  toMinutes,
+  venueClock,
+  venueTimeToUtc,
+} from '@pitchup/shared'
 
 const prisma = new PrismaClient()
 
@@ -637,12 +646,251 @@ async function seedDiscoverFixtures(): Promise<void> {
   console.log(`✓ Discover fixtures seeded (${created} new venues, player@demo.ro)`)
 }
 
+const DIMENSIONS: Record<PitchSize, [number, number] | null> = {
+  FIVE_A_SIDE: [25, 40],
+  SEVEN_A_SIDE: [40, 60],
+  ELEVEN_A_SIDE: [68, 105],
+  CUSTOM: null,
+}
+
+const REVIEW_TEXTS = [
+  'Great surface and friendly staff. Lights were on well before kick-off.',
+  'Good pitch, changing rooms could be cleaner.',
+  null,
+  'Booked last minute and everything was ready. Will be back.',
+  'Nets had a few holes, otherwise fine.',
+  'Excellent value for the price. Parking is easy.',
+  'Our regular Thursday game. Never had a problem.',
+]
+
+/**
+ * Pitch-detail data for the Discover venues — E04. Fills in what the E03
+ * fixtures left empty, and only where it is still empty, so it is safe on a
+ * database seeded before E04 and on a re-run.
+ */
+async function seedDetailFixtures(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') return
+
+  const player = await prisma.user.findUnique({ where: { email: 'player@demo.ro' } })
+  if (!player) return
+
+  let photos = 0
+  for (const venue of DEMO_VENUES) {
+    const company = await prisma.company.findFirst({
+      where: { owner: { email: `venue-${venue.slug}@demo.ro` } },
+      include: { pitches: { orderBy: { name: 'asc' } } },
+    })
+    if (!company) continue
+
+    if (!company.description) {
+      await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          description: `${venue.name} — ${venue.pitches.length} ${venue.pitches.length === 1 ? 'pitch' : 'pitches'} in ${venue.city}, open to teams and casual groups. Book online, pay on the spot.`,
+          websiteUrl: `https://${venue.slug}.example.ro`,
+        },
+      })
+    }
+
+    for (const [i, pitch] of company.pitches.entries()) {
+      if (!pitch.description) {
+        const dims = DIMENSIONS[pitch.size]
+        const shirts = i === 0 && !!venue.pitches[0]?.amenities.includes('CHANGING_ROOMS')
+        await prisma.pitch.update({
+          where: { id: pitch.id },
+          data: {
+            description:
+              `${pitch.name} is a well-kept ${pitch.surfaceType === 'FUTSAL' ? 'indoor futsal court' : 'outdoor pitch'} ` +
+              'with fresh markings and full-size goals. Floodlit in the evening, with seating for substitutes along the touchline. ' +
+              'Bring flat or moulded studs; metal studs are not allowed. Balls can be borrowed at reception. ' +
+              'Please arrive ten minutes early so the previous game can finish on time.',
+            widthMeters: dims?.[0] ?? null,
+            lengthMeters: dims?.[1] ?? null,
+            peakHoursDefinition: [
+              { days: [1, 2, 3, 4, 5], startTime: '17:00', endTime: '23:00' },
+              { days: [0, 6], startTime: '08:00', endTime: '23:00' },
+            ],
+            hasShirts: shirts,
+            shirtRentalPrice: shirts ? 10 : null,
+          },
+        })
+        if (shirts) {
+          for (const [colour, quantity] of [
+            ['RED', 14],
+            ['BLUE', 12],
+            ['YELLOW', 10],
+          ] as const) {
+            await prisma.shirtInventory.upsert({
+              where: { pitchId_colour: { pitchId: pitch.id, colour } },
+              update: {},
+              create: { pitchId: pitch.id, colour, quantity },
+            })
+          }
+        }
+      }
+
+      // Placeholder photos (stable per seed name). The inactive venue keeps
+      // none, so the no-photo state has something to show.
+      const hasPhotos = await prisma.pitchPhoto.count({ where: { pitchId: pitch.id } })
+      if (!hasPhotos && venue.slug !== 'inactive') {
+        const count = 3 + ((venue.slug.length + i) % 3)
+        await prisma.pitchPhoto.createMany({
+          data: Array.from({ length: count }, (_, n) => ({
+            pitchId: pitch.id,
+            url: `https://picsum.photos/seed/pitchup-${venue.slug}-${i}-${n}/1200/900`,
+            cloudinaryPublicId: `seed/${venue.slug}-${i}-${n}`,
+            order: n,
+          })),
+        })
+        photos += count
+      }
+    }
+
+    // Review text, one manager reply and one anonymous review per venue.
+    const reviews = await prisma.review.findMany({
+      where: { pitch: { companyId: company.id }, text: null },
+      orderBy: { createdAt: 'asc' },
+    })
+    for (const [n, review] of reviews.entries()) {
+      await prisma.review.update({
+        where: { id: review.id },
+        data: {
+          // Leaves one in seven with a rating only, an allowed case.
+          text: REVIEW_TEXTS[n % REVIEW_TEXTS.length] ?? '',
+          isAnonymous: n === 1,
+          ...(n === 0
+            ? {
+                managerReply: 'Thanks for playing with us — see you next week!',
+                managerRepliedAt: new Date(),
+              }
+            : {}),
+        },
+      })
+    }
+  }
+
+  // Enough reviews on one venue to page through (limit=10 → two pages).
+  const arena = await prisma.company.findFirst({
+    where: { owner: { email: 'venue-cluj-arena-park@demo.ro' } },
+    include: { pitches: true },
+  })
+  if (arena) {
+    const existing = await prisma.review.count({ where: { pitch: { companyId: arena.id } } })
+    for (let n = existing; n < 14; n++) {
+      const pitch = arena.pitches[n % arena.pitches.length]!
+      const start = new Date(Date.now() - (n + 10) * 24 * HOUR)
+      const booking = await prisma.booking.create({
+        data: {
+          pitchId: pitch.id,
+          playerId: player.id,
+          startTime: start,
+          endTime: new Date(start.getTime() + HOUR),
+          teamCount: 2,
+          status: BookingStatus.COMPLETED,
+          pitchRateSnapshot: pitch.offPeakRate,
+          platformFee: 0,
+          totalAmount: pitch.offPeakRate,
+        },
+      })
+      await prisma.review.create({
+        data: {
+          bookingId: booking.id,
+          pitchId: pitch.id,
+          playerId: player.id,
+          rating: [5, 4, 5, 3, 5, 4, 2][n % 7]!,
+          text: REVIEW_TEXTS[n % REVIEW_TEXTS.length] ?? null,
+          createdAt: start,
+        },
+      })
+    }
+  }
+
+  // Availability cases on Arena Gheorgheni, Teren 1, from tomorrow (venue date).
+  const gheorgheni = await prisma.company.findFirst({
+    where: { owner: { email: 'venue-gheorgheni@demo.ro' } },
+    include: { pitches: { orderBy: { name: 'asc' }, take: 1 } },
+  })
+  const teren = gheorgheni?.pitches[0]
+  if (gheorgheni && teren) {
+    const today = venueClock(new Date()).date
+    const tomorrow = addDays(today, 1)
+    const future = await prisma.booking.count({
+      where: { pitchId: teren.id, startTime: { gt: new Date() } },
+    })
+    if (!future) {
+      const at = (date: string, hhmm: string) => venueTimeToUtc(date, toMinutes(hhmm))
+      const slots: [string, string, string, BookingStatus][] = [
+        [tomorrow, '18:00', '20:00', BookingStatus.CONFIRMED],
+        [tomorrow, '10:00', '11:00', BookingStatus.CANCELLED], // must not block
+        [addDays(today, 2), '08:00', '23:00', BookingStatus.CONFIRMED], // fully booked day
+      ]
+      for (const [date, from, to, status] of slots) {
+        await prisma.booking.create({
+          data: {
+            pitchId: teren.id,
+            playerId: player.id,
+            startTime: at(date, from),
+            endTime: at(date, to),
+            teamCount: 2,
+            status,
+            pitchRateSnapshot: teren.peakRate,
+            platformFee: 0,
+            totalAmount: teren.peakRate,
+          },
+        })
+      }
+    }
+    // Closed for maintenance three days from now.
+    await prisma.pitchException.upsert({
+      where: {
+        pitchId_date: { pitchId: teren.id, date: new Date(`${addDays(today, 3)}T00:00:00Z`) },
+      },
+      update: {},
+      create: {
+        pitchId: teren.id,
+        date: new Date(`${addDays(today, 3)}T00:00:00Z`),
+        reason: 'Pitch maintenance',
+      },
+    })
+  }
+
+  // Reviews made by the E03 fixtures were all stamped at seed time. Date each
+  // a few hours after its game, so "newest first" has an order to show.
+  const undated = await prisma.review.findMany({
+    include: { booking: { select: { endTime: true } } },
+  })
+  for (const review of undated) {
+    const when = new Date(review.booking.endTime.getTime() + 3 * HOUR)
+    if (Math.abs(review.createdAt.getTime() - when.getTime()) > 60_000) {
+      await prisma.review.update({ where: { id: review.id }, data: { createdAt: when } })
+    }
+  }
+
+  // Zorilor closes on Sundays, for the closed-day state.
+  const zorilor = await prisma.company.findFirst({
+    where: { owner: { email: 'venue-zorilor@demo.ro' } },
+  })
+  if (zorilor) {
+    await prisma.company.update({
+      where: { id: zorilor.id },
+      data: {
+        workingHours: daily('10:00', '22:00').map(d =>
+          d.day === 0 ? { ...d, isClosed: true } : d
+        ),
+      },
+    })
+  }
+
+  console.log(`✓ Pitch detail fixtures seeded (${photos} new photos)`)
+}
+
 async function main(): Promise<void> {
   console.log('Seeding database…')
   await seedCities()
   await seedAdmin()
   await seedDevFixtures()
   await seedDiscoverFixtures()
+  await seedDetailFixtures()
   console.log('Seed complete.')
 }
 

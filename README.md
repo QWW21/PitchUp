@@ -93,11 +93,13 @@ pnpm build          # production build
 
 bash scripts/verify-e01.sh   # every E01 acceptance criterion, end to end
 (cd apps/web && ./node_modules/.bin/tsx ../../scripts/verify-e03.ts)   # E03-01 + Discover helpers
+(cd apps/web && ./node_modules/.bin/tsx ../../scripts/verify-e04.ts)   # E04 detail, availability, reviews
 ```
 
 `verify-e01.sh` needs Postgres running and `apps/web/.env` filled in. It
 starts a dev server, exercises the API, and shuts it down. `verify-e03.ts`
-expects a server already running on :3000 and a seeded database.
+and `verify-e04.ts` expect a server already running on :3000 and a seeded
+database.
 
 A pre-commit hook runs ESLint and Prettier on staged files.
 

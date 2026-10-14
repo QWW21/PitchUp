@@ -85,3 +85,11 @@ export const TRUST_TIERS: readonly TrustTier[] = [
     maxActiveBookings: 0,
   },
 ] as const
+
+/**
+ * The tier for a score. Derived on every read rather than stored, so it can
+ * never disagree with the score (docs/ARCHITECTURE.md, "Derived versus stored").
+ */
+export function trustTier(score: number): TrustTier {
+  return TRUST_TIERS.find(t => score >= t.min) ?? TRUST_TIERS[TRUST_TIERS.length - 1]!
+}

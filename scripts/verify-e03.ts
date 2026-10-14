@@ -7,7 +7,10 @@
  * or BASE_URL pointing elsewhere.
  */
 import { foldForSearch, nearestCity, type CompanyListItem } from '@pitchup/shared'
+import { PrismaClient } from '@prisma/client'
 import { isOpenAt } from '../apps/web/src/lib/discover/opening-hours'
+
+const prisma = new PrismaClient()
 
 const BASE = `${process.env.BASE_URL ?? 'http://localhost:3000'}/api/v1/companies`
 
@@ -232,7 +235,32 @@ async function main() {
       open.every(c => c.isOpenNow)
     )
 
+    // The seed's "busy now" booking ages out a few hours after seeding, so
+    // the check books every Futsal Center pitch for the next three hours
+    // itself and removes the bookings afterwards.
+    const player = await prisma.user.findUniqueOrThrow({ where: { email: 'player@demo.ro' } })
+    const pitches = await prisma.pitch.findMany({
+      where: { company: { owner: { email: 'venue-futsal-center@demo.ro' } } },
+    })
+    const busy = await Promise.all(
+      pitches.map(p =>
+        prisma.booking.create({
+          data: {
+            pitchId: p.id,
+            playerId: player.id,
+            startTime: new Date(Date.now() - 60_000),
+            endTime: new Date(Date.now() + 3 * 3600_000),
+            teamCount: 2,
+            status: 'CONFIRMED',
+            pitchRateSnapshot: p.peakRate,
+            platformFee: 0,
+            totalAmount: p.peakRate,
+          },
+        })
+      )
+    )
     const avail = (await get(`${CLUJ}&availableNow=true&limit=50`)).body.data!.companies
+    await prisma.booking.deleteMany({ where: { id: { in: busy.map(b => b.id) } } })
     check(
       'availableNow=true → open, and fully booked venue excluded',
       avail.every(c => c.isOpenNow) && !avail.some(c => c.name === 'Futsal Center Mărăști'),
@@ -306,7 +334,9 @@ async function main() {
   process.exitCode = fail ? 1 : 0
 }
 
-main().catch(error => {
-  console.error(error)
-  process.exitCode = 1
-})
+main()
+  .catch(error => {
+    console.error(error)
+    process.exitCode = 1
+  })
+  .finally(() => void prisma.$disconnect())

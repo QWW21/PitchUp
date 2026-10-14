@@ -17,7 +17,6 @@ import type { AmenityType, Prisma } from '@prisma/client'
 import {
   AMENITY_FILTERS,
   DISCOVER,
-  REVIEW,
   haversineKm,
   type CompanyListItem,
   type CompanyListPage,
@@ -26,6 +25,7 @@ import {
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { validationError } from '@/lib/api/errors'
+import { companyRating, pitchStats, round1, type PitchStats } from '@/lib/venues/ratings'
 import { isOpenAt } from './opening-hours'
 
 /**
@@ -63,8 +63,6 @@ function pitchWhere(q: CompanyListQuery): Prisma.PitchWhereInput {
       : {}),
   }
 }
-
-const round1 = (n: number) => Math.round(n * 10) / 10
 
 /** Ascending, with nulls after every real value whichever way the key runs. */
 function compareNullable(a: number | null, b: number | null, direction: 1 | -1): number {
@@ -114,32 +112,11 @@ export async function listCompanies(
   })
 
   const companyIds = companies.map(c => c.id)
-  const pitchToCompany = new Map(companies.flatMap(c => c.pitches.map(p => [p.id, c.id] as const)))
 
   // One grouped query for every company's reviews, rather than one per card.
-  const reviewStats = companyIds.length
-    ? await prisma.review.groupBy({
-        by: ['pitchId'],
-        where: {
-          moderationStatus: 'APPROVED',
-          pitch: { companyId: { in: companyIds }, isActive: true },
-        },
-        _avg: { rating: true },
-        _count: { _all: true },
-      })
-    : []
-
-  // PRD §11.2: company rating is the mean of its pitches' ratings, not of all
-  // reviews pooled, so one heavily reviewed pitch does not drown out the rest.
-  const ratings = new Map<string, { pitchMeans: number[]; count: number }>()
-  for (const stat of reviewStats) {
-    const companyId = pitchToCompany.get(stat.pitchId)
-    if (!companyId || stat._avg.rating === null) continue
-    const entry = ratings.get(companyId) ?? { pitchMeans: [], count: 0 }
-    entry.pitchMeans.push(stat._avg.rating)
-    entry.count += stat._count._all
-    ratings.set(companyId, entry)
-  }
+  const stats = companyIds.length
+    ? await pitchStats({ companyId: { in: companyIds }, isActive: true })
+    : new Map<string, PitchStats>()
 
   const freeCompanies = q.availableNow
     ? await companiesWithFreePitch(companyIds, matchingPitch, now)
@@ -159,12 +136,9 @@ export async function listCompanies(
     // A pitch is only bookable while the venue is open.
     if (freeCompanies && (!isOpenNow || !freeCompanies.has(c.id))) continue
 
-    const rating = ratings.get(c.id)
-    const reviewCount = rating?.count ?? 0
-    const avgRating =
-      rating && reviewCount >= REVIEW.MIN_FOR_PUBLIC_RATING
-        ? round1(rating.pitchMeans.reduce((sum, r) => sum + r, 0) / rating.pitchMeans.length)
-        : null
+    const { avgRating, reviewCount } = companyRating(
+      c.pitches.flatMap(p => (stats.has(p.id) ? [stats.get(p.id)!] : []))
+    )
 
     rows.push({
       id: c.id,

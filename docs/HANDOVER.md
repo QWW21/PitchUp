@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E03 (Player: Discover).
+Last updated at the end of the session that implemented E04 (Player: Pitch Detail).
 
 ## Done
 
@@ -58,12 +58,42 @@ server, plus the opening-hours and nearest-city helpers. The seed now creates
 sixteen Discover venues with pitches, amenities, hours, bookings and reviews;
 see README "Seeded accounts".
 
-Both company-detail targets — web `/discover/[companyId]` and the mobile
-`CompanyDetail` route — are placeholders until E04.
+**E04 — Player: Pitch Detail: all eight tickets implemented.**
+
+| Ticket                                 | State                                                                 |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| E04-01 `GET /companies/:id`            | done, verified — hours as 7 days, pitch summaries, ratings            |
+| E04-02 `GET /pitches/:id`              | done, verified — photos, amenities, shirts, 3 recent reviews          |
+| E04-03 `GET /pitches/:id/availability` | done, verified — 30-min slots in venue time, closures, overnight      |
+| E04-04 mobile Company Detail           | built — collapsing header, hero, hours accordion, sticky tabs         |
+| E04-05 mobile Pitch Detail             | built — gallery + lightbox, amenities, pricing, collapsible text      |
+| E04-06 mobile availability + Book Now  | built — 7-day dots, reviews preview, footer with disabled states      |
+| E04-07 reviews list                    | `GET /reviews` done and verified; mobile breakdown + cards built      |
+| E04-08 web company + pitch pages       | done, verified in a browser — SSR, tabs, gallery, sidebar, 7-day grid |
+
+`scripts/verify-e04.ts` re-runs the backend acceptance checks (56). The seed
+now gives the Discover venues photos (placeholder images), descriptions,
+dimensions, peak hours, shirt rental, review text with a manager reply and an
+anonymous review, fourteen reviews on Cluj Arena Park for paging, and on Arena
+Gheorgheni Teren 1 a booking tomorrow 18:00–20:00, a fully booked day after
+tomorrow and a maintenance closure the day after that. Zorilor closes on Sundays.
+
+Book Now (web and mobile) opens a placeholder until E05: `/booking/new` on the
+web, the `BookingFlow` route in the app.
+
+**Fixed along the way — mobile API auth.** `requireAuth` only read the web
+cookie, so every authenticated call from the app, `/me` included, was a 401;
+`checkSession` would have signed the user out on every launch. It now accepts
+the mobile Bearer access token too (re-reading the user, so a deleted account
+stops working at once). Verified with a real token from
+`/auth/mobile/login`. `/me` also returns `trustScore` now.
 
 ## Next
 
-**E04 — Player: Pitch Detail** replaces the two company-detail placeholders.
+**E05 — Player: Booking Flow** replaces the two Book Now placeholders. The
+availability endpoint it needs (E04-03) is done; its `past` slot status and
+venue-time conversion (`venueTimeToUtc`, `openIntervalsOn` in
+`packages/shared/src/schedule.ts`) are what the slot picker should use.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -199,6 +229,45 @@ E03:
   app has no sign-out button until Profile (E08). `docs/TESTING_E02_MOBILE.md`
   says Discover where it said Home.
 
+E04:
+
+- **Slots are computed in venue time.** The ticket's sample built slot
+  instants as `${date}T08:00:00Z`, which is 10:00 or 11:00 in Romania. Slots
+  are Bucharest wall-clock times converted with `venueTimeToUtc`, and "today"
+  and "past date" are the venue's today.
+- **A pitch uses its company's working hours.** The tickets mention a per-pitch
+  `availabilitySchedule`; the schema has none. Hours are returned as
+  `workingHours`: always seven `{ day, openTime, closeTime, isClosed }`
+  entries, Sunday first — the stored shape, normalised — rather than the
+  tickets' `{ "0": { closed: true } }` object.
+- **Overnight hours** (e.g. 16:00–02:00) give a date two intervals: the
+  previous evening's tail from 00:00, and its own hours up to 24:00, since a
+  booking never spans midnight.
+- **A `past` slot status** for slots earlier today. The tickets have only
+  available/booked/closed; without it every elapsed slot read as available.
+- **`PitchException` added** to the schema, as the ticket asked (one-off
+  closed dates). Run `pnpm db:push`.
+- **Reviewer names are "First L."**, never the full name; anonymous reviews
+  show "Anonymous player" and no photo.
+- **`GET /reviews` returns the star distribution and rating with each page**,
+  so the breakdown header needs no second request.
+- **Web detail pages render on the server from the same service functions as
+  the API**, not by fetching their own API over HTTP; React `cache` keeps it to
+  one query for the page and its metadata.
+- **Web gallery and lightbox are built in place** (no gallery library);
+  keyboard ←/→/Esc work. No shadcn/ui, as in E03.
+- **Book Now when signed out** goes to `/login?callbackUrl=…` (the app's
+  existing parameter), not `?redirect=`.
+- **Mobile lightbox zoom is iOS-only** (ScrollView pinch, 1×–4×). Android
+  pinch and double-tap need react-native-gesture-handler and reanimated,
+  which are not installed.
+- **Mobile tabs switch on tap, not swipe** (no tab-view/pager library), and
+  the Company Detail hero image is the first pitch's cover photo — companies
+  have no cover image of their own.
+- **No "Sign in to book" on mobile**: the app's screens are all behind sign-in.
+- **Deep links** (`/discover/:companyId` opening the app) are not configured;
+  that needs a linking config and platform setup.
+
 ## Known gaps
 
 - **Mobile Discover is built but not run.** Typecheck, lint, Metro bundle and
@@ -223,8 +292,10 @@ E03:
 - **No automated tests.** Everything was verified by hand — curl against a
   running server for the backend, a live emulator for Android. A regression in,
   say, the enumeration defence would not be caught by anything.
-  `scripts/verify-e03.ts` is a script, not a test suite, and needs a running
-  server.
+  `scripts/verify-e03.ts` and `verify-e04.ts` are scripts, not a test suite,
+  and need a running server and a seeded database.
+- **Lighthouse not run** for the web pitch page (E04-08 asks for SEO ≥ 90) or
+  `/discover`. Titles, descriptions and Open Graph images are set per page.
 - **Web auth was walked through in a browser** against a production build
   (`next start`), after the E03 session: login (right, wrong, unknown,
   unverified), `callbackUrl`, signed-in redirects, sign-out from both the

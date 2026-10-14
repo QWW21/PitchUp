@@ -31,6 +31,13 @@ export const SURFACE_LABELS: Record<SurfaceType, string> = {
   FUTSAL: 'Futsal',
 }
 
+/** Surface chip colours. UIUX_SPEC §2.7. */
+export const SURFACE_COLORS: Record<SurfaceType, { background: string; text: string }> = {
+  NATURAL_GRASS: { background: '#F0FDF4', text: '#15803D' },
+  ARTIFICIAL_GRASS: { background: '#EFF6FF', text: '#1D4ED8' },
+  FUTSAL: { background: '#FEF3C7', text: '#92400E' },
+}
+
 /** CUSTOM is a pitch size but not something a player filters by. */
 export const FILTERABLE_SIZES = ['FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE'] as const
 

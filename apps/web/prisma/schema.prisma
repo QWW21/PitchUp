@@ -218,9 +218,23 @@ model Pitch {
   shirtInventory ShirtInventory[]
   bookings       Booking[]
   reviews        Review[]
+  exceptions     PitchException[]
 
   @@index([companyId])
   @@index([isActive])
+}
+
+/// A date the pitch is closed despite its normal hours (holiday, maintenance). E04-03.
+model PitchException {
+  id      String   @id @default(cuid())
+  pitchId String
+  /// Venue-local calendar date.
+  date    DateTime @db.Date
+  reason  String?
+
+  pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@unique([pitchId, date])
 }
 
 model PitchPhoto {

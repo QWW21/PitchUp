@@ -15,6 +15,8 @@ export interface AuthUser {
   email: string
   name: string
   role: 'PLAYER' | 'MANAGER' | 'ADMIN'
+  /** From /me; absent on the login response. Drives "Account restricted" (E04-06). */
+  trustScore?: number | null
 }
 
 export interface LoginResult {
