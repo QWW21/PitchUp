@@ -14,7 +14,7 @@ pnpm dev          # http://localhost:3000
 
 # Terminal 2 — Metro bundler
 cd apps/mobile
-pnpm start        # port 8082
+pnpm start        # port 8082 (pnpm ios / pnpm android point at it)
 
 # Terminal 3 — simulator (iOS)
 pnpm ios

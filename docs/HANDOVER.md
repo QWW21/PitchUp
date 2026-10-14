@@ -1,52 +1,100 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E02-08 to E02-14 and
-scaffolded the mobile app.
+Last updated at the end of the session that got the Android build running.
 
 ## Done
 
 **E01 — Infrastructure: complete.** All ten tickets closed.
 `bash scripts/verify-e01.sh` re-runs every acceptance check (26 of them).
 
-**E02 — Auth: seven of fourteen closed.**
+**E02 — Auth: all fourteen tickets implemented.**
 
-| Ticket                          | State                                                |
-| ------------------------------- | ---------------------------------------------------- |
-| E02-08 backend auth             | closed — register, login, refresh, logout, verify    |
-| E02-09 Resend email             | closed — adapter + templates, inactive without a key |
-| E02-10 Twilio SMS               | closed — adapter, inactive without credentials       |
-| E02-11 password reset           | closed                                               |
-| E02-12 mobile API client        | closed — authApi, authStore, navigation wiring       |
-| E02-13 web manager login        | closed                                               |
-| E02-14 web manager registration | closed                                               |
+| Ticket                          | State                                              |
+| ------------------------------- | -------------------------------------------------- |
+| E02-01 splash + onboarding      | done — 3 slides, AsyncStorage flag                 |
+| E02-02 registration step 1      | done — name, email, E.164 phone, city picker       |
+| E02-03 registration step 2      | done — DOB with age ≥ 16, password policy          |
+| E02-04 phone OTP verification   | done — 6-box OTP, 60s resend cooldown              |
+| E02-05 login                    | done                                               |
+| E02-06 forgot password          | done                                               |
+| E02-07 social login             | placeholder only — needs OAuth credentials         |
+| E02-08 backend auth             | done — register, login, refresh, logout, verify    |
+| E02-09 Resend email             | done — adapter + templates, inactive without a key |
+| E02-10 Twilio SMS               | done — adapter, inactive without credentials       |
+| E02-11 password reset           | done                                               |
+| E02-12 mobile API client        | done — authApi, authStore, navigation wiring       |
+| E02-13 web manager login        | done                                               |
+| E02-14 web manager registration | done                                               |
+
+E02-07 is the only one not really finished: `SocialLoginScreen` is a "coming
+soon" placeholder. Google and Apple sign-in both need native configuration
+(`GoogleService-Info.plist`, `google-services.json`, OAuth client IDs) that
+nobody has credentials for yet.
+
+**The Android app builds and runs.** Verified on a Pixel 9 Pro XL emulator:
+the app launches, Metro serves the bundle, and the onboarding screen renders.
+See "React Native version constraints" below before touching mobile deps —
+that is where most of the work went.
+
+Web pages added since the last handover: `/forgot-password`,
+`/registration-confirmed`, a sign-out button on the dashboard, and `/` now
+redirects to `/login` or `/dashboard` instead of showing a placeholder.
 
 ## Next
 
-**E02-12 is complete.** All mobile infrastructure is in place.
+**E02-07 (social login)** is the only open item in the epic, and it is blocked
+on credentials rather than on code.
 
-Committed in two sessions:
+Otherwise E02 is done and **E03 — Player: Discover** is next.
 
-- `apps/mobile/src/lib/tokenStorage.ts` — Keychain wrapper
-- `apps/mobile/src/lib/apiClient.ts` — axios instance, refresh interceptor
-- `apps/mobile/src/lib/authEvents.ts` — unauthorised signal
-- `apps/mobile/src/config.ts` — base URL per platform
-- `apps/mobile/src/lib/authApi.ts` — typed wrappers: register, login (stores tokens), verifyEmail, resendCode, forgotPassword, resetPassword, fetchMe, logout
-- `apps/mobile/src/stores/authStore.ts` — Zustand: checkSession (validates stored tokens via /me on launch), setUser, logout
-- `apps/mobile/App.tsx` — NavigationContainer with AuthStack/AppStack; driven by store status; authEvents wired to logout
+Two things worth doing before moving on, neither of which is a ticket:
 
-**Next: the seven mobile screens — E02-01 through E02-07:**
+- **iOS has never built.** It is stuck at a linker error; see the known gaps.
+- **There are no automated tests at all.** Every claim in this document was
+  verified by hand.
 
-| Ticket | Screen                                    |
-| ------ | ----------------------------------------- |
-| E02-01 | Splash + onboarding                       |
-| E02-02 | Player registration (step 1)              |
-| E02-03 | Player registration (step 2)              |
-| E02-04 | Phone OTP verification                    |
-| E02-05 | Login                                     |
-| E02-06 | Forgot password                           |
-| E02-07 | Social login (deferred if no credentials) |
+## React Native version constraints
 
-Start with E02-05 (Login) — it's the simplest screen and exercises the full auth flow end-to-end.
+The app is pinned to **React Native 0.76.0**, and several packages in the tree
+have moved on to APIs that only exist in 0.77+. This caused four separate
+Android build failures and is the reason for the pins and patches below.
+Read this before bumping any mobile dependency.
+
+| Package                       | Pinned at | Why                                                                                                                                                                                                                                                              |
+| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `react-native-screens`        | `4.16.0`  | 4.17.0+ uses Kotlin APIs added after 0.76 (`ReactPointerEventsView.getPointerEvents`, `getFabricUIManagerNotNull`, the `EdgeInsets` safe-area types). 4.16.0 is the last release that compiles.                                                                  |
+| `react-native-maps`           | `1.29.11` | Works, but needs two patches — see below.                                                                                                                                                                                                                        |
+| `androidx.core` / `-ktx`      | `1.15.0`  | Forced in `apps/mobile/android/app/build.gradle`. 1.17.0 demands compileSdk 36 and AGP 8.9.1; RN 0.76 pins AGP 8.6.0 / compileSdk 35.                                                                                                                            |
+| `@react-native/gradle-plugin` | `0.76.0`  | Declared as an explicit devDependency. It is a transitive dep of `react-native`, so pnpm hoists it to the repo root and never links it into `apps/mobile/node_modules`, which is exactly where `settings.gradle` looks for it. Same for `@react-native/codegen`. |
+
+Three patch files in `patches/`, all applied through `pnpm.patchedDependencies`
+in the root `package.json`:
+
+- **`@react-native__codegen@0.76.0.patch`** — five fixes to the TypeScript
+  component parser (`TSQualifiedName` nodes, `CT.WithDefault` unwrapping,
+  `ComponentRef`, `TSArrayType` element types, `isEvent()`).
+- **`react-native-maps@1.29.11.patch`** — adds the empty
+  `ViewManagerWithGeneratedInterface` marker class that RN 0.76 does not ship
+  but the generated view managers extend, and guards the call to
+  `target_compile_reactnative_options()` in the JNI `CMakeLists.txt` (an RN
+  0.77 helper). Without the second fix the codegen sources compile without
+  `-std=c++20` and fail on the C++20 in React Native's own headers.
+- **`react-native-screens@4.29.0.patch`** — **currently orphaned.** It is not
+  referenced from `patchedDependencies` any more, because rn-screens is pinned
+  to 4.16.0. It is kept on disk because it holds the iOS fixes from an earlier
+  session (eight files, mostly the removed `EventQueue::UpdateMode` argument)
+  and would be expensive to recreate. Delete it once iOS is confirmed working
+  on 4.16.0.
+
+The long-term fix for all of this is to upgrade React Native. These pins are
+holding the tree at a version the ecosystem has moved past.
+
+### Metro port
+
+Metro runs on **8082**, not React Native's default 8081, to avoid colliding
+with other RN projects. `pnpm android` and `pnpm ios` pass `--port 8082` so
+the app looks for the bundler in the right place. Launching the app any other
+way without that flag fails with "Unable to load script".
 
 ## Decisions that are settled
 
@@ -77,17 +125,30 @@ Each is also recorded on its GitHub issue.
   detection and log the user out everywhere.
 - **Twilio over Verify** (E02-10), so phone verification stays testable
   without a live account.
+- **Social login is a placeholder** (E02-07). The screen exists and is wired
+  into the navigator, but no native OAuth is configured.
 
 ## Known gaps
 
-- **No automated tests.** Everything was verified by hand with curl against
-  a running server. A regression in, say, the enumeration defence would not
-  be caught by anything.
-- **No browser testing.** Three web pages were checked by inspecting
-  markup, not by rendering. No viewport testing at 375 / 768 / 1280.
-- **Neither mobile app has been built or run.** Metro bundles both
-  platforms cleanly, but nothing has launched on a simulator — that needs
-  Xcode, an Android SDK, and CocoaPods for iOS.
+- **iOS has never built.** It is stuck at a linker error: undefined `_RNS*Cls`
+  symbols referenced from the generated
+  `RCTThirdPartyFabricComponentsProvider.mm`. The symbols live in
+  react-native-screens' `gamma/` directory, which the pod excludes unless
+  `RNS_GAMMA_ENABLED` is set, and the stubs in `ios/stubs/RNSGammaStubs.mm`
+  define the Objective-C classes but not the C `*Cls` functions the provider
+  actually links against. **This may now be moot**: that whole diagnosis was
+  against rn-screens 4.29.0, and the pin has since moved to 4.16.0, which has
+  no `gamma/` directory at all. Run `pod install` and rebuild before spending
+  any time on the stubs.
+- **No automated tests.** Everything was verified by hand — curl against a
+  running server for the backend, a live emulator for Android. A regression in,
+  say, the enumeration defence would not be caught by anything.
+- **No browser testing.** The web pages were checked by inspecting markup, not
+  by rendering. No viewport testing at 375 / 768 / 1280.
+- **Android was verified as far as the onboarding screen.** The build, the
+  bundle and the first render are confirmed. The seven auth screens have not
+  been walked through on a device against a live API;
+  `docs/TESTING_E02_MOBILE.md` is the plan for doing that and has not been run.
 - **`pnpm lint` is weaker than `next build`.** The build caught an unused
   import that lint passed, because the root ESLint config ignores `.next`
   and Next runs its own pass. Worth aligning before CI exists.
@@ -101,9 +162,11 @@ Each is also recorded on its GitHub issue.
 - `PROFILE_VERIFIED`, a manager trust score, and `ADMIN_ADJUSTMENT` appear
   in later tickets but are not in the PRD or the schema. Flagged in place
   on E12 and E15; each needs a call before that epic starts.
-- A `/forgot-password` page is linked from the web login but is not in any
-  E02 ticket. The reset email also points at `/reset-password`, which does
-  not exist yet.
+- **`/reset-password` does not exist.** The reset email links to it. The
+  `/forgot-password` page and both API routes are built, so the flow dead-ends
+  at the last step. This is not in any E02 ticket.
+- **When to upgrade React Native.** The 0.76 pin is already forcing an
+  rn-screens downgrade and two patches, and that cost will grow.
 - The GitHub token in use is shared in the session transcript and should be
   rotated when the project is done with it.
 
@@ -111,4 +174,5 @@ Each is also recorded on its GitHub issue.
 
 See `README.md` for setup. `docs/ARCHITECTURE.md` explains why the
 infrastructure is shaped the way it is — worth reading before changing the
-schema or the auth flow.
+schema or the auth flow. `docs/TESTING_E02_MOBILE.md` is the manual test plan
+for the mobile auth screens.

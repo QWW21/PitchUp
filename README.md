@@ -53,7 +53,10 @@ pnpm db:studio    # browse the database on :5555
 ```
 
 Metro uses 8082 rather than React Native's default 8081, which collides with
-any other RN project's dev server on the same machine.
+any other RN project's dev server on the same machine. `pnpm android` and
+`pnpm ios` pass `--port 8082` so the app points at the same server — if you
+launch the app by some other route, pass that flag yourself or it will look
+for a bundler on 8081 and fail with "Unable to load script".
 
 ### Seeded accounts
 
