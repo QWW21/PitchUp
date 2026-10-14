@@ -12,6 +12,8 @@
 #   e02-close    Comment on and close the E02 mobile tickets (#11-16, #22)
 #   e02-bugs     File the defects found during E02, each already fixed
 #   e02-gaps     File the follow-ups for what E02 closed without building
+#   e02-web      After the web auth pass (e396f41): close the E02 bugs left open,
+#                correct #159, update #165, file the new fixed bugs and a gap
 #   e03-close    Close E03-01/08 (#25, #32); comment on the mobile ones (#26-31),
 #                which stay open for the mobile tester
 #   e03-bugs     File the defects found during E03, each already fixed
@@ -201,6 +203,45 @@ cmd_e02_gaps() {
     '["epic: auth","type: cross-platform","priority: high"]' $AUTH
 }
 
+cmd_e02_web() {
+  echo "Closing the E02 bug tickets whose fixes are confirmed on main…"
+  local n
+  for n in 151 152 153 154 155 156 158 160 161; do
+    comment_issue "$n" "$BODIES/verified-fixed.md"
+    close_issue "$n"
+  done
+  echo "Correcting #159 — the first fix was incomplete:"
+  comment_issue 159 "$BODIES/close-159.md"
+  close_issue 159
+  echo "Web half of #165 done; left open for the mobile screen:"
+  comment_issue 165 "$BODIES/status-165.md"
+  echo "Filing the defects found in the web auth pass (all fixed)…"
+  file_fixed_defect \
+    "[BUG] Production builds cannot sign anyone in — Auth.js UntrustedHost" \
+    "$BODIES/bug-untrustedhost.md" \
+    '["bug","epic: auth","platform: web","priority: critical"]' $AUTH
+  file_fixed_defect \
+    "[BUG] Open redirect via /login?callbackUrl=//other-site" \
+    "$BODIES/bug-openredirect.md" \
+    '["bug","epic: auth","platform: web","priority: high"]' $AUTH
+  file_fixed_defect \
+    "[BUG] Web login with an unverified account sends no code and logs a server error" \
+    "$BODIES/bug-webunverified.md" \
+    '["bug","epic: auth","platform: web","priority: medium"]' $AUTH
+  file_fixed_defect \
+    "[BUG] Register doubles the country code when the phone is typed in full" \
+    "$BODIES/bug-phoneprefix.md" \
+    '["bug","epic: auth","platform: web","priority: medium"]' $AUTH
+  file_fixed_defect \
+    "[BUG] Auth forms spin forever when the request itself fails" \
+    "$BODIES/bug-netspinner.md" \
+    '["bug","epic: auth","platform: web","priority: low"]' $AUTH
+  file_followup \
+    "[E02 gap] Password reset does not end existing web sessions" \
+    "$BODIES/gap-websessions.md" \
+    '["epic: auth","platform: web","type: feature","priority: medium"]' $AUTH
+}
+
 cmd_e03_close() {
   echo "Closing the E03 backend and web tickets…"
   local n
@@ -245,7 +286,7 @@ cmd_e03_gaps() {
 # ── Dispatch ────────────────────────────────────────────────────────────────
 
 if [[ $# -eq 0 ]]; then
-  sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 fi
 
@@ -256,6 +297,7 @@ for arg in "$@"; do
     e02-close) cmd_e02_close ;;
     e02-bugs)  cmd_e02_bugs ;;
     e02-gaps)  cmd_e02_gaps ;;
+    e02-web)   cmd_e02_web ;;
     e03-close) cmd_e03_close ;;
     e03-bugs)  cmd_e03_bugs ;;
     e03-gaps)  cmd_e03_gaps ;;

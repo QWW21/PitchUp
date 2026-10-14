@@ -1,0 +1,1 @@
+Filed as already fixed during E02, but left open when the closing step failed. Re-checked on `main` (e396f41): the fix described above is present in the code, and the web side was exercised in a browser while testing every E02 web flow. Closing.
