@@ -19,7 +19,7 @@ export function DashboardNav() {
             key={l.href}
             href={l.href}
             aria-current={active ? 'page' : undefined}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
+            className={`rounded-md px-2 py-2 text-sm font-medium sm:px-3 ${
               active ? 'bg-primary-50 text-primary-700' : 'text-neutral-700 hover:bg-neutral-100'
             }`}
           >

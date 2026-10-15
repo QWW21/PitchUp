@@ -67,7 +67,7 @@ export function ReviewFilters({
           ))}
         </select>
       </label>
-      <div role="group" aria-label="Sort" className="flex gap-1">
+      <div role="group" aria-label="Sort" className="flex flex-wrap gap-1">
         {MANAGER_REVIEW_SORTS.map(s => (
           <button
             key={s}

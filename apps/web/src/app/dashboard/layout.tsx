@@ -25,8 +25,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   return (
     <QueryProvider>
       <header className="border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-3 px-4 sm:gap-6">
-          <Link href="/dashboard" className="text-xl font-bold text-primary-600">
+        <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4 sm:gap-6">
+          <Link href="/dashboard" className="text-lg font-bold text-primary-600 sm:text-xl">
             PitchUp
           </Link>
           <DashboardNav />
@@ -34,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <form action={signOutAction}>
               <button
                 type="submit"
-                className="whitespace-nowrap rounded-lg bg-neutral-100 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
+                className="whitespace-nowrap rounded-lg bg-neutral-100 px-2 py-2 text-sm sm:px-3 font-medium text-neutral-700 hover:bg-neutral-200"
               >
                 Sign out
               </button>
