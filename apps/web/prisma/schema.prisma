@@ -160,6 +160,8 @@ model User {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
+  /// Why the player deleted their account, if they said (E08-03).
+  deletionReason    String?
 
   company             Company?
   bookings            Booking[]
@@ -172,6 +174,7 @@ model User {
   verificationCodes   VerificationCode[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  deviceTokens        DeviceToken[]
 
   @@index([role])
   @@index([city])
@@ -408,6 +411,21 @@ model Review {
   @@index([pitchId])
   @@index([playerId])
   @@index([moderationStatus])
+}
+
+/// A phone that may receive push notifications (E08-10). One row per token:
+/// a token that signs in as someone else moves to that user.
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// One user's report of one review (E07-04). The review stays visible;

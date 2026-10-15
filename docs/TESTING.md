@@ -28,7 +28,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   registration steps, email verification, forgot password) with a fake
   navigator and a mocked API, render components with fixture data, and
   the booking flow, My Bookings (list, detail, cancel sheet, dispute,
-  review), My reviews (optimistic delete) and the review sort pills, and
+  review), My reviews (optimistic delete) and the review sort pills, the
+  profile screens (profile, trust score, edit, password, delete, cards,
+  notifications) and push routing, and
   exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
@@ -40,7 +42,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   (tabs and pagination, settling finished bookings, the timeline, the three
   refund tiers, disputes, reviews and their windows), reviews (sorting,
   replies and their 24-hour window, reports, a player's own reviews, the
-  manager's list with filters and search), and the E01
+  manager's list with filters and search), the profile (no secrets, partial
+  updates, phone re-verification, trust tiers and history, password change
+  ending sessions, account deletion and its refunds, notifications, device
+  tokens), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -51,8 +56,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   flow with test payments (success, decline, a slot taken meanwhile), and My
   Bookings (tabs, cancel, review create/edit/delete, dispute), My reviews,
   the manager's reviews page (filter, search, reply, edit, delete, report),
-  sorting and reporting on public reviews, and the pitch page's JSON-LD, at
-  1280px and 375px.
+  sorting and reporting on public reviews, the pitch page's JSON-LD, and the
+  profile pages (settings, trust score, password, payment methods, account
+  deletion), at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

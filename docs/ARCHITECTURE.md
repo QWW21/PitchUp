@@ -4,7 +4,7 @@ A walkthrough of the decisions behind PitchUp so far: the infrastructure
 (E01, sections 1–10), auth (11), Discover (12), venue time and availability
 (13), the product changes after the E04 review (14), testing (15),
 bookings and payments (16), what happens to a booking afterwards (17) and
-reviews and the first manager page (18). Each
+reviews and the first manager page (18), and the player's own account (19). Each
 section is a problem, the options, and why one was chosen, and ends with
 **what to learn** to understand it properly. Written for someone who knows
 React Native and is learning the backend and system-design side.
@@ -881,24 +881,118 @@ structured data (schema.org, JSON-LD) and escaping data inside HTML.
 
 ---
 
+## 19. The account: identity, sessions and leaving (E08)
+
+E08 is the player's own account: what they can see and change, how to change
+a password safely, how to leave, and how a phone gets notified.
+
+### Ask for the password again before anything dangerous
+
+Changing the password and deleting the account both ask for the current
+password, even though the player is signed in. A session can be stolen (a
+shared laptop, a leaked token); **re-authentication** limits what a stolen
+session can do. Those two endpoints also share a limit of five attempts per
+15 minutes per user, so a stolen session cannot be used to guess the
+password either.
+
+A wrong password answers **400, not 401**. The status code is part of the
+contract with the client: the app treats 401 as "your session is gone" and
+signs out. Using it for "you typed the wrong password" would sign people out
+for a typo. Pick status codes by what the _client_ should do next.
+
+### Ending sessions you cannot reach
+
+After a password change every session must end, including ones on other
+devices. The app's sessions are refresh tokens in the database, so they are
+revoked: easy. The web's are **stateless JWT cookies**: the server keeps no
+list of them, so there is nothing to delete. Instead each user has
+`passwordChangedAt`, and every request compares it with when the session was
+issued; older sessions are rejected. This is the general trade-off of
+stateless tokens: cheap to check, but revoking one needs a little state
+anyway (a timestamp, a version number, or a deny-list).
+
+### Leaving: erase, or anonymise?
+
+Deleting everything sounds most respectful, but other people's records
+depend on this account: a venue's bookings and payouts, the reviews that
+make up a pitch's rating, a dispute in progress. PitchUp **anonymises**:
+everything that identifies the person (name, email, phone, photo, birth
+date, Stripe customer, sessions, device tokens, notifications) is removed
+or overwritten, while bookings and reviews remain, attributed to "Former
+player". The row itself stays, with `deletedAt`, so foreign keys keep
+working and the email and phone (unique columns) are freed by replacing
+them with values that cannot collide.
+
+Order matters again (§17): upcoming bookings are cancelled and refunded
+**first**. If a refund fails, nothing has been anonymised yet and the player
+can try again. Doing it the other way round could leave an anonymous account
+owed money with nobody to pay it to.
+
+In privacy law terms (GDPR's "right to erasure"), anonymised data is no
+longer personal data, while keeping what is needed for accounts and
+disputes is allowed. That is the reasoning to check with a lawyer before
+launch, not a legal opinion.
+
+### Partial updates and fields that must not change
+
+`PUT /profile` accepts any subset of name, phone, city and photo. The schema
+simply has no `email` or `role`, and Zod drops unknown keys, so a request that
+sends `role: 'ADMIN'` changes nothing. This is the fix for **mass
+assignment**: never pass a request body straight to the database, list the
+fields that may change. Changing the phone also resets `phoneVerified`: data
+the system had checked is no longer checked once it changes.
+
+### Push notifications: the parts you can build first
+
+A push reaches a phone through Apple's or Google's service (FCM), which
+needs a token per installed app. The server stores those tokens
+(`DeviceToken`, one row per token; a token that signs in as someone else
+moves to them) and later sends to them (E13). On the phone, a tapped
+notification must open the right screen whether the app was in the
+foreground, the background, or closed. All three paths call one function,
+`openNotification`, which uses the same rule (`notificationTarget` in
+`@pitchup/shared`) as tapping an item in the in-app list. Only the Firebase
+SDK and its config files are missing, and they are not needed to build or
+test the rest.
+
+### Native modules have a cost
+
+The tickets asked for an SVG ring, swipe gestures and a photo picker, each a
+native module. Every native module means rebuilding the app for both
+platforms, more to break on upgrades (§ "React Native version
+constraints" in HANDOVER), and something tests can only mock. Since nobody
+could run the app here, E08 used plain React Native for all three. The
+choice is easy to revisit; the point is that it is a choice.
+
+**What to learn:** re-authentication for sensitive actions; HTTP status
+codes as a client contract (400 vs 401 vs 403 vs 409); stateless vs stateful
+sessions and how to revoke JWTs; anonymisation vs deletion, and GDPR's right
+to erasure; mass assignment and allow-listing fields; push notification
+architecture (APNs, FCM, device tokens, deep links); the cost of native
+dependencies in React Native.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
 
-| Item                 | State                                                         |
-| -------------------- | ------------------------------------------------------------- |
-| Rate limiting        | In-memory; resets on restart, per-instance                    |
-| Edge middleware      | Cookie presence only; the page is the real gate               |
-| Integration env vars | Optional until their epic                                     |
-| Cloudinary           | Signing verified against the algorithm; no live upload tested |
-| Schema changes       | `prisma db push`, not versioned migrations (see §14)          |
-| Social login         | Placeholder until OAuth credentials exist                     |
-| Mobile app           | Built, typechecked and unit-tested; not yet run on a device   |
-| Mobile colours       | Spec palette; not yet checked for WCAG contrast               |
-| Stripe               | Unit-tested with fakes; never run against a real account      |
-| Booking completion   | Settled lazily on read until the E11 scheduled job exists     |
-| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15 |
-| Manager dashboard    | A header and the Reviews page; the full dashboard is E09      |
+| Item                 | State                                                          |
+| -------------------- | -------------------------------------------------------------- |
+| Rate limiting        | In-memory; resets on restart, per-instance                     |
+| Edge middleware      | Cookie presence only; the page is the real gate                |
+| Integration env vars | Optional until their epic                                      |
+| Cloudinary           | Signing verified against the algorithm; no live upload tested  |
+| Schema changes       | `prisma db push`, not versioned migrations (see §14)           |
+| Social login         | Placeholder until OAuth credentials exist                      |
+| Mobile app           | Built, typechecked and unit-tested; not yet run on a device    |
+| Mobile colours       | Spec palette; not yet checked for WCAG contrast                |
+| Stripe               | Unit-tested with fakes; never run against a real account       |
+| Booking completion   | Settled lazily on read until the E11 scheduled job exists      |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15  |
+| Manager dashboard    | A header and the Reviews page; the full dashboard is E09       |
+| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)   |
+| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist |
 
 ---
 
@@ -933,3 +1027,5 @@ Honest inventory, so none of it is mistaken for finished:
     user, every time.
 18. **Store a copy only when computing it hurts.** Every copy is a promise
     to keep it in sync.
+19. **A status code tells the client what to do next.** Choose it for them.
+20. **Leaving should remove the person, not the history others rely on.**

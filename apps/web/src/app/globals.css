@@ -18,6 +18,21 @@
   }
 }
 
+/* Trust score ring (E08-08): the arc grows from empty to the score. */
+@keyframes ring-fill {
+  from {
+    stroke-dashoffset: var(--ring-length);
+  }
+}
+.ring-fill {
+  animation: ring-fill 800ms ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-fill {
+    animation: none;
+  }
+}
+
 @layer base {
   body {
     @apply bg-neutral-50 text-neutral-900 antialiased;

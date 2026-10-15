@@ -14,11 +14,18 @@ import { prisma } from '@/lib/prisma'
 import { companyRating, pitchStats, publicRating } from './ratings'
 
 export const reviewInclude = {
-  player: { select: { name: true, profilePhotoUrl: true } },
+  player: { select: { name: true, profilePhotoUrl: true, deletedAt: true } },
   pitch: { select: { name: true } },
 } satisfies Prisma.ReviewInclude
 
 type ReviewRow = Prisma.ReviewGetPayload<{ include: typeof reviewInclude }>
+
+/** "Alexandru D.", "Anonymous player", or "Former player" once the account is deleted (E08-03). */
+export const reviewerName = (
+  player: { name: string; deletedAt: Date | null },
+  isAnonymous: boolean
+): string =>
+  player.deletedAt && !isAnonymous ? 'Former player' : playerDisplayName(player.name, isAnonymous)
 
 /** An anonymous review exposes neither name nor photo. */
 export function toReviewItem(r: ReviewRow): ReviewItem {
@@ -32,7 +39,7 @@ export function toReviewItem(r: ReviewRow): ReviewItem {
     rating: r.rating,
     text: r.text?.trim() || null,
     isAnonymous: r.isAnonymous,
-    playerName: playerDisplayName(r.player.name, r.isAnonymous),
+    playerName: reviewerName(r.player, r.isAnonymous),
     playerAvatarUrl: r.isAnonymous ? null : r.player.profilePhotoUrl,
     photoUrls,
     managerReply: r.managerReply,

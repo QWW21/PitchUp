@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E07 (Reviews & Ratings).
+Last updated at the end of the session that implemented E08 (Player: Profile & Account).
 
 ## Done
 
@@ -189,20 +189,58 @@ which makes "one reply per review" automatic. Applied with `prisma db push`.
 **The manager area starts here.** `/dashboard` now has a layout (header,
 Overview and Reviews links, sign out) that redirects players to Discover;
 E09 grows it into the full dashboard. Players reach My reviews from the
-account menu (web) and from My Bookings (mobile); there is no profile page
-yet (E08).
+account menu (web) and from My Bookings (mobile). E08 added the profile.
+
+**E08 — Player: Profile & Account: nine tickets implemented, push blocked on Firebase.**
+
+| Ticket                        | State                                                                          |
+| ----------------------------- | ------------------------------------------------------------------------------ |
+| E08-01 `GET/PUT /profile`     | done, verified — no secrets returned; new phone must be verified again         |
+| E08-02 trust score            | done, verified — tier from the score, what it allows, history paged, all tiers |
+| E08-03 password + delete      | done, verified — sessions end; deletion anonymises and refunds upcoming games  |
+| E08-04 mobile profile         | built — user card, trust badge, menu, log out (no ring: no SVG module)         |
+| E08-05 mobile trust detail    | built — badge and bar, tier table, tips, history by month                      |
+| E08-06 mobile edit/pw/delete  | built — **no photo picker**; city list on the screen                           |
+| E08-07 mobile payment methods | built — Stripe card field + SetupIntent; Remove button, not swipe              |
+| E08-08 web profile pages      | done, verified in a browser — `/profile` and five sub-pages                    |
+| E08-09 mobile notifications   | built — grouped, unread, tap opens, mark all read; long press deletes          |
+| E08-10 push                   | **blocked on Firebase** — device-token endpoint and routing done               |
+
+New endpoints: `GET/PUT/DELETE /profile`, `GET /profile/trust-score`,
+`POST /profile/change-password`, `GET /notifications`,
+`PATCH /notifications/:id/read`, `PATCH /notifications/read-all`,
+`DELETE /notifications/:id`, `POST /notifications/device-token`.
+
+Schema: `DeviceToken` (one row per phone token) and `User.deletionReason`.
+Applied with `prisma db push`.
+
+**Deleting an account anonymises it** (decided with the owner): name, email,
+phone, photo, date of birth, Stripe customer, sessions, device tokens and
+notifications go; upcoming bookings are cancelled with everything refunded;
+past bookings and reviews stay, reviews shown as "Former player". Venue and
+admin accounts cannot delete themselves (`NOT_A_PLAYER`); that goes through
+support.
+
+**Mobile added no native modules** (decided with the owner), so no rebuild is
+needed for E08. Mobile opens Profile and Notifications from two new buttons in
+the Discover header (no tab bar yet); the bell shows the unread count.
+
+**Push (E08-10) is the one open item.** It needs a Firebase project and its
+config files, which the owner creates. Ready for it: `POST
+/notifications/device-token`, `registerPushToken()` and `openNotification()`
+in `apps/mobile/src/lib/push.ts` (the comment there lists the five lines
+that wire Firebase in), and `notificationTarget()` in `@pitchup/shared`,
+used by both the push handler and the in-app list. Sending pushes is E13.
 
 ## Next
 
-**E08 — Player: Profile & Account** (#71–#80): profile read/update, the
-trust score screen, password change and account deletion, saved cards, the
-notifications list and push. Things already in place: `GET /me` (with
-`trustScore`), `trustTier()` in `@pitchup/shared`, saved cards
-(`GET/DELETE /payments/methods`, E05-09), and `Notification` rows written
-by E06/E07 (`REVIEW_LEFT`, `MANAGER_REPLIED`, `DISPUTE_OPENED`,
-`REVIEW_REPORTED`) that nobody reads yet. The web account menu links to
-`/profile`, which does not exist yet. My reviews and My Bookings can move
-under the new profile screens.
+**E09 — Manager: Onboarding & Dashboard** (#81–#90): company creation in
+four steps (info and logo, location with geocoding, contact and hours,
+Stripe Connect), the onboarding status guard, and the dashboard layout.
+Already in place: `/dashboard` has a layout (E07) to grow into the sidebar
+of E09-10; `/dashboard/reviews` exists; company and pitch data and the
+Discover pages read `Company.status`, so a new company stays hidden until
+it is ACTIVE. Stripe Connect needs a Stripe account, like payments.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -516,6 +554,31 @@ E04:
   Review screen edits in place. Mobile still has no review photos.
 - **Manager paging is Previous/Next links**, rendered on the server; the
   ticket leaves the paging style open.
+
+### E08 — Profile & Account
+
+- **No new native modules on mobile** (the owner's call): the trust score is
+  a coloured badge with a bar that fills, not an SVG ring; Remove buttons and
+  long press instead of swipe-to-delete; the profile photo is changed on the
+  website (no image picker). Card brands are text and an icon, not logos.
+- **A wrong password is 400 `WRONG_PASSWORD`, not 401.** A 401 tells the app
+  its session is gone, and it would sign the player out for a typo.
+- **Changing the password ends every session**, including the one used to
+  change it, as a reset does (E02). Web lands on the login page with a
+  notice; the app shows an alert and signs out.
+- **Validation errors are 400**, not the ticket's 422, like the rest of the
+  API.
+- **Notifications are deleted for real**, not soft-deleted: they are the
+  user's own messages and nothing refers to them.
+- **Password attempts (change and delete) share a limit of 5 per 15 minutes
+  per user.**
+- **Web profile lives at `/profile/...`** under the player layout, with a
+  sidebar on wide screens and a scrolling row of links on a phone. The
+  change-password page is `/profile/change-password`, as the ticket says.
+- **The Legal and Support links point at pitchup.ro pages that do not exist
+  yet** (`apps/mobile/src/lib/links.ts`).
+- **The mobile city choice is a list on Edit profile**, not the Discover city
+  sheet, which is tied to Discover's own city.
 
 ## Known gaps
 

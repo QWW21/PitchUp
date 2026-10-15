@@ -35,6 +35,20 @@ export function playerDisplayName(fullName: string, isAnonymous: boolean): strin
   return last ? `${first} ${last[0]!.toUpperCase()}.` : first
 }
 
+/**
+ * A rough 0–4 strength for the password meter (web E02, mobile E08). Feedback,
+ * not a gate: the rules themselves are passwordSchema.
+ */
+export function scorePassword(password: string): number {
+  if (!password) return 0
+  let score = 0
+  if (password.length >= 8) score += 1
+  if (password.length >= 12) score += 1
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1
+  if (/\d/.test(password) && /[^A-Za-z0-9]/.test(password)) score += 1
+  return Math.min(score, 4)
+}
+
 /** "5v5 (25×45m)", or just "5v5" without dimensions. PRD §7.4. */
 export function formatPitchSize(
   label: string,

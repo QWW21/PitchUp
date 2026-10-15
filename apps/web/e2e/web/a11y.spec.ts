@@ -293,3 +293,27 @@ test.describe('reviews (E07)', () => {
     await db.booking.deleteMany({ where: { playerId: player.id } })
   })
 })
+
+test.describe('profile (E08)', () => {
+  test('overview, settings, trust score, password, payment methods, delete', async ({ page }) => {
+    const email = uniqueEmail('a11y-prof')
+    await createPlayer(email)
+    const player = await db.user.findUniqueOrThrow({ where: { email } })
+    await db.trustScoreEvent.create({
+      data: { userId: player.id, delta: -5, reason: 'LATE_CANCEL' },
+    })
+    await signIn(page, email, 'Testing123')
+    for (const path of [
+      '/profile',
+      '/profile/settings',
+      '/profile/trust-score',
+      '/profile/change-password',
+      '/profile/payment-methods',
+      '/profile/delete-account',
+    ]) {
+      await page.goto(path)
+      await expect(page.getByRole('navigation', { name: 'Profile' })).toBeVisible()
+      await audit(page)
+    }
+  })
+})

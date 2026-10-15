@@ -33,6 +33,13 @@ import { MyBookingsScreen } from './src/screens/bookings/MyBookingsScreen'
 import { BookingDetailScreen } from './src/screens/bookings/BookingDetailScreen'
 import { ReviewScreen } from './src/screens/bookings/ReviewScreen'
 import { MyReviewsScreen } from './src/screens/bookings/MyReviewsScreen'
+import { ProfileScreen } from './src/screens/profile/ProfileScreen'
+import { TrustScoreDetailScreen } from './src/screens/profile/TrustScoreDetailScreen'
+import { EditProfileScreen } from './src/screens/profile/EditProfileScreen'
+import { ChangePasswordScreen } from './src/screens/profile/ChangePasswordScreen'
+import { DeleteAccountScreen } from './src/screens/profile/DeleteAccountScreen'
+import { PaymentMethodsScreen } from './src/screens/profile/PaymentMethodsScreen'
+import { NotificationsScreen } from './src/screens/notifications/NotificationsScreen'
 import type { BookingTab } from '@pitchup/shared'
 
 // ---------------------------------------------------------------------------
@@ -75,6 +82,14 @@ export type AppStackParamList = {
   Review: { bookingId: string }
   /** E07-06. */
   MyReviews: undefined
+  /** E08. Opened from the Discover header until there is a tab bar. */
+  Profile: undefined
+  TrustScore: undefined
+  EditProfile: undefined
+  ChangePassword: undefined
+  DeleteAccount: undefined
+  PaymentMethods: undefined
+  Notifications: undefined
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -113,6 +128,13 @@ function AppNavigator() {
       <AppStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <AppStack.Screen name="Review" component={ReviewScreen} />
       <AppStack.Screen name="MyReviews" component={MyReviewsScreen} />
+      <AppStack.Screen name="Profile" component={ProfileScreen} />
+      <AppStack.Screen name="TrustScore" component={TrustScoreDetailScreen} />
+      <AppStack.Screen name="EditProfile" component={EditProfileScreen} />
+      <AppStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
+      <AppStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
+      <AppStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
+      <AppStack.Screen name="Notifications" component={NotificationsScreen} />
     </AppStack.Navigator>
   )
 }

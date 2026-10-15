@@ -8,6 +8,9 @@
  *
  * The refund is made first, inside the booking's lock: if the payment
  * provider refuses, nothing is cancelled and the player can try again.
+ *
+ * Deleting an account (E08-03) cancels the player's upcoming bookings with
+ * `refundAll`: everything back, whatever the notice.
  */
 import 'server-only'
 import { cancellationRefund, type CancelBookingResult } from '@pitchup/shared'
@@ -20,7 +23,8 @@ import { recordStatus } from './status'
 export async function cancelBooking(
   bookingId: string,
   viewer: { id: string; role: string },
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { refundAll?: boolean; reason?: string } = {}
 ): Promise<CancelBookingResult> {
   const result = await prisma.$transaction(
     async tx => {
@@ -57,7 +61,10 @@ export async function cancelBooking(
       }
 
       const paid = !!b.paidAt && !!b.stripePaymentIntentId
-      const refund = cancellationRefund(paid ? Number(b.totalAmount) : 0, b.startTime, now)
+      const total = paid ? Number(b.totalAmount) : 0
+      const refund = options.refundAll
+        ? { percent: 100, amount: total }
+        : cancellationRefund(total, b.startTime, now)
       const provider = providerFor(b.paymentProvider)
       let refundId: string | null = null
 
@@ -88,7 +95,7 @@ export async function cancelBooking(
           status: 'CANCELLED',
           cancelledBy: 'PLAYER',
           cancelledAt: now,
-          cancellationReason: 'Cancelled by the player',
+          cancellationReason: options.reason ?? 'Cancelled by the player',
           ...(paid ? { refundAmount: refund.amount } : {}),
           ...(refundId ? { stripeRefundId: refundId } : {}),
         },

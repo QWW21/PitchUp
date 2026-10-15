@@ -86,6 +86,46 @@ export const TRUST_TIERS: readonly TrustTier[] = [
   },
 ] as const
 
+/** Ring and badge colour per tier (UIUX_SPEC §10.2). */
+export const TRUST_TIER_COLOURS: Record<TrustTierLabel, string> = {
+  Excellent: '#16A34A',
+  Good: '#22C55E',
+  Fair: '#F59E0B',
+  Poor: '#EF4444',
+  Suspended: '#7F1D1D',
+}
+
+/** What a tier means for the player, in a sentence. Built from the rules above. */
+export function tierDescription(tier: TrustTier): string {
+  if (!tier.canBook) return 'Booking is suspended. Contact support.'
+  const rules: string[] = []
+  if (tier.requiresUpfrontDeposit) rules.push('Full payment upfront')
+  else if (tier.requiresCardOnFile) rules.push('A card on file is required')
+  if (tier.maxActiveBookings !== null) {
+    rules.push(
+      `at most ${tier.maxActiveBookings} active booking${tier.maxActiveBookings === 1 ? '' : 's'}`
+    )
+  }
+  if (!rules.length) return 'No restrictions.'
+  const text = rules.join(', ')
+  return `${text[0]!.toUpperCase()}${text.slice(1)}.`
+}
+
+/** How a score event reads in the history (E08-05). */
+export const TRUST_REASON_LABELS: Record<TrustScoreReason, string> = {
+  BOOKING_COMPLETED: 'Booking completed',
+  REVIEW_LEFT: 'Review submitted',
+  LATE_CANCEL: 'Late cancellation',
+  VERY_LATE_CANCEL: 'Very late cancellation',
+  NO_SHOW: 'No-show recorded',
+  DISPUTE_WON: 'Dispute resolved in your favour',
+  MONTHLY_RECOVERY: 'Monthly recovery',
+}
+
+/** "90–100", or "< 30" for the bottom tier. */
+export const tierRange = (tier: TrustTier): string =>
+  tier.min === 0 ? `< ${tier.max + 1}` : `${tier.min}–${tier.max}`
+
 /**
  * The tier for a score. Derived on every read rather than stored, so it can
  * never disagree with the score (docs/ARCHITECTURE.md, "Derived versus stored").

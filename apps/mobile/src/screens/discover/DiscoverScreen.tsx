@@ -33,6 +33,7 @@ import { useCompanies } from '../../hooks/useCompanies'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useLocation } from '../../hooks/useLocation'
 import { bookingApi } from '../../lib/bookingApi'
+import { profileApi } from '../../lib/profileApi'
 import { colors, shadows } from '../../theme/tokens'
 import { CityBlocker } from './CityBlocker'
 import { CitySelector } from './CitySelector'
@@ -100,6 +101,12 @@ export function DiscoverScreen({ navigation }: Props) {
 
   const counts = useQuery({ queryKey: ['booking-counts'], queryFn: bookingApi.counts })
   const upcoming = counts.data?.upcoming ?? 0
+  // The bell's count: the first page carries the unread total.
+  const notifications = useQuery({
+    queryKey: ['notifications', 'badge'],
+    queryFn: () => profileApi.notifications(null),
+  })
+  const unread = notifications.data?.unread ?? 0
 
   const showBlocker = store.hydrated && !store.selectedCity && !detecting
   const filtersActive = hasActiveFilters(store.filters)
@@ -108,6 +115,19 @@ export function DiscoverScreen({ navigation }: Props) {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>PitchUp</Text>
+        <Pressable
+          onPress={() => navigation.navigate('Notifications')}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+        >
+          <Icon name="bell-outline" size={24} color={colors.neutral[900]} />
+          {unread ? (
+            <View style={styles.count}>
+              <Text style={styles.countText}>{unread > 9 ? '9+' : unread}</Text>
+            </View>
+          ) : null}
+        </Pressable>
         <Pressable
           onPress={() => navigation.navigate('MyBookings')}
           style={styles.iconButton}
@@ -130,6 +150,14 @@ export function DiscoverScreen({ navigation }: Props) {
         >
           <Icon name="tune" size={24} color={colors.neutral[900]} />
           {filtersActive ? <View style={styles.badge} /> : null}
+        </Pressable>
+        <Pressable
+          onPress={() => navigation.navigate('Profile')}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel="Profile"
+        >
+          <Icon name="account-circle-outline" size={26} color={colors.neutral[900]} />
         </Pressable>
       </View>
 

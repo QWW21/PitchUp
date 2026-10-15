@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { DiscoverClient } from './DiscoverClient'
+import { AccountDeletedNotice } from './AccountDeletedNotice'
 
 export const metadata: Metadata = { title: 'Discover pitches · PitchUp' }
 
@@ -13,6 +14,7 @@ export default function DiscoverPage() {
   return (
     // useSearchParams needs a Suspense boundary to render statically.
     <Suspense>
+      <AccountDeletedNotice />
       <DiscoverClient />
     </Suspense>
   )

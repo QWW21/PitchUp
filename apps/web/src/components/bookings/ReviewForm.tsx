@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { ImagePlus, Star, X } from 'lucide-react'
 import { REVIEW, type BookingDetail } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
+import { uploadToCloudinary } from '@/lib/upload-client'
 
 const LABELS = ['', 'Very poor', 'Poor', 'Average', 'Good', 'Excellent!']
 
@@ -22,34 +23,6 @@ interface Props {
   photosEnabled: boolean
   /** Where to go once saved; the booking by default. */
   returnTo?: string | undefined
-}
-
-async function uploadPhoto(bookingId: string, file: File): Promise<string> {
-  const signRes = await fetch('/api/v1/upload/sign', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      context: 'REVIEW',
-      ownerId: bookingId,
-      contentType: file.type,
-      sizeBytes: file.size,
-    }),
-  })
-  const sign = (await signRes.json().catch(() => null))?.data
-  if (!signRes.ok || !sign) throw new Error('Photo upload failed')
-  const form = new FormData()
-  form.append('file', file)
-  form.append('api_key', sign.apiKey)
-  form.append('timestamp', String(sign.timestamp))
-  form.append('signature', sign.signature)
-  form.append('folder', sign.folder)
-  const up = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloudName}/image/upload`, {
-    method: 'POST',
-    body: form,
-  })
-  const body = await up.json().catch(() => null)
-  if (!up.ok || !body?.secure_url) throw new Error('Photo upload failed')
-  return body.secure_url as string
 }
 
 export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Props) {
@@ -77,7 +50,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
     setError(null)
     for (const file of [...files].slice(0, REVIEW.MAX_PHOTOS - photos.length)) {
       try {
-        const url = await uploadPhoto(bookingId, file)
+        const url = await uploadToCloudinary('REVIEW', bookingId, file)
         setPhotos(p => [...p, url])
       } catch {
         setError('A photo could not be uploaded. Try another one.')

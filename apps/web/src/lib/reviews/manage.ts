@@ -6,15 +6,10 @@
  */
 import 'server-only'
 import type { Prisma } from '@prisma/client'
-import {
-  REVIEW,
-  playerDisplayName,
-  type ManagerReviewPage,
-  type ManagerReviewQuery,
-} from '@pitchup/shared'
+import { REVIEW, type ManagerReviewPage, type ManagerReviewQuery } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { notFound } from '@/lib/api/errors'
-import { REVIEW_ORDER } from '@/lib/venues/reviews'
+import { REVIEW_ORDER, reviewerName } from '@/lib/venues/reviews'
 import { photoList } from './shape'
 
 const HOUR = 3_600_000
@@ -61,7 +56,7 @@ export async function listCompanyReviews(
       skip: (q.page - 1) * q.limit,
       take: q.limit,
       include: {
-        player: { select: { name: true } },
+        player: { select: { name: true, deletedAt: true } },
         pitch: { select: { id: true, name: true } },
         _count: { select: { reports: true } },
         reports: { where: { reporterId: viewer.id }, select: { id: true } },
@@ -79,7 +74,7 @@ export async function listCompanyReviews(
         id: r.id,
         rating: r.rating,
         text: r.text,
-        playerName: playerDisplayName(r.player.name, r.isAnonymous),
+        playerName: reviewerName(r.player, r.isAnonymous),
         photoUrls: photoList(r.photoUrls),
         pitch: r.pitch,
         reply:

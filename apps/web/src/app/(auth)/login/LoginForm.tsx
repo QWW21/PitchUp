@@ -57,6 +57,11 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
+      {searchParams.get('notice') === 'password-changed' && (
+        <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
+          Your password is changed. Sign in with the new one.
+        </p>
+      )}
       <TextField
         label="Email"
         type="email"

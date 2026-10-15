@@ -43,4 +43,6 @@ export const post = <T>(
 export const put = <T>(r: APIRequestContext, path: string, body: unknown) =>
   call<T>(r, 'put', path, body)
 
-export const del = <T>(r: APIRequestContext, path: string) => call<T>(r, 'delete', path)
+/** DELETE, with a body where the endpoint needs one (DELETE /profile). */
+export const del = <T>(r: APIRequestContext, path: string, body?: unknown) =>
+  call<T>(r, 'delete', path, body)
