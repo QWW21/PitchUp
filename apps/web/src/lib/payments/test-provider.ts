@@ -18,6 +18,9 @@ export const testProvider: PaymentProvider = {
     return { status: 'pending' }
   },
   async cancelPayment() {},
+  async cardDetails() {
+    return null
+  },
   async refund(paymentId) {
     return { refundId: paymentId.replace('test_pi_', 'test_re_') }
   },

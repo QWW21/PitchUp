@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E05 (Player: Booking Flow).
+Last updated at the end of the session that implemented E06 (Player: My Bookings).
 
 ## Done
 
@@ -127,16 +127,49 @@ rebuild the app (Android build, and `pod install` for iOS) before testing.
 As agreed, mobile was not built here: it is typechecked, linted and covered
 by Jest only.
 
-"View my booking" on the confirmation waits for E06 (My Bookings); both
-clients offer Back to Discover instead.
+**E06 — Player: My Bookings: all ten tickets implemented.**
+
+| Ticket                       | State                                                                       |
+| ---------------------------- | --------------------------------------------------------------------------- |
+| E06-01 `GET /bookings`       | done, verified — upcoming/past/cancelled tabs, cursor pagination            |
+| E06-02 `GET /bookings/:id`   | done, verified — full detail, status timeline, payment, refund preview      |
+| E06-03 cancel                | done, verified — 100/50/0% by notice, refund in the same transaction        |
+| E06-04 dispute + count       | done, verified — `POST /bookings/:id/dispute`, `GET /bookings/count`        |
+| E06-05 `POST /reviews`       | done, verified — one per booking, 14-day window; `PUT`/`DELETE` within 24 h |
+| E06-06 mobile My Bookings    | built — three tabs, cards, countdown chip, pull to refresh, empty states    |
+| E06-07 mobile booking detail | built — banner, venue (tap to call), payment, timeline, dispute, review     |
+| E06-08 mobile cancel sheet   | built — refund tier for this booking, then back to the Cancelled tab        |
+| E06-09 mobile review         | built — stars with shake, 10–500 characters, anonymous; **no photos**       |
+| E06-10 web My Bookings       | done, verified in a browser — `/my-bookings`, `/my-bookings/:id`, `/review` |
+
+New endpoints: `GET /bookings` (list), `GET /bookings/count`,
+`POST /bookings/:id/cancel`, `POST /bookings/:id/dispute`, `POST /reviews`,
+`PUT /reviews/:id`, `DELETE /reviews/:id`. `GET /bookings/:id` now returns
+the full detail (the E05 confirmation fields are a subset of it).
+
+Schema: `BookingStatusEvent` (one row per status change, for the timeline),
+`Booking.cardBrand`/`cardLast4`, `Review.deletedAt`, and the
+`DISPUTE_OPENED` notification type. Applied with `prisma db push`.
+
+**Bookings become COMPLETED lazily.** There is no scheduler yet (E11-10), so
+reading a player's bookings first marks their finished CONFIRMED bookings
+COMPLETED and their expired unpaid ones CANCELLED
+(`settlePlayerBookings` in `lib/bookings/mine.ts`). The E11 job should do
+the same for everyone and can then replace it.
+
+"View my booking" on the confirmation (web and mobile) opens the booking;
+the user menu and the mobile Discover header (with an upcoming-count badge)
+link to My Bookings. Mobile adds no dependency: it is typechecked, linted and
+covered by Jest (`src/screens/bookings/bookings.test.tsx`), not built.
 
 ## Next
 
-**E06 — Player: My Bookings** builds on `GET /bookings/:id` (extend it into
-the full detail) and on the booking states E05 introduced: PENDING (held 15
-minutes), CONFIRMED, CANCELLED with a `cancellationReason`. Cancellation and
-refunds should use `refundPercentFor()` from `@pitchup/shared` and the
-payment provider's `refund()`, which already handle test mode and Stripe.
+**E07 — Reviews & Ratings** builds on E06's reviews: `POST/PUT/DELETE
+/reviews` exist, reviews are soft-deleted (`deletedAt`, filtered out of every
+public query), and the edit window is `REVIEW.EDIT_WINDOW_HOURS`. E07-08
+(web "my reviews") and E07-06 can reuse `updateReview`/`deleteReview` in
+`lib/reviews/write.ts`; E07-05 should decide whether to keep computing
+ratings on read (`lib/venues/ratings.ts`) or store them.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -395,6 +428,30 @@ E04:
 - **Web flow URLs are `/book/:pitchId/…`**, as the ticket says; the E04
   placeholder `/booking/new` redirects there so old links still work.
 - **Players per team default to the size** (6 for 6v6), not a fixed 5.
+
+### E06 — My Bookings
+
+- **Another player's booking is a 404, not a 403**, so booking ids cannot be
+  probed for existence.
+- **Refund tiers follow the PRD constants** (≥ 24 h → 100%, ≥ 2 h → 50%,
+  otherwise nothing) and refund the whole share the player paid; nothing is
+  held back for the platform fee.
+- **The no-show dispute window is 24 hours** (`NO_SHOW_DISPUTE_WINDOW_HOURS`),
+  not the ticket's 48, and it takes the player's account of what happened
+  (1–300 characters). Admins get a `DISPUTE_OPENED` notification; resolving
+  disputes is E12.
+- **The Cancelled tab shows only bookings that were paid.** Abandoned
+  checkouts are cancelled too, but listing them would be noise.
+- **Review text is optional but at least 10 characters when given**
+  (`REVIEW.MIN_TEXT_LENGTH`). Deleting a review is a soft delete and the
+  booking cannot be reviewed again.
+- **No review photos on mobile.** Picking photos needs
+  `react-native-image-picker`, a native module the app does not have. The web
+  form takes photos when Cloudinary is configured (`upload/sign` now checks
+  that the booking is the caller's).
+- **Mobile tabs and the cancel sheet use no new libraries**: three `Pressable`
+  tabs over one `FlatList` (not `react-native-tab-view`), and a `Modal` (not
+  `@gorhom/bottom-sheet`).
 
 ## Known gaps
 

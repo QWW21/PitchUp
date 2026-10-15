@@ -65,7 +65,7 @@ export function UserMenu({ name, signOutAction }: UserMenuProps) {
           </Link>
           <Link
             role="menuitem"
-            href="/bookings"
+            href="/my-bookings"
             className="block px-4 py-2 text-sm hover:bg-neutral-50"
           >
             My Bookings

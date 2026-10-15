@@ -2,8 +2,8 @@
 
 A walkthrough of the decisions behind PitchUp so far: the infrastructure
 (E01, sections 1–10), auth (11), Discover (12), venue time and availability
-(13), the product changes after the E04 review (14), testing (15) and
-bookings and payments (16). Each
+(13), the product changes after the E04 review (14), testing (15),
+bookings and payments (16) and what happens to a booking afterwards (17). Each
 section is a problem, the options, and why one was chosen, and ends with
 **what to learn** to understand it properly. Written for someone who knows
 React Native and is learning the backend and system-design side.
@@ -714,6 +714,78 @@ SetupIntents; storing money as integers in minor units.
 
 ---
 
+## 17. After the booking: lifecycle, history and undo (E06)
+
+E05 got a booking paid. E06 is everything after that: seeing it, cancelling
+it, reviewing it, disputing it. Five problems came up.
+
+### Who moves a booking from CONFIRMED to COMPLETED?
+
+A game ends at 20:00; at 20:00 nobody calls the server. Two ways out:
+
+| Approach                        | Cost                                                  |
+| ------------------------------- | ----------------------------------------------------- |
+| A scheduled job (cron)          | Needs a scheduler, a worker, monitoring when it stops |
+| Settle lazily, on the next read | Correct only for data someone reads                   |
+
+There is no scheduler yet (E11), so `settlePlayerBookings` runs at the start
+of every My Bookings read: one `UPDATE` marks the player's finished
+CONFIRMED bookings COMPLETED, another cancels unpaid ones whose 15-minute
+hold ran out. The player always sees the right state, because the player is
+the one reading. A manager's dashboard or a payout report would not trigger
+it, which is why E11 still needs the job. This is the same idea as §12's
+"derive rather than store", applied to state: when you can't keep a value
+up to date, make sure it is correct when it's read.
+
+### A history you can't rebuild, so record it
+
+The detail page shows a timeline: booked, paid, cancelled. The booking row
+only knows its current status and a few timestamps. So every status change
+also inserts a `BookingStatusEvent` row, through one helper (`recordStatus`)
+called inside the same transaction as the change, so the two never disagree.
+This is an **append-only audit log**: rows are never updated, only added.
+Bookings created before E06 have no events, so the timeline falls back to
+what the timestamps can tell. Logs like this are also how disputes get
+settled: "the venue marked it at 21:05" is a fact, not a memory.
+
+### Undo with money attached
+
+Cancelling has three parts that must all happen or none: check the booking
+can still be cancelled, refund the card, mark it cancelled. The cancel runs
+in one transaction holding the same per-pitch lock as booking (§16), and
+calls the provider's refund **before** writing anything. If the refund fails,
+the transaction rolls back and the player sees "try again" with nothing
+changed. The opposite order would leave a cancelled booking with no money
+returned. The refund amount comes from one shared function,
+`cancellationRefund`, so the cancel sheet's preview and the server's actual
+refund can't drift. Stripe's refund call is idempotent, so a retry after a
+timeout doesn't refund twice.
+
+### Deleting without losing
+
+A deleted review is not removed. It gets a `deletedAt`, and its text and
+photos are cleared. This is a **soft delete**: public queries filter
+`deletedAt: null`, while the row still stops the same booking being reviewed
+again, which would otherwise be a way to reset a bad rating. The cost is
+that every query must remember the filter. Forget it once and deleted
+reviews come back, so the three public review queries were changed together.
+
+### Paging that doesn't skip
+
+The lists use **cursor pagination** (`?cursor=<last id>`) rather than
+`?page=3`. If a booking is cancelled while you scroll, offset paging shifts
+every row by one and you see a duplicate or miss one; a cursor says "after
+this row" and stays correct. The server fetches `limit + 1` rows to know if
+there is a next page without a second `COUNT` query.
+
+**What to learn:** scheduled jobs vs lazy evaluation (and when each breaks);
+audit logs and event sourcing; ordering side effects around a transaction
+(and the outbox pattern for when you can't); soft deletes and their query
+discipline; cursor (keyset) vs offset pagination; authorization by ownership
+(why a 404 rather than a 403 hides other users' data).
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -729,6 +801,7 @@ Honest inventory, so none of it is mistaken for finished:
 | Mobile app           | Built, typechecked and unit-tested; not yet run on a device   |
 | Mobile colours       | Spec palette; not yet checked for WCAG contrast               |
 | Stripe               | Unit-tested with fakes; never run against a real account      |
+| Booking completion   | Settled lazily on read until the E11 scheduled job exists     |
 
 ---
 
@@ -755,3 +828,7 @@ Honest inventory, so none of it is mistaken for finished:
 13. **Lock what does not exist yet.** A row lock cannot stop a row that has
     not been inserted; lock the thing being competed for.
 14. **Make every handler safe to run twice.** Retries are not optional.
+15. **Do the part that can fail outside your control first.** Refund, then
+    write; if the refund fails, nothing changed.
+16. **If you can't recompute it, record it.** Current state is a row;
+    history is a log.

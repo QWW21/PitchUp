@@ -29,6 +29,10 @@ import { DiscoverScreen } from './src/screens/discover/DiscoverScreen'
 import { CompanyDetailScreen } from './src/screens/discover/CompanyDetailScreen'
 import { PitchDetailScreen } from './src/screens/discover/PitchDetailScreen'
 import { BookingFlowScreen } from './src/screens/booking/BookingFlowScreen'
+import { MyBookingsScreen } from './src/screens/bookings/MyBookingsScreen'
+import { BookingDetailScreen } from './src/screens/bookings/BookingDetailScreen'
+import { ReviewScreen } from './src/screens/bookings/ReviewScreen'
+import type { BookingTab } from '@pitchup/shared'
 
 // ---------------------------------------------------------------------------
 // Navigation param types — exported so screen files can import them without
@@ -63,6 +67,11 @@ export type AppStackParamList = {
     hourlyRate: number
     date?: string
   }
+  /** E06. */
+  /** `notice` is shown as a toast, e.g. after a cancellation. */
+  MyBookings: { tab?: BookingTab; notice?: string } | undefined
+  BookingDetail: { id: string }
+  Review: { bookingId: string }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -97,6 +106,9 @@ function AppNavigator() {
         component={BookingFlowScreen}
         options={{ presentation: 'fullScreenModal' }}
       />
+      <AppStack.Screen name="MyBookings" component={MyBookingsScreen} />
+      <AppStack.Screen name="BookingDetail" component={BookingDetailScreen} />
+      <AppStack.Screen name="Review" component={ReviewScreen} />
     </AppStack.Navigator>
   )
 }

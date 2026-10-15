@@ -56,7 +56,11 @@ export async function listReviews(q: ReviewQuery): Promise<ReviewPage | null> {
   const visible = await prisma.pitch.count({ where: pitchWhere })
   if (!visible) return null
 
-  const where: Prisma.ReviewWhereInput = { moderationStatus: 'APPROVED', pitch: pitchWhere }
+  const where: Prisma.ReviewWhereInput = {
+    moderationStatus: 'APPROVED',
+    deletedAt: null,
+    pitch: pitchWhere,
+  }
 
   const [rows, total, byStar, stats] = await Promise.all([
     prisma.review.findMany({

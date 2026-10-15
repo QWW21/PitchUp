@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, StyleSheet, Text } from 'react-native'
 import { colors } from '../../theme/tokens'
 
@@ -11,6 +11,8 @@ export function useToast(bottom: number) {
   const [message, setMessage] = useState<string | null>(null)
   const opacity = useRef(new Animated.Value(0)).current
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // A screen can close while its toast is showing (e.g. after a cancellation).
+  useEffect(() => () => void (timer.current && clearTimeout(timer.current)), [])
 
   const show = useCallback(
     (text: string) => {

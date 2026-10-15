@@ -10,7 +10,7 @@ export interface Envelope<T> {
 
 async function call<T>(
   request: APIRequestContext,
-  method: 'get' | 'post',
+  method: 'get' | 'post' | 'put' | 'delete',
   path: string,
   body?: unknown,
   headers?: Record<string, string>
@@ -39,3 +39,8 @@ export const post = <T>(
   body: unknown,
   headers?: Record<string, string>
 ) => call<T>(r, 'post', path, body, headers)
+
+export const put = <T>(r: APIRequestContext, path: string, body: unknown) =>
+  call<T>(r, 'put', path, body)
+
+export const del = <T>(r: APIRequestContext, path: string) => call<T>(r, 'delete', path)

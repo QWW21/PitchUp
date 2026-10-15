@@ -149,3 +149,21 @@ export function formatDateLong(date: string): string {
   const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   return `${weekdays[day]}, ${Number(date.slice(8))} ${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(0, 4)}`
 }
+
+/**
+ * What cancelling now would refund: PRD §9.2 applied to what was paid.
+ * The player pays only the pitch price (E05), so all of it is refundable.
+ */
+export function cancellationRefund(total: number, start: Date, now: Date = new Date()) {
+  const percent = refundPercentFor((start.getTime() - now.getTime()) / 3_600_000)
+  return { percent, amount: Math.floor(((total * percent) / 100) * 100) / 100 }
+}
+
+/** "3h 20min", "45min", or "Starting now". The upcoming card's countdown (E06-06). */
+export function formatCountdown(start: Date, now: Date = new Date()): string {
+  const diff = start.getTime() - now.getTime()
+  if (diff <= 0) return 'Starting now'
+  const h = Math.floor(diff / 3_600_000)
+  const m = Math.floor((diff % 3_600_000) / 60_000)
+  return h > 0 ? `${h}h ${m}min` : `${m}min`
+}

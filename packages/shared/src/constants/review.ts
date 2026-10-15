@@ -3,7 +3,10 @@ export const REVIEW = {
   MIN_RATING: 1,
   MAX_RATING: 5,
   /** Review text is optional (PRD §15: "Rating with no text" is allowed). */
+  MIN_TEXT_LENGTH: 10,
   MAX_TEXT_LENGTH: 500,
+  /** A review can be edited or deleted for this long after posting. E06-05. */
+  EDIT_WINDOW_HOURS: 24,
   MAX_PHOTOS: 3,
   /** Review window opens at booking end and closes this many days later. PRD §11.1. */
   SUBMIT_WINDOW_DAYS: 14,

@@ -107,7 +107,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
 
       <ConfirmationActions
         pitchId={pitchId}
-        pitchPath={`/discover/${booking.company.id}/${booking.pitch.id}`}
+        bookingId={booking.id}
         shareText={`${booking.pitch.name} at ${booking.company.name}, ${when}`}
       />
     </section>

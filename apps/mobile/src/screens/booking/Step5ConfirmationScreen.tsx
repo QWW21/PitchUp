@@ -19,6 +19,8 @@ import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
+import type { AppStackParamList } from '../../../App'
 
 export function Step5ConfirmationScreen({
   navigation,
@@ -36,6 +38,11 @@ export function Step5ConfirmationScreen({
   const tick = useRef(new Animated.Value(0)).current
 
   const close = () => navigation.getParent()?.goBack()
+  // The booking flow is a modal over the app stack: swap it for the booking.
+  const viewBooking = () =>
+    navigation
+      .getParent<NativeStackNavigationProp<AppStackParamList>>()
+      ?.replace('BookingDetail', { id: route.params.bookingId })
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -101,8 +108,8 @@ export function Step5ConfirmationScreen({
         )}
       </View>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        {/* "View my booking" arrives with My Bookings (E06). */}
-        <Button label="Back to Discover" onPress={close} />
+        <Button label="View my booking" onPress={viewBooking} disabled={!confirmed} />
+        <Button label="Back to Discover" variant="ghost" onPress={close} />
       </View>
     </View>
   )
@@ -141,5 +148,5 @@ const styles = StyleSheet.create({
   pitch: { fontSize: 17, fontWeight: '600', color: colors.neutral[900] },
   when: { fontSize: 15, color: colors.neutral[700], textAlign: 'center' },
   paid: { marginTop: spacing.xs, fontSize: 14, fontWeight: '600', color: colors.primary[700] },
-  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.sm },
 })

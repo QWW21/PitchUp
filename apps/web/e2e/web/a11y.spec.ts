@@ -9,7 +9,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { addDays, venueClock } from '@pitchup/shared'
-import { createResetToken, db, venue } from '../support/db'
+import { createPlayer, createResetToken, db, seedBooking, uniqueEmail, venue } from '../support/db'
 import { PHONE, resetRateLimits, signIn } from '../support/helpers'
 
 const CLUJ = '/discover?city=Cluj-Napoca'
@@ -204,5 +204,46 @@ test.describe('booking flow', () => {
     await page.getByRole('button', { name: /^Confirm & pay/ }).click()
     await expect(page.getByRole('heading', { name: 'Booking confirmed!' })).toBeVisible()
     await audit(page)
+  })
+})
+
+test.describe('my bookings', () => {
+  test('the list, the detail with its cancel dialog, and the review form', async ({ page }) => {
+    const email = uniqueEmail('a11y-mine')
+    await createPlayer(email)
+    const player = await db.user.findUniqueOrThrow({ where: { email } })
+    const g = await venue('gheorgheni')
+    const pitchId = g.pitches[1]!.id
+    const upcoming = await seedBooking({
+      pitchId,
+      playerId: player.id,
+      startsIn: 5,
+      status: 'CONFIRMED',
+    })
+    const finished = await seedBooking({
+      pitchId,
+      playerId: player.id,
+      startsIn: -26,
+      status: 'CONFIRMED',
+    })
+    await signIn(page, email, 'Testing123')
+
+    await page.goto('/my-bookings')
+    await expect(page.getByRole('tabpanel').getByRole('article')).toHaveCount(1)
+    await audit(page)
+    await page.getByRole('tab', { name: 'Past' }).click()
+    await expect(page.getByRole('tabpanel').getByRole('article')).toHaveCount(1)
+    await audit(page)
+
+    await page.goto(`/my-bookings/${upcoming.id}`)
+    await audit(page)
+    await page.getByRole('button', { name: 'Cancel booking' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await audit(page)
+
+    await page.goto(`/my-bookings/${finished.id}/review`)
+    await expect(page.getByRole('radiogroup', { name: 'Rating' })).toBeVisible()
+    await audit(page)
+    await db.booking.deleteMany({ where: { playerId: player.id } })
   })
 })

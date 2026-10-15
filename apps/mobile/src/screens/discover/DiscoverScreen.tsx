@@ -18,6 +18,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { useQuery } from '@tanstack/react-query'
 import {
   COMPANY_SORTS,
   DISCOVER,
@@ -31,6 +32,7 @@ import { effectiveSort, useDiscoverStore } from '../../stores/discoverStore'
 import { useCompanies } from '../../hooks/useCompanies'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { useLocation } from '../../hooks/useLocation'
+import { bookingApi } from '../../lib/bookingApi'
 import { colors, shadows } from '../../theme/tokens'
 import { CityBlocker } from './CityBlocker'
 import { CitySelector } from './CitySelector'
@@ -96,6 +98,9 @@ export function DiscoverScreen({ navigation }: Props) {
     store.setViewMode(next)
   }
 
+  const counts = useQuery({ queryKey: ['booking-counts'], queryFn: bookingApi.counts })
+  const upcoming = counts.data?.upcoming ?? 0
+
   const showBlocker = store.hydrated && !store.selectedCity && !detecting
   const filtersActive = hasActiveFilters(store.filters)
 
@@ -103,6 +108,19 @@ export function DiscoverScreen({ navigation }: Props) {
     <SafeAreaView style={styles.root} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.wordmark}>PitchUp</Text>
+        <Pressable
+          onPress={() => navigation.navigate('MyBookings')}
+          style={styles.iconButton}
+          accessibilityRole="button"
+          accessibilityLabel={upcoming ? `My bookings, ${upcoming} upcoming` : 'My bookings'}
+        >
+          <Icon name="calendar-check" size={24} color={colors.neutral[900]} />
+          {upcoming ? (
+            <View style={styles.count}>
+              <Text style={styles.countText}>{upcoming > 9 ? '9+' : upcoming}</Text>
+            </View>
+          ) : null}
+        </Pressable>
         <Pressable
           onPress={() => setFiltersOpen(true)}
           style={styles.iconButton}
@@ -258,6 +276,19 @@ const styles = StyleSheet.create({
     color: colors.primary[600],
   },
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  count: {
+    position: 'absolute',
+    top: 4,
+    right: 2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary[600],
+  },
+  countText: { fontSize: 11, fontWeight: '700', color: colors.neutral[0] },
   badge: {
     position: 'absolute',
     top: 9,

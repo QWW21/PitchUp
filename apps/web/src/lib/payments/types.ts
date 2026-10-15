@@ -37,4 +37,6 @@ export interface PaymentProvider {
   /** Cancels a payment nobody will complete (a superseded checkout). Best effort. */
   cancelPayment(paymentId: string): Promise<void>
   refund(paymentId: string, amountRon?: number): Promise<{ refundId: string }>
+  /** The card that paid, if the provider knows it. */
+  cardDetails(paymentId: string): Promise<{ brand: string; last4: string } | null>
 }

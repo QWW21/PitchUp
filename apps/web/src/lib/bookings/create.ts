@@ -33,6 +33,7 @@ import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
 import { holdExpiresAt, liveBookingWhere } from './live'
+import { recordStatus } from './status'
 
 const forbidden = (message: string, reason: string) =>
   new ApiException('FORBIDDEN', message, { reason })
@@ -156,6 +157,11 @@ export async function createBooking(
           cancellationReason: 'Replaced by a new checkout',
         },
       })
+      await recordStatus(
+        tx,
+        own.map(b => b.id),
+        'CANCELLED'
+      )
     }
 
     const booking = await tx.booking.create({
@@ -176,6 +182,7 @@ export async function createBooking(
       },
       select: { id: true, createdAt: true },
     })
+    await recordStatus(tx, booking.id, 'PENDING')
     return { booking, superseded: own }
   })
 
@@ -201,15 +208,18 @@ export async function createBooking(
       `[bookings] Could not start the payment for ${booking.id}:`,
       caught instanceof Error ? caught.message : 'unknown error'
     )
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: 'CANCELLED',
-        cancelledBy: 'SYSTEM',
-        cancelledAt: new Date(),
-        cancellationReason: 'Payment service unavailable',
-      },
-    })
+    await prisma.$transaction([
+      prisma.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: 'CANCELLED',
+          cancelledBy: 'SYSTEM',
+          cancelledAt: new Date(),
+          cancellationReason: 'Payment service unavailable',
+        },
+      }),
+      recordStatus(prisma, booking.id, 'CANCELLED'),
+    ])
     throw new ApiException(
       'SERVICE_UNAVAILABLE',
       'Payments are unavailable right now. Nothing was charged; please try again shortly.'

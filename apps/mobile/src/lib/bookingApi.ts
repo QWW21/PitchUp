@@ -3,6 +3,11 @@
  */
 import type {
   BookingConfirmation,
+  BookingCounts,
+  BookingDetail,
+  BookingListPage,
+  BookingTab,
+  CancelBookingResult,
   CalendarDay,
   CreateBookingResult,
   PaymentConfig,
@@ -47,5 +52,33 @@ export const bookingApi = {
       data: { bookingId, outcome },
     }),
   get: (bookingId: string) =>
-    apiRequest<BookingConfirmation>({ method: 'GET', url: `/bookings/${bookingId}` }),
+    apiRequest<BookingDetail>({ method: 'GET', url: `/bookings/${bookingId}` }),
+  // ── My Bookings (E06) ──
+  list: (tab: BookingTab, cursor: string | null) =>
+    apiRequest<BookingListPage>({
+      method: 'GET',
+      url: `/bookings?tab=${tab}&limit=10${cursor ? `&cursor=${cursor}` : ''}`,
+    }),
+  counts: () => apiRequest<BookingCounts>({ method: 'GET', url: '/bookings/count' }),
+  cancel: (bookingId: string) =>
+    apiRequest<CancelBookingResult>({
+      method: 'POST',
+      url: `/bookings/${bookingId}/cancel`,
+      data: {},
+    }),
+  dispute: (bookingId: string, disputeText: string) =>
+    apiRequest<{ message: string }>({
+      method: 'POST',
+      url: `/bookings/${bookingId}/dispute`,
+      data: { disputeText },
+    }),
+  createReview: (body: {
+    bookingId: string
+    rating: number
+    text?: string
+    isAnonymous: boolean
+  }) => apiRequest<{ id: string }>({ method: 'POST', url: '/reviews', data: body }),
+  updateReview: (id: string, body: { rating: number; text?: string; isAnonymous: boolean }) =>
+    apiRequest<{ updated: true }>({ method: 'PUT', url: `/reviews/${id}`, data: body }),
+  deleteReview: (id: string) => apiRequest<null>({ method: 'DELETE', url: `/reviews/${id}` }),
 }

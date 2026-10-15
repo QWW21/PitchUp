@@ -11,6 +11,7 @@ import { ok, err, withErrorHandling } from '@/lib/api/response'
 import { requireAuth } from '@/lib/api/middleware'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
+import { prisma } from '@/lib/prisma'
 import {
   ALLOWED_MIME_TYPES,
   UPLOAD_CONTEXTS,
@@ -68,6 +69,17 @@ export const POST = withErrorHandling(
     // in E08/E10 rather than guessed at here.
     if (context === 'USER' && ownerId !== session.user.id) {
       return err('FORBIDDEN', 'Cannot upload to another user', 403)
+    }
+    // Review photos are uploaded before the review exists, under its booking
+    // (E06-05): only that booking's player may.
+    if (context === 'REVIEW') {
+      const booking = await prisma.booking.findUnique({
+        where: { id: ownerId },
+        select: { playerId: true },
+      })
+      if (booking?.playerId !== session.user.id) {
+        return err('FORBIDDEN', 'Cannot upload photos for this booking', 403)
+      }
     }
 
     try {

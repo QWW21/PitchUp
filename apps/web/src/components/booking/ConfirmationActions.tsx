@@ -9,11 +9,11 @@ import { clearDraft } from './draft'
 /** Buttons under a confirmed booking. The draft is done with, so it is cleared. */
 export function ConfirmationActions({
   pitchId,
-  pitchPath,
+  bookingId,
   shareText,
 }: {
   pitchId: string
-  pitchPath: string
+  bookingId: string
   shareText: string
 }) {
   const [canShare, setCanShare] = useState(false)
@@ -26,16 +26,16 @@ export function ConfirmationActions({
   return (
     <div className="mt-8 w-full space-y-2 print:hidden">
       <Link
-        href="/discover"
+        href={`/my-bookings/${bookingId}`}
         className="flex h-12 w-full items-center justify-center rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700"
       >
-        Back to Discover
+        View my booking
       </Link>
       <Link
-        href={pitchPath}
+        href="/discover"
         className="flex h-12 w-full items-center justify-center rounded-md font-semibold text-primary-700 hover:bg-primary-50"
       >
-        View the pitch
+        Back to Discover
       </Link>
       <div className="flex justify-center gap-4 pt-2">
         {canShare && (

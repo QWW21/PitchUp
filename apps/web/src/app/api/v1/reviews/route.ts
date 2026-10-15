@@ -4,8 +4,12 @@
  */
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { err, ok, withErrorHandling } from '@/lib/api/response'
+import { CreateReviewSchema } from '@pitchup/shared'
+import { created, err, ok, withErrorHandling } from '@/lib/api/response'
+import { requireAuth } from '@/lib/api/middleware'
+import { validateBody } from '@/lib/api/validate'
 import { listReviews } from '@/lib/venues/reviews'
+import { createReview } from '@/lib/reviews/write'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,3 +31,15 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
   if (!page) return err('NOT_FOUND', 'Pitch or company not found', 404)
   return ok(page)
 })
+
+/**
+ * POST /api/v1/reviews — E06-05. The player reviews one of their completed
+ * bookings. 201 { id } · 400 not reviewable / window closed · 404 · 409 already reviewed.
+ */
+export const POST = withErrorHandling(
+  requireAuth(async (request: NextRequest, session) => {
+    const parsed = await validateBody(request, CreateReviewSchema)
+    if (parsed.error) return parsed.error
+    return created(await createReview(session.user.id, parsed.data))
+  })
+)

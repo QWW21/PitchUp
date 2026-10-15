@@ -190,3 +190,22 @@ describe('free shirts (one set per team but one)', () => {
     expect(CreateBookingSchema.parse({ ...booking, wantsShirts: true }).wantsShirts).toBe(true)
   })
 })
+
+describe('review text (E06-05)', () => {
+  const review = (text?: string) =>
+    CreateReviewSchema.safeParse({
+      bookingId: CUID,
+      rating: 4,
+      ...(text !== undefined ? { text } : {}),
+    })
+  it('is optional, and blank counts as none', () => {
+    expect(review().success).toBe(true)
+    const blank = review('   ')
+    expect(blank.success && blank.data.text).toBeUndefined()
+  })
+  it('needs at least ten characters when given', () => {
+    expect(review('Too short').success).toBe(false) // 9
+    expect(review('Just right').success).toBe(true) // 10
+    expect(review('x'.repeat(501)).success).toBe(false)
+  })
+})

@@ -25,7 +25,7 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
       amenities: { orderBy: { amenityType: 'asc' } },
       shirtInventory: { orderBy: { colour: 'asc' } },
       reviews: {
-        where: { moderationStatus: 'APPROVED' },
+        where: { moderationStatus: 'APPROVED', deletedAt: null },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take: RECENT_REVIEWS,
         include: reviewInclude,
@@ -35,7 +35,7 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
   if (!pitch) return null
 
   const agg = await prisma.review.aggregate({
-    where: { pitchId: id, moderationStatus: 'APPROVED' },
+    where: { pitchId: id, moderationStatus: 'APPROVED', deletedAt: null },
     _avg: { rating: true },
     _count: { _all: true },
   })

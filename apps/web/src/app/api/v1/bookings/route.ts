@@ -8,10 +8,11 @@
  * 409 SLOT_CONFLICT / SHIRTS_UNAVAILABLE · 429 · 503 payments down
  */
 import type { NextRequest } from 'next/server'
-import { BOOKING, CreateBookingSchema } from '@pitchup/shared'
-import { created, err, withErrorHandling } from '@/lib/api/response'
-import { requireRole } from '@/lib/api/middleware'
-import { validateBody } from '@/lib/api/validate'
+import { BOOKING, BookingListQuerySchema, CreateBookingSchema } from '@pitchup/shared'
+import { created, err, ok, withErrorHandling } from '@/lib/api/response'
+import { requireAuth, requireRole } from '@/lib/api/middleware'
+import { validateBody, validateQuery } from '@/lib/api/validate'
+import { listBookings } from '@/lib/bookings/mine'
 import { checkRateLimit } from '@/lib/api/rate-limit'
 import { createBooking } from '@/lib/bookings/create'
 
@@ -34,5 +35,19 @@ export const POST = withErrorHandling(
     }
 
     return created(await createBooking(session.user.id, parsed.data))
+  })
+)
+
+/**
+ * GET /api/v1/bookings?tab=upcoming|past|cancelled&cursor=&limit= — E06-01.
+ * The player's own bookings, one tab at a time.
+ */
+export const GET = withErrorHandling(
+  requireAuth(async (request: NextRequest, session) => {
+    const query = validateQuery(request, BookingListQuerySchema)
+    if (query.error) return query.error
+    const response = ok(await listBookings(session.user.id, query.data))
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
   })
 )

@@ -110,6 +110,8 @@ enum NotificationType {
   BOOKING_CANCELLED_MANAGER
   REFUND_PROCESSED
   NO_SHOW_REPORTED
+  /// To admins: a player disputes a no-show (E06-04).
+  DISPUTE_OPENED
   PENALTY_CHARGED
   DISPUTE_RESOLVED
   REVIEW_LEFT
@@ -309,6 +311,9 @@ model Booking {
   stripePaymentIntentId String?       @unique
   stripeRefundId        String?
   paidAt                DateTime?
+  /// The card that paid, for the booking detail (E06-02); null in test mode.
+  cardBrand             String?
+  cardLast4             String?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -318,10 +323,23 @@ model Booking {
   noShow           NoShow?
   review           Review?
   trustScoreEvents TrustScoreEvent[]
+  statusEvents     BookingStatusEvent[]
 
   @@index([pitchId, startTime])
   @@index([playerId])
   @@index([status])
+}
+
+/// Every status a booking has been in, oldest first: the detail page's timeline (E06-02).
+model BookingStatusEvent {
+  id        String        @id @default(cuid())
+  bookingId String
+  status    BookingStatus
+  createdAt DateTime      @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId, createdAt])
 }
 
 /// Stripe webhook events already handled, so a redelivered event is a no-op (E05-08).
@@ -366,6 +384,8 @@ model Review {
   isFlagged        Boolean          @default(false)
   flagReason       String?
   moderationStatus ModerationStatus @default(APPROVED)
+  /// Deleted by its author (E06-05): hidden everywhere, kept for the record.
+  deletedAt        DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 

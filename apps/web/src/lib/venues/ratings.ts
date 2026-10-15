@@ -22,7 +22,7 @@ export interface PitchStats {
 export async function pitchStats(pitch: Prisma.PitchWhereInput): Promise<Map<string, PitchStats>> {
   const rows = await prisma.review.groupBy({
     by: ['pitchId'],
-    where: { moderationStatus: 'APPROVED', pitch },
+    where: { moderationStatus: 'APPROVED', deletedAt: null, pitch },
     _avg: { rating: true },
     _count: { _all: true },
   })

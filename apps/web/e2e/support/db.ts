@@ -80,3 +80,48 @@ export async function createPlayer(email: string, password = 'Testing123'): Prom
     },
   })
 }
+
+/**
+ * A booking written directly, `startsIn` hours from now and two hours long,
+ * for states the API cannot produce on demand (finished, a no-show, soon).
+ * Paid with a test payment unless it is PENDING or `paid: false`.
+ */
+export async function seedBooking(opts: {
+  pitchId: string
+  playerId: string
+  startsIn: number
+  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+  paid?: boolean
+  createdAgo?: number
+  rate?: number
+}) {
+  const HOUR = 3_600_000
+  const start = new Date(Date.now() + opts.startsIn * HOUR)
+  const paid = opts.paid ?? opts.status !== 'PENDING'
+  const total = (opts.rate ?? 180) * 2
+  return db.booking.create({
+    data: {
+      pitchId: opts.pitchId,
+      playerId: opts.playerId,
+      startTime: start,
+      endTime: new Date(start.getTime() + 2 * HOUR),
+      teamCount: 2,
+      teamsData: [{ playerCount: 7, colour: 'RED' }, { playerCount: 6 }],
+      status: opts.status,
+      pitchRateSnapshot: opts.rate ?? 180,
+      platformFee: total * 0.08,
+      totalAmount: total,
+      paymentProvider: 'test',
+      stripePaymentIntentId: `test_pi_seed_${Math.random().toString(36).slice(2)}`,
+      ...(paid ? { paidAt: new Date(Date.now() - 50 * HOUR) } : {}),
+      ...(opts.status === 'CANCELLED'
+        ? {
+            cancelledAt: new Date(),
+            cancelledBy: 'PLAYER' as const,
+            ...(paid ? { refundAmount: total } : {}),
+          }
+        : {}),
+      createdAt: new Date(Date.now() - (opts.createdAgo ?? 60) * HOUR),
+    },
+  })
+}

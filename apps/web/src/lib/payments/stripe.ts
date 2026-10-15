@@ -74,6 +74,15 @@ export const stripeProvider: PaymentProvider = {
       .catch(() => undefined)
   },
 
+  async cardDetails(paymentId) {
+    const intent = await stripe().paymentIntents.retrieve(paymentId, {
+      expand: ['latest_charge'],
+    })
+    const charge = intent.latest_charge
+    const card = typeof charge === 'object' ? charge?.payment_method_details?.card : null
+    return card ? { brand: card.brand ?? 'card', last4: card.last4 ?? '' } : null
+  },
+
   async refund(paymentId, amountRon) {
     const refund = await stripe().refunds.create({
       payment_intent: paymentId,

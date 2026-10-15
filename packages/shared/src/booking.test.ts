@@ -122,3 +122,35 @@ it('formats dates without Intl', async () => {
   expect(formatDateLong('2026-11-05')).toBe('Thursday, 5 November 2026')
   expect(formatMonth('2026-02-14')).toBe('February 2026')
 })
+
+describe('cancellationRefund', () => {
+  const start = new Date('2026-11-10T18:00:00Z')
+  const at = (hoursBefore: number) => new Date(start.getTime() - hoursBefore * 3_600_000)
+  it.each([
+    [48, 100, 240],
+    [24, 100, 240],
+    [23.99, 50, 120],
+    [2, 50, 120],
+    [1.99, 0, 0],
+  ])('%s h before → %i%% = %i RON', async (hours, percent, amount) => {
+    const { cancellationRefund } = await import('./booking')
+    expect(cancellationRefund(240, start, at(hours))).toEqual({ percent, amount })
+  })
+  it('keeps bani', async () => {
+    const { cancellationRefund } = await import('./booking')
+    expect(cancellationRefund(135, start, at(5)).amount).toBe(67.5)
+  })
+})
+
+describe('formatCountdown', () => {
+  it.each([
+    [200, '3h 20min'],
+    [45, '45min'],
+    [0, 'Starting now'],
+    [-5, 'Starting now'],
+  ])('%i minutes → %s', async (minutes, text) => {
+    const { formatCountdown } = await import('./booking')
+    const now = new Date('2026-11-10T12:00:00Z')
+    expect(formatCountdown(new Date(now.getTime() + minutes * 60_000), now)).toBe(text)
+  })
+})

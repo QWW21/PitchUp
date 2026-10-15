@@ -157,3 +157,101 @@ export interface CalendarDay {
   date: string
   status: 'available' | 'full' | 'closed'
 }
+
+// ── My Bookings (E06) ───────────────────────────────────────────────────────
+
+export const BOOKING_TABS = ['upcoming', 'past', 'cancelled'] as const
+export type BookingTab = (typeof BOOKING_TABS)[number]
+
+/** GET /api/v1/bookings?tab=&cursor=&limit= */
+export const BookingListQuerySchema = z.object({
+  tab: z.enum(BOOKING_TABS).default('upcoming'),
+  cursor: z.string().min(1).optional(),
+  // Clamped rather than refused, as E06-01 asks.
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .default(20)
+    .transform(n => Math.min(n, 50)),
+})
+
+/** One card in My Bookings. */
+export interface BookingListItem {
+  id: string
+  reference: string
+  status: BookingStatus
+  date: string
+  startTime: string
+  endTime: string
+  minutes: number
+  /** The kick-off instant, for the countdown chip. */
+  startsAt: string
+  pitch: { id: string; name: string; surfaceType: SurfaceTypeName }
+  company: { id: string; name: string; logoUrl: string | null }
+  total: number
+  refundAmount: number | null
+  cancelledBy: 'PLAYER' | 'MANAGER' | 'ADMIN' | 'SYSTEM' | null
+  hasReview: boolean
+  /** Completed, not reviewed, and within the review window. */
+  canReview: boolean
+}
+
+type SurfaceTypeName = 'NATURAL_GRASS' | 'ARTIFICIAL_GRASS' | 'FUTSAL'
+
+export interface BookingListPage {
+  items: BookingListItem[]
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+/** GET /api/v1/bookings/count — for a badge. */
+export interface BookingCounts {
+  upcoming: number
+  unreviewed: number
+}
+
+/** GET /api/v1/bookings/:id — E06-02. A superset of the E05 confirmation. */
+export interface BookingDetail extends BookingConfirmation {
+  startsAt: string
+  createdAt: string
+  pitch: BookingConfirmation['pitch'] & { surfaceType: SurfaceTypeName; size: string }
+  company: BookingConfirmation['company'] & { logoUrl: string | null; phone: string | null }
+  teams: { name: string; players: number | null; colour: string | null }[]
+  note: string | null
+  payment: {
+    provider: PaymentProviderName | null
+    cardBrand: string | null
+    cardLast4: string | null
+    paidAt: string | null
+    refundAmount: number | null
+    refundedAt: string | null
+  }
+  cancelledBy: BookingListItem['cancelledBy']
+  statusHistory: { status: BookingStatus; at: string }[]
+  /** Null when the booking can no longer be cancelled (started, or already final). */
+  cancellation: { refundPercent: number; refundAmount: number } | null
+  review: {
+    id: string
+    rating: number
+    text: string | null
+    isAnonymous: boolean
+    createdAt: string
+    /** Editing and deleting stop 24 hours after posting. */
+    editableUntil: string
+  } | null
+  canReview: boolean
+  noShow: {
+    reason: string | null
+    disputeStatus: 'NONE' | 'OPEN' | 'RESOLVED_PLAYER' | 'RESOLVED_MANAGER'
+    /** Null once the dispute window has closed or a dispute was filed. */
+    disputeUntil: string | null
+  } | null
+}
+
+/** POST /api/v1/bookings/:id/cancel */
+export interface CancelBookingResult {
+  refundAmount: number
+  refundPercent: number
+  booking: BookingDetail
+}

@@ -2,11 +2,28 @@ import { z } from 'zod'
 import { REVIEW } from '../constants/review'
 import { idSchema } from './common'
 
+/**
+ * Review text: optional, but a few words at least when given (E06-05).
+ * Blank counts as none.
+ */
+const reviewText = z.preprocess(
+  v => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+  z
+    .string()
+    .trim()
+    .min(
+      REVIEW.MIN_TEXT_LENGTH,
+      `Write at least ${REVIEW.MIN_TEXT_LENGTH} characters, or leave it empty`
+    )
+    .max(REVIEW.MAX_TEXT_LENGTH)
+    .optional()
+)
+
 export const CreateReviewSchema = z.object({
   bookingId: idSchema,
   rating: z.number().int().min(REVIEW.MIN_RATING).max(REVIEW.MAX_RATING),
   /** Optional: PRD §15 allows a rating with no text. */
-  text: z.string().trim().max(REVIEW.MAX_TEXT_LENGTH).optional(),
+  text: reviewText,
   photoUrls: z.array(z.string().url()).max(REVIEW.MAX_PHOTOS).optional(),
   isAnonymous: z.boolean().default(false),
 })
@@ -14,7 +31,7 @@ export const CreateReviewSchema = z.object({
 export const UpdateReviewSchema = z
   .object({
     rating: z.number().int().min(REVIEW.MIN_RATING).max(REVIEW.MAX_RATING),
-    text: z.string().trim().max(REVIEW.MAX_TEXT_LENGTH),
+    text: reviewText,
     photoUrls: z.array(z.string().url()).max(REVIEW.MAX_PHOTOS),
     isAnonymous: z.boolean(),
   })

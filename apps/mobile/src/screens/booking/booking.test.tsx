@@ -38,7 +38,7 @@ const today = venueClock(new Date()).date
 const date = addDays(today, 10)
 
 function makeNav() {
-  const parent = { goBack: jest.fn() }
+  const parent = { goBack: jest.fn(), replace: jest.fn() }
   return {
     navigate: jest.fn(),
     replace: jest.fn(),
@@ -279,7 +279,7 @@ describe('Step 4: summary and payment (E05-05)', () => {
 })
 
 describe('Step 5: confirmation (E05-06)', () => {
-  it('shows the confirmed booking and goes back to Discover', async () => {
+  it('shows the confirmed booking, then opens it or goes back to Discover', async () => {
     api.get.mockResolvedValue({
       id: 'b1',
       reference: '#B00K1D',
@@ -295,7 +295,7 @@ describe('Step 5: confirmation (E05-06)', () => {
       cancellationReason: null,
       pitch: { id: 'p1', name: 'Teren 1' },
       company: { id: 'c1', name: 'Arena Gheorgheni', address: 'Str. X', city: 'Cluj-Napoca' },
-    })
+    } as never)
     jest.useFakeTimers()
     const nav = makeNav()
     show(Step5ConfirmationScreen, nav, { bookingId: 'b1' })
@@ -306,6 +306,8 @@ describe('Step 5: confirmation (E05-06)', () => {
     act(() => jest.runOnlyPendingTimers())
     press('Back to Discover')
     expect(nav.parent.goBack).toHaveBeenCalled()
+    press('View my booking')
+    expect(nav.parent.replace).toHaveBeenCalledWith('BookingDetail', { id: 'b1' })
     jest.useRealTimers()
   })
 })

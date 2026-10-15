@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma'
 import { providerFor } from '@/lib/payments'
 import { sendBookingConfirmedEmail } from '@/lib/emails/booking-confirmed'
 import { liveBookingWhere } from './live'
+import { recordStatus } from './status'
 
 export type PaidOutcome = 'confirmed' | 'already' | 'refunded' | 'unknown'
 
@@ -68,6 +69,7 @@ export async function confirmPaid(
           where: { id: booking.id },
           data: { status: 'CONFIRMED', paidAt: now },
         })
+        await recordStatus(tx, booking.id, 'CONFIRMED')
         return 'confirmed' as const
       }
       await tx.booking.update({
@@ -79,6 +81,7 @@ export async function confirmPaid(
           cancellationReason: 'The time was taken while the payment was pending',
         },
       })
+      await recordStatus(tx, booking.id, 'CANCELLED')
     }
     return 'refund' as const
   })
@@ -98,6 +101,16 @@ export async function confirmPaid(
   }
 
   if (outcome === 'confirmed') {
+    // Best effort, like the email: the card is shown on the booking detail.
+    const card = await providerFor(booking.paymentProvider)
+      ?.cardDetails(paymentId)
+      .catch(() => null)
+    if (card) {
+      await prisma.booking.update({
+        where: { id: booking.id },
+        data: { cardBrand: card.brand, cardLast4: card.last4 },
+      })
+    }
     // Best effort: a mail outage must not undo a paid booking.
     await sendBookingConfirmedEmail(booking.id).catch(caught =>
       console.error(
@@ -111,16 +124,19 @@ export async function confirmPaid(
 
 /** The payment failed: the booking is cancelled and the slot is free again. */
 export async function markPaymentFailed(bookingId: string, message: string): Promise<boolean> {
-  const { count } = await prisma.booking.updateMany({
-    where: { id: bookingId, status: 'PENDING' },
-    data: {
-      status: 'CANCELLED',
-      cancelledBy: 'SYSTEM',
-      cancelledAt: new Date(),
-      cancellationReason: `Payment failed: ${message}`.slice(0, 300),
-    },
+  return prisma.$transaction(async tx => {
+    const { count } = await tx.booking.updateMany({
+      where: { id: bookingId, status: 'PENDING' },
+      data: {
+        status: 'CANCELLED',
+        cancelledBy: 'SYSTEM',
+        cancelledAt: new Date(),
+        cancellationReason: `Payment failed: ${message}`.slice(0, 300),
+      },
+    })
+    if (count) await recordStatus(tx, bookingId, 'CANCELLED')
+    return count > 0
   })
-  return count > 0
 }
 
 /** A refund made on the provider's side (dashboard, or a cancellation in E06). */
