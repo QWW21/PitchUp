@@ -1,6 +1,6 @@
 /** Booking confirmed — sent when a payment succeeds (E05-08). */
 import 'server-only'
-import { DAY_LONG, dayOfWeek, formatDuration, type BookingConfirmation } from '@pitchup/shared'
+import { formatDateLong, formatDuration, type BookingConfirmation } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { getEmailProvider } from '@/lib/notifications'
 import { loadConfirmation } from '@/lib/bookings/read'
@@ -8,7 +8,7 @@ import { renderEmailLayout, renderMutedParagraph, renderParagraph } from './layo
 import type { VerificationEmail } from './verification'
 
 const when = (b: BookingConfirmation) =>
-  `${DAY_LONG[dayOfWeek(b.date)]} ${b.date}, ${b.startTime}–${b.endTime} (${formatDuration(b.minutes)})`
+  `${formatDateLong(b.date)}, ${b.startTime}–${b.endTime} (${formatDuration(b.minutes)})`
 
 export function renderBookingConfirmedEmail(b: BookingConfirmation): VerificationEmail {
   const shirts =

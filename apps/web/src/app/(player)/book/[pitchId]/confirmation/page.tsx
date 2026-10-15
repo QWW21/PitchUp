@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { DAY_LONG, dayOfWeek, formatDuration } from '@pitchup/shared'
+import { formatDateLong, formatDuration } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { getBookingForViewer } from '@/lib/bookings/read'
@@ -57,7 +57,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     )
   }
 
-  const when = `${DAY_LONG[dayOfWeek(booking.date)]} ${booking.date}, ${booking.startTime}–${booking.endTime}`
+  const when = `${formatDateLong(booking.date)}, ${booking.startTime}–${booking.endTime}`
   return (
     <section className="flex flex-col items-center py-8 text-center print:py-0">
       <svg
