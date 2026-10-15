@@ -11,6 +11,16 @@ export const BOOKING = {
   MAX_TEAM_COUNT: 3,
   MAX_PLAYERS_PER_TEAM: 15,
   MAX_NOTE_LENGTH: 200,
+  /** Booking grid granularity, minutes. */
+  SLOT_MINUTES: 30,
+  /**
+   * How long an unpaid (PENDING) booking holds its slot. Past this, an
+   * abandoned checkout stops blocking other players.
+   */
+  PENDING_HOLD_MINUTES: 15,
+  /** Booking attempts per player per window, against abuse. */
+  CREATE_RATE_LIMIT: 10,
+  CREATE_RATE_WINDOW_MINUTES: 10,
 } as const
 
 /**

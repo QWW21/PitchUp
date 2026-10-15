@@ -28,6 +28,21 @@ export async function signIn(page: Page, email: string, password: string): Promi
   if (String(url).includes('error=')) throw new Error(`Sign-in failed for ${email}: ${url}`)
 }
 
+/** The same sign-in for an API client: its cookie jar then holds the session. */
+export async function signInApi(
+  request: APIRequestContext,
+  email: string,
+  password: string
+): Promise<void> {
+  const { csrfToken } = await (await request.get('/api/auth/csrf')).json()
+  const res = await request.post('/api/auth/callback/credentials', {
+    form: { csrfToken, email, password, callbackUrl: '/' },
+    headers: { 'X-Auth-Return-Redirect': '1' },
+  })
+  const { url } = await res.json()
+  if (String(url).includes('error=')) throw new Error(`Sign-in failed for ${email}: ${url}`)
+}
+
 export async function signOut(page: Page): Promise<void> {
   const { csrfToken } = await (await page.request.get('/api/auth/csrf')).json()
   await page.request.post('/api/auth/signout', { form: { csrfToken, callbackUrl: '/' } })

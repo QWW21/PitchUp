@@ -95,7 +95,7 @@ function AppNavigator() {
       <AppStack.Screen
         name="BookingFlow"
         component={BookingFlowScreen}
-        options={{ presentation: 'modal' }}
+        options={{ presentation: 'fullScreenModal' }}
       />
     </AppStack.Navigator>
   )

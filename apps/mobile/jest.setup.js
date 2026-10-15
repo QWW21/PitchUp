@@ -44,3 +44,6 @@ jest.mock('react-native-maps', () => {
     PROVIDER_DEFAULT: undefined,
   }
 })
+
+// Stripe's own mock of its native SDK: hooks resolve, CardField renders nothing native.
+jest.mock('@stripe/stripe-react-native', () => require('@stripe/stripe-react-native/jest/mock.js'))

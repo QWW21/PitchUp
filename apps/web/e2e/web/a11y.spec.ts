@@ -8,7 +8,8 @@
  */
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
-import { createResetToken, venue } from '../support/db'
+import { addDays, venueClock } from '@pitchup/shared'
+import { createResetToken, db, venue } from '../support/db'
 import { PHONE, resetRateLimits, signIn } from '../support/helpers'
 
 const CLUJ = '/discover?city=Cluj-Napoca'
@@ -158,6 +159,50 @@ test.describe('player pages', () => {
     await page.setViewportSize(PHONE)
     const g = await venue('gheorgheni')
     await page.goto(`/discover/${g.id}/${g.pitches[0]!.id}`)
+    await audit(page)
+  })
+})
+
+test.describe('booking flow', () => {
+  const started = new Date()
+  const date = addDays(venueClock(started).date, 27)
+
+  test.afterAll(async () => {
+    const g = await venue('gheorgheni')
+    await db.booking.deleteMany({
+      where: { createdAt: { gte: started }, pitchId: g.pitches[0]!.id },
+    })
+  })
+
+  test('every step, the cancel dialog and the confirmation', async ({ page }) => {
+    const g = await venue('gheorgheni')
+    const id = g.pitches[0]!.id
+    await signIn(page, 'player@demo.ro', 'Player1234!')
+
+    await page.goto(`/book/${id}/date?date=${date}`)
+    await expect(page.getByRole('grid')).toBeVisible()
+    await audit(page)
+
+    await page.getByRole('button', { name: /^Next: times on/ }).click()
+    await page.getByRole('button', { name: '18:00, available' }).click()
+    await page.getByRole('button', { name: '19:00, available' }).click()
+    await audit(page)
+
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await audit(page)
+    await page.getByRole('button', { name: 'Keep editing' }).click()
+
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('switch', { name: 'Free shirts' }).click()
+    await audit(page)
+
+    await page.getByRole('button', { name: 'Next' }).click()
+    await expect(page.getByText('Test mode.')).toBeVisible()
+    await audit(page)
+
+    await page.getByRole('button', { name: /^Confirm & pay/ }).click()
+    await expect(page.getByRole('heading', { name: 'Booking confirmed!' })).toBeVisible()
     await audit(page)
   })
 })

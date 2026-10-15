@@ -11,7 +11,7 @@ export async function TopNav() {
   }
 
   return (
-    <header className="sticky top-0 z-30 h-16 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)]">
+    <header className="sticky top-0 z-30 h-16 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] print:hidden">
       <nav className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 lg:px-6">
         <Link href="/discover" className="text-xl font-bold text-primary-600">
           PitchUp

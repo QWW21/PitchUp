@@ -165,26 +165,29 @@ model User {
 }
 
 model Company {
-  id              String        @id @default(cuid())
-  ownerId         String        @unique
-  name            String
-  description     String?
-  logoUrl         String?
-  websiteUrl      String?
-  phone           String
-  email           String
-  addressLine1    String
-  addressLine2    String?
-  city            String
-  country         String        @default("RO")
-  postalCode      String?
-  lat             Float?
-  lng             Float?
-  workingHours    Json?
-  stripeAccountId String?
-  status          CompanyStatus @default(PENDING)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id                   String        @id @default(cuid())
+  ownerId              String        @unique
+  name                 String
+  description          String?
+  logoUrl              String?
+  websiteUrl           String?
+  phone                String
+  email                String
+  addressLine1         String
+  addressLine2         String?
+  city                 String
+  country              String        @default("RO")
+  postalCode           String?
+  lat                  Float?
+  lng                  Float?
+  workingHours         Json?
+  stripeAccountId      String?
+  /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
+  stripeChargesEnabled Boolean       @default(false)
+  stripePayoutsEnabled Boolean       @default(false)
+  status               CompanyStatus @default(PENDING)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   pitches Pitch[]
@@ -194,25 +197,25 @@ model Company {
 }
 
 model Pitch {
-  id                  String      @id @default(cuid())
-  companyId           String
-  name                String
-  description         String?
-  surfaceType         SurfaceType
-  size                PitchSize
-  widthMeters         Float?
-  lengthMeters        Float?
-  isActive            Boolean     @default(true)
-  coverPhotoIndex     Int         @default(0)
-  minBookingHours     Int         @default(1)
-  maxBookingHours     Int         @default(4)
-  advanceBookingDays  Int         @default(60)
+  id                 String      @id @default(cuid())
+  companyId          String
+  name               String
+  description        String?
+  surfaceType        SurfaceType
+  size               PitchSize
+  widthMeters        Float?
+  lengthMeters       Float?
+  isActive           Boolean     @default(true)
+  coverPhotoIndex    Int         @default(0)
+  minBookingHours    Int         @default(1)
+  maxBookingHours    Int         @default(4)
+  advanceBookingDays Int         @default(60)
   /// One price per hour at any time of day. No peak pricing.
-  hourlyRate          Decimal     @db.Decimal(10, 2)
+  hourlyRate         Decimal     @db.Decimal(10, 2)
   /// Shirts are always free; the inventory says which colours there are.
-  hasShirts           Boolean     @default(false)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
+  hasShirts          Boolean     @default(false)
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   photos         PitchPhoto[]
@@ -294,11 +297,18 @@ model Booking {
   pitchRateSnapshot     Decimal       @db.Decimal(10, 2)
   /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
   shirtSets             Int           @default(0)
+  /// PitchUp's commission, kept from the venue's payout (8%). Not added to
+  /// what the player pays.
   platformFee           Decimal       @db.Decimal(10, 2)
+  /// What the player pays: the pitch rental, hourly rate × hours.
   totalAmount           Decimal       @db.Decimal(10, 2)
   refundAmount          Decimal?      @db.Decimal(10, 2)
-  stripePaymentIntentId String?
+  /// "stripe", or "test" for the built-in test payments used without Stripe keys.
+  paymentProvider       String?
+  /// The provider's payment id (a Stripe PaymentIntent, or test_pi_… in test mode).
+  stripePaymentIntentId String?       @unique
   stripeRefundId        String?
+  paidAt                DateTime?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
 
@@ -312,6 +322,13 @@ model Booking {
   @@index([pitchId, startTime])
   @@index([playerId])
   @@index([status])
+}
+
+/// Stripe webhook events already handled, so a redelivered event is a no-op (E05-08).
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
 }
 
 model NoShow {

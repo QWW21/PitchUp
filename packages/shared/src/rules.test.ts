@@ -88,9 +88,16 @@ describe('LoginSchema', () => {
 })
 
 describe('CreateBookingSchema (PRD §15)', () => {
-  const booking = (startTime: string, endTime: string, teamCount = 2, teams = 2) =>
+  const booking = (
+    startTime: string,
+    endTime: string,
+    teamCount = 2,
+    teams = 2,
+    date = '2026-11-01'
+  ) =>
     CreateBookingSchema.safeParse({
       pitchId: CUID,
+      date,
       startTime,
       endTime,
       teamCount,
@@ -98,17 +105,25 @@ describe('CreateBookingSchema (PRD §15)', () => {
     }).success
 
   it.each([
-    ['one hour', '2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', true],
-    ['five hours (over the 4h maximum)', '2026-11-01T10:00:00Z', '2026-11-01T15:00:00Z', false],
-    ['ending before it starts', '2026-11-01T12:00:00Z', '2026-11-01T11:00:00Z', false],
-    ['spanning midnight', '2026-11-01T23:00:00Z', '2026-11-02T01:00:00Z', false],
-    ['ending exactly at midnight', '2026-11-01T23:00:00Z', '2026-11-02T00:00:00Z', true],
+    ['one hour', '10:00', '11:00', true],
+    ['an hour and a half', '10:00', '11:30', true],
+    ['five hours (over the 4h maximum)', '10:00', '15:00', false],
+    ['half an hour (under the 1h minimum)', '10:00', '10:30', false],
+    ['ending before it starts', '12:00', '11:00', false],
+    ['off the half-hour grid', '10:15', '11:15', false],
+    ['ending exactly at midnight', '23:00', '24:00', true],
+    ['past midnight (it cannot span days)', '23:00', '25:00', false],
   ])('%s', (_label, start, end, ok) => {
     expect(booking(start, end)).toBe(ok)
   })
 
   it('needs one teamsData entry per team', () => {
-    expect(booking('2026-11-01T10:00:00Z', '2026-11-01T11:00:00Z', 3, 2)).toBe(false)
+    expect(booking('10:00', '11:00', 3, 2)).toBe(false)
+  })
+
+  it('needs a real date', () => {
+    expect(booking('10:00', '11:00', 2, 2, '2026-02-31')).toBe(false)
+    expect(booking('10:00', '11:00', 2, 2, '01/11/2026')).toBe(false)
   })
 })
 
@@ -165,8 +180,9 @@ describe('free shirts (one set per team but one)', () => {
   it('a booking asks yes or no, and defaults to no', () => {
     const booking = {
       pitchId: CUID,
-      startTime: '2026-11-01T10:00:00Z',
-      endTime: '2026-11-01T11:00:00Z',
+      date: '2026-11-01',
+      startTime: '10:00',
+      endTime: '11:00',
       teamCount: 2,
       teamsData: [{ colour: 'RED' }, {}],
     }

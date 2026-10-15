@@ -58,6 +58,8 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_URL: z.string().url(),
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: optionalUntilIntegrated(z.string().min(1)),
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: optionalUntilIntegrated(z.string().min(1)),
+    // E05 — Stripe.js on the web; the app reads it from /payments/config.
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalUntilIntegrated(z.string().startsWith('pk_')),
   },
 
   /**
@@ -84,6 +86,7 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   },
 
   /** Lets `next build` and CI run without a full secret set. */

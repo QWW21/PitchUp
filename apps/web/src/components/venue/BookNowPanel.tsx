@@ -78,10 +78,9 @@ export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPa
     })),
   })
 
-  // Book Now leads to the booking flow (E05). Signed-out players sign in first
-  // and come back to the same place.
-  const bookingPath = (date?: string) =>
-    `/booking/new?pitchId=${pitchId}${date ? `&date=${date}` : ''}`
+  // Book Now leads to the booking flow (E05), on the day tapped if any.
+  // Signed-out players sign in first and come back to the same place.
+  const bookingPath = (date?: string) => `/book/${pitchId}/date${date ? `?date=${date}` : ''}`
   const hrefFor = (date?: string) =>
     signedIn ? bookingPath(date) : `/login?callbackUrl=${encodeURIComponent(bookingPath(date))}`
 

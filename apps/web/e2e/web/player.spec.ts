@@ -272,12 +272,14 @@ test.describe('pitch page', () => {
     const teren = g.pitches[0]!
     await page.goto(`/discover/${g.id}/${teren.id}`)
     await page.getByRole('link', { name: 'Sign in to book' }).click()
-    await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fbooking%2Fnew/)
+    await expect(page).toHaveURL(/\/login\?callbackUrl=%2Fbook%2F/)
     await page.locator('input[name="email"]').fill('player@demo.ro')
     await page.locator('input[name="password"]').fill('Player1234!')
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(new RegExp(`/booking/new\\?pitchId=${teren.id}`))
-    await snap(page, info, AREA, '13-booking-placeholder')
+    // Lands on the booking flow's first step (E05).
+    await expect(page).toHaveURL(new RegExp(`/book/${teren.id}/date`))
+    await expect(page.getByRole('heading', { name: 'Pick a date' })).toBeVisible()
+    await snap(page, info, AREA, '13-booking-start')
   })
 
   test('Book Now is replaced for a suspended account and an inactive pitch', async ({

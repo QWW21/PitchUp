@@ -3,6 +3,7 @@ import { BOOKING } from '../constants/booking'
 import { REVIEW } from '../constants/review'
 import { SHIRT_COLOURS } from '../constants/shirts'
 import { idSchema } from './common'
+import type { BookingStatus } from '../types'
 
 const shirtColourSchema = z.enum(SHIRT_COLOURS as unknown as [string, ...string[]])
 
@@ -12,48 +13,55 @@ const teamSchema = z.object({
   playerCount: z.number().int().min(1).max(BOOKING.MAX_PLAYERS_PER_TEAM).optional(),
 })
 
+const dateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
+  .refine(d => {
+    const t = new Date(`${d}T00:00:00Z`)
+    return !Number.isNaN(t.getTime()) && t.toISOString().startsWith(d)
+  }, 'date is not a real date')
+
+/** HH:MM on the 30-minute grid; "24:00" means midnight at the end of the day. */
+const slotTimeSchema = z
+  .string()
+  .regex(/^(([01]\d|2[0-3]):(00|30)|24:00)$/, 'Times are HH:MM on the half hour')
+
+const minutesOf = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return (h ?? 0) * 60 + (m ?? 0)
+}
+
+/**
+ * POST /api/v1/bookings — E05-07. Times are the venue's wall clock on
+ * `date` (Europe/Bucharest); the server turns them into instants. Sending
+ * local times rather than UTC keeps "same day" meaning the venue's day: the
+ * old UTC check would have split a 01:00 booking across two dates.
+ */
 export const CreateBookingSchema = z
   .object({
     pitchId: idSchema,
-    startTime: z.string().datetime({ message: 'Must be an ISO-8601 UTC timestamp' }),
-    endTime: z.string().datetime({ message: 'Must be an ISO-8601 UTC timestamp' }),
+    date: dateSchema,
+    startTime: slotTimeSchema,
+    endTime: slotTimeSchema,
     teamCount: z.number().int().min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
     teamsData: z.array(teamSchema).min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
     /** Free shirts: the booking gets shirtSetsFor(teamCount, true) sets. */
     wantsShirts: z.boolean().default(false),
-    noteToManager: z.string().max(BOOKING.MAX_NOTE_LENGTH).optional(),
+    noteToManager: z.string().trim().max(BOOKING.MAX_NOTE_LENGTH).optional(),
+    /** A saved Stripe card to charge; omitted for a new card or test payments. */
+    paymentMethodId: z.string().min(1).max(100).optional(),
   })
-  .refine(data => new Date(data.endTime) > new Date(data.startTime), {
+  .refine(data => minutesOf(data.endTime) > minutesOf(data.startTime), {
     message: 'End time must be after start time',
     path: ['endTime'],
   })
   .refine(
     data => {
-      const hours =
-        (new Date(data.endTime).getTime() - new Date(data.startTime).getTime()) / 3_600_000
+      const hours = (minutesOf(data.endTime) - minutesOf(data.startTime)) / 60
       return hours >= BOOKING.MIN_DURATION_HOURS && hours <= BOOKING.MAX_DURATION_HOURS
     },
     {
       message: `Booking must be between ${BOOKING.MIN_DURATION_HOURS} and ${BOOKING.MAX_DURATION_HOURS} hours`,
-      path: ['endTime'],
-    }
-  )
-  .refine(
-    data => {
-      // PRD §15: a booking must start and end on the same calendar day.
-      // Checked in UTC; the API re-checks against the venue's local day.
-      const start = new Date(data.startTime)
-      const end = new Date(data.endTime)
-      const sameDay =
-        start.getUTCFullYear() === end.getUTCFullYear() &&
-        start.getUTCMonth() === end.getUTCMonth() &&
-        start.getUTCDate() === end.getUTCDate()
-      const endsAtMidnight =
-        end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && end.getUTCSeconds() === 0
-      return sameDay || endsAtMidnight
-    },
-    {
-      message: 'A booking cannot span midnight',
       path: ['endTime'],
     }
   )
@@ -86,3 +94,66 @@ export type NoShowInput = z.infer<typeof NoShowSchema>
 export type DisputeInput = z.infer<typeof DisputeSchema>
 export type ResolveDisputeInput = z.infer<typeof ResolveDisputeSchema>
 export type BookingTeam = z.infer<typeof teamSchema>
+
+// ── Responses (E05) ─────────────────────────────────────────────────────────
+
+/** "test" is the built-in payment mode used while Stripe keys are not set. */
+export type PaymentProviderName = 'stripe' | 'test'
+
+/** GET /api/v1/payments/config. A null provider means payments are off. */
+export interface PaymentConfig {
+  provider: PaymentProviderName | null
+  /** Stripe's publishable key, for Stripe.js / the React Native SDK. */
+  publishableKey: string | null
+}
+
+/** POST /api/v1/bookings. The booking is PENDING until the payment succeeds. */
+export interface CreateBookingResult {
+  bookingId: string
+  reference: string
+  total: number
+  /** After this the unpaid booking stops holding the slot. */
+  holdExpiresAt: string
+  payment:
+    { provider: 'stripe'; clientSecret: string; publishableKey: string } | { provider: 'test' }
+}
+
+/** POST /api/v1/payments/test/confirm — test mode only. */
+export const TestPaymentSchema = z.object({
+  bookingId: idSchema,
+  outcome: z.enum(['succeed', 'decline']),
+})
+
+/** GET /api/v1/bookings/:id — what the confirmation step shows. E06 extends it. */
+export interface BookingConfirmation {
+  id: string
+  reference: string
+  status: BookingStatus
+  /** Venue-local date and times. */
+  date: string
+  startTime: string
+  endTime: string
+  minutes: number
+  teamCount: number
+  shirtSets: number
+  total: number
+  paidAt: string | null
+  cancellationReason: string | null
+  pitch: { id: string; name: string }
+  company: { id: string; name: string; address: string; city: string }
+}
+
+/** GET /api/v1/payments/methods. */
+export interface SavedCard {
+  id: string
+  brand: string
+  last4: string
+  expMonth: number
+  expYear: number
+}
+
+/** GET /api/v1/pitches/:id/calendar — one entry per day, for the date step. */
+export interface CalendarDay {
+  date: string
+  status: 'available' | 'full' | 'closed'
+}

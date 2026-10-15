@@ -5,6 +5,7 @@
  */
 import { createHash, randomBytes } from 'node:crypto'
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 import { E2E_DATABASE_URL } from './env'
 
 export const db = new PrismaClient({ datasources: { db: { url: E2E_DATABASE_URL } } })
@@ -64,3 +65,18 @@ export const uniqueEmail = (prefix: string) =>
 
 /** A unique, valid E.164 Romanian mobile number. */
 export const uniquePhone = () => `+4079${String(Date.now()).slice(-7)}`
+
+/** A verified player made directly in the database, for tests that need a second account. */
+export async function createPlayer(email: string, password = 'Testing123'): Promise<void> {
+  await db.user.create({
+    data: {
+      email,
+      phone: uniquePhone(),
+      passwordHash: await bcrypt.hash(password, 4),
+      name: 'Second Player',
+      role: 'PLAYER',
+      city: 'Cluj-Napoca',
+      emailVerified: true,
+    },
+  })
+}

@@ -26,6 +26,7 @@ import {
 import { prisma } from '@/lib/prisma'
 import { validationError } from '@/lib/api/errors'
 import { companyRating, pitchStats, round1, type PitchStats } from '@/lib/venues/ratings'
+import { liveBookingWhere } from '@/lib/bookings/live'
 import { isOpenAt } from './opening-hours'
 
 /**
@@ -201,7 +202,7 @@ async function companiesWithFreePitch(
       companyId: { in: companyIds },
       bookings: {
         none: {
-          status: { in: ['PENDING', 'CONFIRMED'] },
+          ...liveBookingWhere(now),
           startTime: { lt: windowEnd },
           endTime: { gt: now },
         },

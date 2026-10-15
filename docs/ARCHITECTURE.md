@@ -2,7 +2,8 @@
 
 A walkthrough of the decisions behind PitchUp so far: the infrastructure
 (E01, sections 1–10), auth (11), Discover (12), venue time and availability
-(13), the product changes after the E04 review (14) and testing (15). Each
+(13), the product changes after the E04 review (14), testing (15) and
+bookings and payments (16). Each
 section is a problem, the options, and why one was chosen, and ends with
 **what to learn** to understand it properly. Written for someone who knows
 React Native and is learning the backend and system-design side.
@@ -604,6 +605,115 @@ anyone who can see the screen; tools find what eyes skip.
 isolation; flaky tests and why `waitFor` beats `sleep`; WCAG 2.1 AA, colour
 contrast and accessible names.
 
+---
+
+## 16. Taking money: bookings and payments (E05)
+
+A booking is the first place where two people can want the same thing at the
+same moment, and where a mistake costs real money. Five ideas carry it.
+
+### A state machine, not a flag
+
+```
+create ──► PENDING ──payment succeeded──► CONFIRMED
+              │
+              ├─payment failed / replaced / service down──► CANCELLED
+              └─(15 min, unpaid)── stops holding the slot
+```
+
+A booking is created **before** the money moves, as PENDING, so the slot is
+held while the player types their card. Every later event moves it along one
+of these arrows and nothing else. "What can happen next?" has a short answer
+in every state, which is what makes payments debuggable.
+
+**The hold expires.** A player who closes the tab mid-checkout must not
+block 18:00 for everyone forever. `liveBookingWhere()` counts a PENDING
+booking only for its first 15 minutes, and availability, Discover's
+"Available now" and booking creation all use that one definition (§1: one
+source of truth). There is no cron job deleting stale rows: an expired hold
+is simply no longer counted.
+
+### Race conditions, and why the obvious lock fails
+
+Two players press Pay for the same slot at the same millisecond. Both
+requests check "is 18:00 free?", both see yes, both insert. Double booking.
+
+The ticket suggested `SELECT … FOR UPDATE` on overlapping bookings. That
+locks rows that already exist, but the competing booking does not exist yet.
+There is nothing to lock, and both requests still slip through. This is the
+classic **phantom** problem.
+
+The fix (`lib/bookings/create.ts`) is a lock on the _idea_ of the pitch
+rather than on a row:
+
+```ts
+await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${pitch.id}))`
+```
+
+Inside the transaction, every booking of that pitch now queues behind this
+line. The second request runs only after the first has committed, so it sees
+the first booking and gets a 409. Bookings of different pitches never wait
+for each other. The API test fires two players' requests together and checks
+that exactly one wins. (A Postgres **exclusion constraint** on a time range
+is the other well-known answer; it is stronger, but Prisma cannot express it.)
+
+### Idempotency: doing it twice must equal doing it once
+
+Networks retry. Stripe delivers webhooks _at least once_, and sometimes the
+player's app and the webhook report the same payment at the same time. So:
+
+- The PaymentIntent is created with `idempotencyKey: booking-<id>`: a
+  retried request for the same booking can never charge twice.
+- Each webhook event id is stored (`StripeWebhookEvent`), and a repeat is
+  acknowledged without being handled again.
+- `confirmPaid()` re-reads the booking under the same lock and does nothing
+  if it is already CONFIRMED. Even if both of the guards above failed, the
+  outcome would not change.
+
+**Design every handler so that running it twice is harmless.** Then retries,
+which you cannot prevent, stop being dangerous.
+
+### Webhooks: trust the signature, not the sender
+
+`POST /payments/webhook` has no session: Stripe is calling, not a user.
+Anyone on the internet could POST "payment succeeded" to it. So Stripe signs
+each body with a secret only it and the server know, and
+`constructWebhookEvent` verifies that signature over the **raw** body. Parsed
+and re-serialised JSON would not match byte for byte. A handler error
+answers 500 so Stripe retries; that is safe _because_ the handlers are
+idempotent.
+
+### Card numbers never touch our server
+
+The card is typed into Stripe's own field (`CardElement` on the web,
+`CardField` in the app). It goes straight to Stripe, which returns an id.
+Our server only ever sees amounts and ids, and that keeps the app out of
+most of PCI-DSS (the card-industry security rules). It is also why the
+browser or phone **confirms** the payment (`confirmCardPayment`) rather than
+the server: the server prepares the PaymentIntent and hands back a
+`clientSecret` that only the client uses.
+
+### Money in minor units, and a provider behind an interface
+
+Stripe counts in bani (240 RON is 24000), and every conversion goes through
+one function, `toBani`. Booking code talks to a `PaymentProvider` interface
+(create, state, cancel, refund) with two implementations:
+
+- **Stripe**, used when its three keys are set;
+- **test payments**, used otherwise in development and E2E.
+
+Test mode runs the very same booking and confirmation code, which is why the
+whole flow is tested in CI without a Stripe account. Email and SMS (E02)
+follow the same pattern, so a missing integration never blocks development.
+
+**What to learn:** state machines; database transactions and isolation
+levels; race conditions, phantoms and advisory locks; exclusion constraints;
+idempotency keys and at-least-once delivery; webhook signatures (HMAC); PCI
+scope and why tokenised card fields exist; Stripe PaymentIntents and
+SetupIntents; storing money as integers in minor units.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -618,6 +728,7 @@ Honest inventory, so none of it is mistaken for finished:
 | Social login         | Placeholder until OAuth credentials exist                     |
 | Mobile app           | Built, typechecked and unit-tested; not yet run on a device   |
 | Mobile colours       | Spec palette; not yet checked for WCAG contrast               |
+| Stripe               | Unit-tested with fakes; never run against a real account      |
 
 ---
 
@@ -641,3 +752,6 @@ Honest inventory, so none of it is mistaken for finished:
     the rows that already exist.
 11. **Store instants in UTC; reason in the place's time zone.**
 12. **Fewer, clearer controls beat complete ones.**
+13. **Lock what does not exist yet.** A row lock cannot stop a row that has
+    not been inserted; lock the thing being competed for.
+14. **Make every handler safe to run twice.** Retries are not optional.

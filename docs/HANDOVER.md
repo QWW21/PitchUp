@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated after the product changes that followed the E04 review (C-1 to C-5).
+Last updated at the end of the session that implemented E05 (Player: Booking Flow).
 
 ## Done
 
@@ -79,8 +79,7 @@ anonymous review, fourteen reviews on Cluj Arena Park for paging, and on Arena
 Gheorgheni Teren 1 a booking tomorrow 18:00–20:00, a fully booked day after
 tomorrow and a maintenance closure the day after that. Zorilor closes on Sundays.
 
-Book Now (web and mobile) opens a placeholder until E05: `/booking/new` on the
-web, the `BookingFlow` route in the app.
+Book Now (web and mobile) opens the booking flow (E05).
 
 **Fixed along the way — mobile API auth.** `requireAuth` only read the web
 cookie, so every authenticated call from the app, `/me` included, was a 401;
@@ -89,12 +88,55 @@ the mobile Bearer access token too (re-reading the user, so a deleted account
 stops working at once). Verified with a real token from
 `/auth/mobile/login`. `/me` also returns `trustScore` now.
 
+**E05 — Player: Booking Flow: all ten tickets implemented.**
+
+| Ticket                          | State                                                                      |
+| ------------------------------- | -------------------------------------------------------------------------- |
+| E05-01 mobile booking navigator | built — full-screen modal, 5-step stack, progress bar, discard sheet       |
+| E05-02 mobile date step         | built — month grid, arrows + swipe, full/closed/past days, prefilled date  |
+| E05-03 mobile time step         | built — 40 px slots, shared range rules, "now" line, live price            |
+| E05-04 mobile teams & shirts    | built — 2/3 teams, player steppers, free shirts switch, colours, note      |
+| E05-05 mobile summary & payment | built — summary, price, refund policy, Stripe CardField or test payment    |
+| E05-06 mobile confirmation      | built — animated check, reference, details; back closes the flow           |
+| E05-07 `POST /bookings`         | done, verified — per-pitch lock, 409 on a clash, 15-minute hold            |
+| E05-08 Stripe webhook           | done — signature, idempotent, succeeded/failed/refunded/account.updated    |
+| E05-09 saved cards              | done — `GET/DELETE /payments/methods`, `POST /payments/setup-intent`       |
+| E05-10 web booking flow         | done, verified in a browser — `/book/:pitchId/{date,time,teams,summary,…}` |
+
+**Payments run in test mode until Stripe keys are set.** With
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` blank, bookings use the built-in test
+payment (development, or `ALLOW_TEST_HOOKS=1`): no card, a "Confirm & pay"
+and a "Simulate a declined card" button, the same booking and payment code
+as Stripe. A production build without keys takes no bookings. To switch to
+Stripe: create a free Stripe account, put its **test-mode** keys in
+`apps/web/.env`, and forward webhooks locally with the Stripe CLI
+(`stripe listen --forward-to localhost:3000/api/v1/payments/webhook`, whose
+printed `whsec_…` is the webhook secret). Stripe has been exercised with unit
+tests and fakes only, never against a real Stripe account.
+
+New endpoints: `POST /bookings`, `GET /bookings/:id`,
+`GET /pitches/:id/calendar`, `GET /payments/config`,
+`GET /payments/methods`, `DELETE /payments/methods/:id`,
+`POST /payments/setup-intent`, `POST /payments/webhook`,
+`POST /payments/test/confirm` (test mode only).
+
+`@stripe/stripe-react-native` 0.38.6 (the version Expo SDK 52 ships for
+React Native 0.76) is a **new native dependency**: the mobile tester must
+rebuild the app (Android build, and `pod install` for iOS) before testing.
+As agreed, mobile was not built here: it is typechecked, linted and covered
+by Jest only.
+
+"View my booking" on the confirmation waits for E06 (My Bookings); both
+clients offer Back to Discover instead.
+
 ## Next
 
-**E05 — Player: Booking Flow** replaces the two Book Now placeholders. The
-availability endpoint it needs (E04-03) is done; its `past` slot status and
-venue-time conversion (`venueTimeToUtc`, `openIntervalsOn` in
-`packages/shared/src/schedule.ts`) are what the slot picker should use.
+**E06 — Player: My Bookings** builds on `GET /bookings/:id` (extend it into
+the full detail) and on the booking states E05 introduced: PENDING (held 15
+minutes), CONFIRMED, CANCELLED with a `cancellationReason`. Cancellation and
+refunds should use `refundPercentFor()` from `@pitchup/shared` and the
+payment provider's `refund()`, which already handle test mode and Stripe.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -139,6 +181,7 @@ Read this before bumping any mobile dependency.
 | `react-native-screens`        | `4.16.0`  | 4.17.0+ uses Kotlin APIs added after 0.76 (`ReactPointerEventsView.getPointerEvents`, `getFabricUIManagerNotNull`, the `EdgeInsets` safe-area types). 4.16.0 is the last release that compiles.                                                                  |
 | `react-native-maps`           | `1.29.11` | Works, but needs two patches — see below.                                                                                                                                                                                                                        |
 | `androidx.core` / `-ktx`      | `1.15.0`  | Forced in `apps/mobile/android/app/build.gradle`. 1.17.0 demands compileSdk 36 and AGP 8.9.1; RN 0.76 pins AGP 8.6.0 / compileSdk 35.                                                                                                                            |
+| `@stripe/stripe-react-native` | `0.38.6`  | E05 card payments. The release Expo SDK 52 pairs with React Native 0.76; later ones target newer React Native.                                                                                                                                                   |
 | `@react-native/gradle-plugin` | `0.76.0`  | Declared as an explicit devDependency. It is a transitive dep of `react-native`, so pnpm hoists it to the repo root and never links it into `apps/mobile/node_modules`, which is exactly where `settings.gradle` looks for it. Same for `@react-native/codegen`. |
 
 Three patch files in `patches/`, all applied through `pnpm.patchedDependencies`
@@ -317,8 +360,49 @@ E04:
 - **Deep links** (`/discover/:companyId` opening the app) are not configured;
   that needs a linking config and platform setup.
 
+### E05 — booking and payments
+
+- **The player pays the pitch price; PitchUp's 8% comes out of the venue's
+  share** (PRD §8, the owner's call). E05-05's 5% fee on top of the price is
+  not used. `Booking.totalAmount` is what the player pays; `platformFee` is
+  the commission, kept for payouts (E09/E14).
+- **Booking times are venue-local** (`date` + `HH:MM`), not the old UTC
+  ISO strings, whose "same day" check split a 01:00 booking across two dates.
+- **A per-pitch Postgres advisory lock** serialises booking creation and
+  payment confirmation. The ticket's "SELECT … FOR UPDATE" cannot stop a
+  double booking: the competing row does not exist yet, so there is nothing
+  to lock. Tested by two players racing for one slot.
+- **An unpaid booking holds its slot for 15 minutes**
+  (`BOOKING.PENDING_HOLD_MINUTES`), not forever. A player's own new attempt
+  replaces their unpaid one instead of clashing with it (retry after a
+  declined card). A payment arriving after the hold, when someone else has
+  the slot, is refunded in full.
+- **The webhook answers 500 when a handler fails**, not 200: Stripe retries
+  and the handlers are idempotent; a 200 would lose the event.
+- **`GET /bookings/:id` asks Stripe about a still-PENDING booking**, so the
+  confirmation does not depend on the webhook arriving first (it often will
+  not locally).
+- **A month calendar endpoint** (`GET /pitches/:id/calendar`) replaces the
+  ticket's one availability call per day, which would also hit the per-IP
+  rate limit.
+- **Shirts (C-1):** one yes/no and `teams − 1` sets; no per-colour
+  quantities or rental price. Only one booking uses a pitch at a time, so a
+  pitch's sets are never shared between bookings.
+- **Mobile without new animation/pager libraries:** the date swipe is a
+  `PanResponder` (not `react-native-pager-view`), the checkmark is
+  `Animated` (not `react-native-svg` + Reanimated), the discard sheet is a
+  `Modal` (not `@gorhom/bottom-sheet`). Only Stripe adds native code.
+- **Web flow URLs are `/book/:pitchId/…`**, as the ticket says; the E04
+  placeholder `/booking/new` redirects there so old links still work.
+- **Players per team default to the size** (6 for 6v6), not a fixed 5.
+
 ## Known gaps
 
+- **Stripe has never run against a real account.** Unit tests cover the
+  Stripe calls with a fake SDK and the webhook with real signatures; the
+  booking flow is tested end to end in test-payment mode. Add test-mode
+  keys and pay with card 4242 4242 4242 4242 (and the declined 4000 0000
+  0000 0002) before trusting it.
 - **Web colours are darker than the spec.** UIUX_SPEC §2.1's primary green,
   hint grey, error red and accent orange fail WCAG AA contrast; the web uses
   one shade darker where they carry text (marked `AA` in

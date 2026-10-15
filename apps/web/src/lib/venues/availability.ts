@@ -1,5 +1,6 @@
 /**
- * Slot availability for one pitch on one date — E04-03.
+ * Slot availability for one pitch — E04-03, with the month calendar and the
+ * booking checks of E05 built on the same pieces.
  *
  * Slots are 30 minutes of the venue's wall clock, converted to real instants
  * for the booking overlap test. The ticket's sample builds slot times as UTC
@@ -8,74 +9,83 @@
  */
 import 'server-only'
 import {
+  BOOKING,
   addDays,
   fromMinutes,
   normalizeWeek,
   openIntervalsOn,
   venueClock,
   venueTimeToUtc,
+  type CalendarDay,
+  type DayHours,
   type PitchAvailability,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { notFound, validationError } from '@/lib/api/errors'
+import { liveBookingWhere } from '@/lib/bookings/live'
 
-const SLOT_MINUTES = 30
+const SLOT_MINUTES = BOOKING.SLOT_MINUTES
 
-export async function getAvailability(
-  pitchId: string,
-  date: string,
-  now: Date = new Date()
-): Promise<PitchAvailability> {
+/** What decides whether a pitch is open on a date. */
+export interface PitchSchedule {
+  id: string
+  isActive: boolean
+  advanceBookingDays: number
+  week: DayHours[]
+}
+
+interface Span {
+  startTime: Date
+  endTime: Date
+}
+
+export async function loadSchedule(pitchId: string): Promise<PitchSchedule> {
   const pitch = await prisma.pitch.findFirst({
     where: { id: pitchId, company: { status: 'ACTIVE' } },
     select: {
+      id: true,
       isActive: true,
       advanceBookingDays: true,
       company: { select: { workingHours: true } },
     },
   })
   if (!pitch) throw notFound('Pitch not found')
-
-  // "Today" is the venue's today, not the server's.
-  const today = venueClock(now).date
-  if (date < today) throw validationError('Cannot check availability for past dates')
-  if (date > addDays(today, pitch.advanceBookingDays)) {
-    throw validationError('Date beyond advance booking limit')
+  return {
+    id: pitch.id,
+    isActive: pitch.isActive,
+    advanceBookingDays: pitch.advanceBookingDays,
+    week: normalizeWeek(pitch.company.workingHours),
   }
+}
 
-  const closed: PitchAvailability = {
-    date,
-    pitchId,
-    isClosed: true,
-    openTime: null,
-    closeTime: null,
-    slots: [],
-  }
-  if (!pitch.isActive) return closed
+/** Opening intervals on a date, in minutes; none when closed for any reason. */
+export function dayIntervals(
+  schedule: PitchSchedule,
+  date: string,
+  exceptions: Set<string>
+): [number, number][] {
+  if (!schedule.isActive || exceptions.has(date)) return []
+  return openIntervalsOn(schedule.week, date)
+}
 
-  const exception = await prisma.pitchException.findUnique({
-    where: { pitchId_date: { pitchId, date: new Date(`${date}T00:00:00Z`) } },
-    select: { id: true },
-  })
-  if (exception) return closed
-
-  const intervals = openIntervalsOn(normalizeWeek(pitch.company.workingHours), date)
-  if (!intervals.length) return closed
-
-  // Every live booking that touches this calendar day, including one that
-  // started the evening before.
-  const dayStart = venueTimeToUtc(date, 0)
-  const dayEnd = venueTimeToUtc(date, 24 * 60)
-  const bookings = await prisma.booking.findMany({
+export async function exceptionDates(pitchId: string, from: string, to: string) {
+  const rows = await prisma.pitchException.findMany({
     where: {
       pitchId,
-      status: { in: ['PENDING', 'CONFIRMED'] },
-      startTime: { lt: dayEnd },
-      endTime: { gt: dayStart },
+      date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) },
     },
-    select: { startTime: true, endTime: true },
+    select: { date: true },
   })
+  return new Set(rows.map(r => r.date.toISOString().slice(0, 10)))
+}
 
+/** Every 30-minute slot of a day, judged against the bookings that occupy it. */
+export function slotsFor(
+  date: string,
+  intervals: [number, number][],
+  bookings: Span[],
+  now: Date
+): PitchAvailability['slots'] {
   const slots: PitchAvailability['slots'] = []
   for (const [open, close] of intervals) {
     for (let m = open; m + SLOT_MINUTES <= close; m += SLOT_MINUTES) {
@@ -89,7 +99,46 @@ export async function getAvailability(
       })
     }
   }
+  return slots
+}
 
+/** Live bookings touching [from, to) on the venue's calendar. */
+function bookingsBetween(pitchId: string, from: string, toExclusive: string, now: Date) {
+  return prisma.booking.findMany({
+    where: {
+      pitchId,
+      ...liveBookingWhere(now),
+      startTime: { lt: venueTimeToUtc(toExclusive, 0) },
+      endTime: { gt: venueTimeToUtc(from, 0) },
+    },
+    select: { startTime: true, endTime: true },
+  })
+}
+
+function checkBookableDate(schedule: PitchSchedule, date: string, now: Date) {
+  // "Today" is the venue's today, not the server's.
+  const today = venueClock(now).date
+  if (date < today) throw validationError('Cannot check availability for past dates')
+  if (date > addDays(today, schedule.advanceBookingDays)) {
+    throw validationError('Date beyond advance booking limit')
+  }
+}
+
+export async function getAvailability(
+  pitchId: string,
+  date: string,
+  now: Date = new Date()
+): Promise<PitchAvailability> {
+  const schedule = await loadSchedule(pitchId)
+  checkBookableDate(schedule, date, now)
+
+  const intervals = dayIntervals(schedule, date, await exceptionDates(pitchId, date, date))
+  if (!intervals.length) {
+    return { date, pitchId, isClosed: true, openTime: null, closeTime: null, slots: [] }
+  }
+
+  // Includes a booking that started the evening before.
+  const bookings = await bookingsBetween(pitchId, date, addDays(date, 1), now)
   const first = intervals[0]!
   const last = intervals[intervals.length - 1]!
   return {
@@ -99,6 +148,36 @@ export async function getAvailability(
     openTime: fromMinutes(first[0]),
     // 24:00 is written as such rather than wrapping to 00:00.
     closeTime: last[1] === 24 * 60 ? '24:00' : fromMinutes(last[1]),
-    slots,
+    slots: slotsFor(date, intervals, bookings, now),
   }
+}
+
+/**
+ * One status per day for the booking calendar — E05-02. One query for the
+ * whole range, rather than the ticket's thirty-one availability calls per
+ * month, which would also run into the per-IP rate limit.
+ */
+export async function getCalendar(
+  pitchId: string,
+  from: string,
+  days: number,
+  now: Date = new Date()
+): Promise<CalendarDay[]> {
+  const schedule = await loadSchedule(pitchId)
+  const today = venueClock(now).date
+  const lastBookable = addDays(today, schedule.advanceBookingDays)
+  const to = addDays(from, days)
+  const [exceptions, bookings] = await Promise.all([
+    exceptionDates(pitchId, from, to),
+    bookingsBetween(pitchId, from, to, now),
+  ])
+
+  return Array.from({ length: days }, (_, i) => {
+    const date = addDays(from, i)
+    if (date < today || date > lastBookable) return { date, status: 'closed' as const }
+    const intervals = dayIntervals(schedule, date, exceptions)
+    if (!intervals.length) return { date, status: 'closed' as const }
+    const free = slotsFor(date, intervals, bookings, now).some(s => s.status === 'available')
+    return { date, status: free ? ('available' as const) : ('full' as const) }
+  })
 }

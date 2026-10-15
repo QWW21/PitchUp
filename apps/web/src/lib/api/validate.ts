@@ -3,16 +3,19 @@
  */
 import type { NextRequest } from 'next/server'
 import type { NextResponse } from 'next/server'
-import type { ZodSchema } from 'zod'
+import type { z, ZodTypeAny } from 'zod'
 import { err } from './response'
 
 export type ValidationResult<T> = { data: T; error?: never } | { data?: never; error: NextResponse }
 
-/** Parses and validates a JSON body. A malformed body is a validation error, not a crash. */
-export async function validateBody<T>(
+/**
+ * Parses and validates a JSON body. A malformed body is a validation error, not a crash.
+ * Typed by the schema's output, so a field with a default is never undefined.
+ */
+export async function validateBody<S extends ZodTypeAny>(
   request: NextRequest,
-  schema: ZodSchema<T>
-): Promise<ValidationResult<T>> {
+  schema: S
+): Promise<ValidationResult<z.output<S>>> {
   const body = await request.json().catch(() => null)
   const result = schema.safeParse(body)
 
@@ -25,7 +28,10 @@ export async function validateBody<T>(
 }
 
 /** Same, for query string parameters. */
-export function validateQuery<T>(request: NextRequest, schema: ZodSchema<T>): ValidationResult<T> {
+export function validateQuery<S extends ZodTypeAny>(
+  request: NextRequest,
+  schema: S
+): ValidationResult<z.output<S>> {
   const params = Object.fromEntries(request.nextUrl.searchParams.entries())
   const result = schema.safeParse(params)
 

@@ -14,6 +14,7 @@ export const ERROR_CODES = {
   PAYMENT_REQUIRED: 402,
   RATE_LIMITED: 429,
   INTERNAL_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
 } as const
 
 export type ErrorCode = keyof typeof ERROR_CODES

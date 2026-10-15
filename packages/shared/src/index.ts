@@ -9,6 +9,7 @@ export * from './geo'
 export * from './discover-query'
 export * from './schedule'
 export * from './format'
+export * from './booking'
 
 export * from './constants/auth'
 export * from './constants/booking'

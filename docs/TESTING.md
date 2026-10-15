@@ -20,8 +20,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the Discover query string, schemas, rating rules, URL state, the
   open-redirect guard (#172), phone normalisation (#174), mobile tokens, and
   the E01 rules: PRD constants, booking/review/pitch schemas, environment
-  validation, the Prisma singleton and Cloudinary upload signing. They run in
-  seconds.
+  validation, the Prisma singleton and Cloudinary upload signing; booking
+  rules (price, refund windows, slot selection); and the Stripe code against
+  a fake SDK, including webhook signatures checked by the real one. They run
+  in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
   registration steps, email verification, forgot password) with a fake
   navigator and a mocked API, render components with fixture data, and
@@ -31,13 +33,17 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
 - **API** tests call every endpoint over HTTP against a real server and
   database: auth (enumeration, refresh rotation and reuse detection, Bearer
   auth, phone OTP, reset ending sessions), Discover filters/sorting/paging,
-  company and pitch detail, availability, reviews, and the E01 infrastructure
+  company and pitch detail, availability, reviews, bookings and payments
+  (double-booking race, 15-minute hold, refunds, ownership), and the E01
+  infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
   replaced `scripts/verify-e01.sh`, `verify-shared.ts`, `verify-e03.ts` and
   `verify-e04.ts`.
 - **Browser E2E** drives the real pages: every web auth flow and the player
-  pages (Discover, map, company, pitch, Book Now), at 1280px and 375px.
+  pages (Discover, map, company, pitch, Book Now) and the five-step booking
+  flow with test payments (success, decline, a slot taken meanwhile), at
+  1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,
