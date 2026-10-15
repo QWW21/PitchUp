@@ -14,7 +14,7 @@ export function Alert({ tone = 'error', children }: AlertProps) {
       role={isError ? 'alert' : 'status'}
       aria-live={isError ? 'assertive' : 'polite'}
       className={`flex items-start gap-2 rounded-sm p-2 text-sm ${
-        isError ? 'bg-error-50 text-error-500' : 'bg-success-50 text-primary-700'
+        isError ? 'bg-error-50 text-error-600' : 'bg-success-50 text-primary-700'
       }`}
     >
       <svg

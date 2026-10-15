@@ -31,19 +31,19 @@ export function WorkingHours({ week }: { week: DayHours[] }) {
         aria-expanded={open}
         className="flex items-center gap-2 text-left"
       >
-        <Clock className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+        <Clock className="h-4 w-4 text-neutral-500" aria-hidden="true" />
         {status.kind === 'open' && (
           <span>
-            <span className="font-medium text-success-500">Open</span>
+            <span className="font-medium text-primary-700">Open</span>
             <span className="text-neutral-700"> · Closes at {status.closesAt}</span>
           </span>
         )}
         {status.kind === 'opensLater' && (
           <span className="text-neutral-700">Opens at {status.opensAt}</span>
         )}
-        {status.kind === 'closedToday' && <span className="text-error-500">Closed today</span>}
+        {status.kind === 'closedToday' && <span className="text-error-600">Closed today</span>}
         <ChevronDown
-          className={`h-4 w-4 text-neutral-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`h-4 w-4 text-neutral-500 transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
         />
       </button>
@@ -60,7 +60,7 @@ export function WorkingHours({ week }: { week: DayHours[] }) {
                 <dd
                   className={
                     day.isClosed
-                      ? 'text-neutral-400'
+                      ? 'text-neutral-500'
                       : isToday
                         ? 'font-semibold text-neutral-900'
                         : 'text-neutral-900'

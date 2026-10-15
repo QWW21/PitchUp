@@ -146,7 +146,7 @@ export function RegisterForm() {
             disabled={loading}
             aria-invalid={fieldErrors.phone ? true : undefined}
             aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
-            className={`h-12 w-full rounded-md border bg-white px-3 text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 ${
+            className={`h-12 w-full rounded-md border bg-white px-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 ${
               fieldErrors.phone
                 ? 'border-error-500 focus:ring-error-500'
                 : 'border-neutral-200 focus:border-primary-600 focus:ring-primary-600'
@@ -154,7 +154,7 @@ export function RegisterForm() {
           />
         </div>
         {fieldErrors.phone && (
-          <p id="phone-error" className="mt-1.5 text-sm text-error-500">
+          <p id="phone-error" className="mt-1.5 text-sm text-error-600">
             {fieldErrors.phone}
           </p>
         )}

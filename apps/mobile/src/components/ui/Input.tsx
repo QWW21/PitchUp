@@ -15,6 +15,8 @@ export function Input({ label, error, rightElement, ...rest }: InputProps) {
       <Text style={styles.label}>{label}</Text>
       <View style={[styles.row, focused && styles.rowFocused, !!error && styles.rowError]}>
         <TextInput
+          // The visible label is a sibling Text; this is what a screen reader announces.
+          accessibilityLabel={label}
           style={styles.input}
           placeholderTextColor={colors.neutral[400]}
           onFocus={() => setFocused(true)}

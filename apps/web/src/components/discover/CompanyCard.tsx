@@ -19,7 +19,7 @@ export function CompanyLogo({ url, name }: { url: string | null; name: string })
   if (!url) {
     return (
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-neutral-100">
-        <Building2 className="h-6 w-6 text-neutral-400" aria-hidden="true" />
+        <Building2 className="h-6 w-6 text-neutral-500" aria-hidden="true" />
       </div>
     )
   }
@@ -40,13 +40,13 @@ export function CompanySummary({ company }: { company: CompanyListItem }) {
       <div className="flex items-start gap-2">
         <h3 className="flex-1 truncate font-semibold text-neutral-900">{company.name}</h3>
         {company.isOpenNow && (
-          <span className="shrink-0 rounded bg-success-50 px-1.5 py-0.5 text-[11px] font-medium text-success-500">
+          <span className="shrink-0 rounded bg-success-50 px-1.5 py-0.5 text-[11px] font-medium text-primary-700">
             OPEN
           </span>
         )}
       </div>
       <p className="mt-1 flex items-center gap-1 text-xs text-neutral-500">
-        <MapPin className="h-3.5 w-3.5 shrink-0 text-neutral-400" aria-hidden="true" />
+        <MapPin className="h-3.5 w-3.5 shrink-0 text-neutral-500" aria-hidden="true" />
         <span className="truncate">{company.address}</span>
       </p>
       <p className="mt-1 flex items-center gap-1 text-xs">
@@ -54,14 +54,14 @@ export function CompanySummary({ company }: { company: CompanyListItem }) {
           <>
             <Star className="h-3 w-3 fill-[#FBBF24] text-[#FBBF24]" aria-hidden="true" />
             <span className="font-bold text-neutral-700">{company.avgRating.toFixed(1)}</span>
-            <span className="text-neutral-400">({company.reviewCount})</span>
+            <span className="text-neutral-500">({company.reviewCount})</span>
           </>
         ) : (
-          <span className="text-neutral-400">Not rated yet</span>
+          <span className="text-neutral-500">Not rated yet</span>
         )}
         {company.distanceKm !== null && (
           <>
-            <span className="text-neutral-400">·</span>
+            <span className="text-neutral-500">·</span>
             <span className="text-neutral-500">{company.distanceKm.toFixed(1)} km</span>
           </>
         )}

@@ -54,7 +54,7 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
               className={`h-5 w-5 shrink-0 ${a ? 'text-primary-600' : 'text-neutral-300'}`}
               aria-hidden="true"
             />
-            <span className={a ? 'text-neutral-900' : 'text-neutral-400 line-through'}>
+            <span className={a ? 'text-neutral-900' : 'text-neutral-500 line-through'}>
               {AMENITY_LABELS[type]}
               {a?.isPaid && a.price !== null && (
                 <span className="text-neutral-500"> · {a.price} RON</span>
@@ -92,7 +92,7 @@ export function PricingCard({ pitch }: { pitch: PitchDetail }) {
           </div>
         )}
       </dl>
-      <p className="mt-2 text-xs text-neutral-400">
+      <p className="mt-2 text-xs text-neutral-500">
         Min. {pitch.minBookingHours}h · Max. {pitch.maxBookingHours}h · Billed per 30 min
       </p>
       {pitch.hasShirts && pitch.shirtRentalPrice !== null && (

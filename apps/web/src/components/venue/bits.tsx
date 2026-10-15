@@ -38,13 +38,13 @@ export function RatingLine({
   reviewCount: number
 }) {
   if (avgRating === null || reviewCount < REVIEW.MIN_FOR_PUBLIC_RATING) {
-    return <span className="text-sm text-neutral-400">Not rated yet</span>
+    return <span className="text-sm text-neutral-500">Not rated yet</span>
   }
   return (
     <span className="inline-flex items-center gap-1.5 text-sm">
       <Stars rating={avgRating} />
       <span className="font-bold text-neutral-700">{avgRating.toFixed(1)}</span>
-      <span className="text-neutral-400">
+      <span className="text-neutral-500">
         ({reviewCount} {reviewCount === 1 ? 'review' : 'reviews'})
       </span>
     </span>

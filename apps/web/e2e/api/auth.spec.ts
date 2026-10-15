@@ -125,6 +125,109 @@ test.describe('email verification', () => {
   })
 })
 
+test.describe('phone verification', () => {
+  const registered = async (request: Parameters<typeof post>[0], code: string) => {
+    const email = uniqueEmail('phone')
+    await post(request, '/auth/register', player(email))
+    await setVerificationCode(email, code, 'PHONE')
+    return email
+  }
+
+  test('wrong code counts down, the right one verifies, and it works once', async ({ request }) => {
+    const email = await registered(request, '246810')
+
+    const wrong = await post(request, '/auth/verify-phone', { email, code: '000000' })
+    expect(wrong.status).toBe(400)
+    expect(wrong.error?.details).toEqual({ reason: 'INVALID_CODE', attemptsRemaining: 2 })
+
+    const right = await post(request, '/auth/verify-phone', { email, code: '246810' })
+    expect(right.status).toBe(200)
+    expect(right.data).toEqual({ verified: true })
+    const user = await db.user.findUniqueOrThrow({ where: { email } })
+    expect(user).toMatchObject({ phoneVerified: true, emailVerified: false })
+
+    const reused = await post(request, '/auth/verify-phone', { email, code: '246810' })
+    expect(reused.status).toBe(400)
+  })
+
+  test('an emailed code cannot verify the phone, nor a texted one the email', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('channel')
+    await post(request, '/auth/register', player(email))
+    await setVerificationCode(email, '111222', 'EMAIL')
+    await setVerificationCode(email, '333444', 'PHONE')
+
+    expect((await post(request, '/auth/verify-phone', { email, code: '111222' })).status).toBe(400)
+    expect((await post(request, '/auth/verify-email', { email, code: '333444' })).status).toBe(400)
+    const user = await db.user.findUniqueOrThrow({ where: { email } })
+    expect(user).toMatchObject({ phoneVerified: false, emailVerified: false })
+  })
+
+  test('an expired code answers 410', async ({ request }) => {
+    const email = await registered(request, '135790')
+    const user = await db.user.findUniqueOrThrow({ where: { email } })
+    await db.verificationCode.updateMany({
+      where: { userId: user.id, channel: 'PHONE', usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    })
+    const r = await post(request, '/auth/verify-phone', { email, code: '135790' })
+    expect(r.status).toBe(410)
+    expect(r.error?.details).toEqual({ reason: 'CODE_EXPIRED' })
+  })
+
+  test('the third wrong guess burns the code, even for the right one after', async ({
+    request,
+  }) => {
+    const email = await registered(request, '975310')
+    const remaining = []
+    for (let i = 0; i < 3; i++) {
+      const r = await post(request, '/auth/verify-phone', { email, code: '000000' })
+      remaining.push([
+        r.status,
+        (r.error?.details as { attemptsRemaining?: number } | undefined)?.attemptsRemaining,
+      ])
+    }
+    expect(remaining).toEqual([
+      [400, 2],
+      [400, 1],
+      [429, 0],
+    ])
+    const r = await post(request, '/auth/verify-phone', { email, code: '975310' })
+    expect(r.status).toBe(429)
+    expect(r.error?.details).toEqual({ reason: 'TOO_MANY_ATTEMPTS' })
+  })
+
+  test('an unknown address gets a plain wrong-code answer with no count', async ({ request }) => {
+    const r = await post(request, '/auth/verify-phone', {
+      email: 'nobody@e2e.test',
+      code: '123456',
+    })
+    expect(r.status).toBe(400)
+    expect(r.error?.details).toEqual({ reason: 'INVALID_CODE' })
+  })
+
+  test('a code that is not six digits is a validation error', async ({ request }) => {
+    const r = await post(request, '/auth/verify-phone', { email: 'player@demo.ro', code: '12a' })
+    expect(r.status).toBe(400)
+    expect(r.error?.code).toBe('VALIDATION_ERROR')
+  })
+
+  test('resending an SMS answers the same for any address', async ({ request }) => {
+    const known = await post(request, '/auth/resend-code', {
+      email: await registered(request, '102030'),
+      channel: 'PHONE',
+    })
+    const unknown = await post(request, '/auth/resend-code', {
+      email: 'nobody@e2e.test',
+      channel: 'PHONE',
+    })
+    expect(known.status).toBe(200)
+    expect(unknown.status).toBe(200)
+    expect(unknown.data).toEqual(known.data)
+  })
+})
+
 test.describe('mobile login, refresh and logout', () => {
   test('one error for a wrong password, an unknown email and an unverified account', async ({
     request,

@@ -215,18 +215,18 @@ export function DiscoverClient() {
         <section className="min-w-0 flex-1" aria-label="Companies">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex h-10 min-w-[200px] flex-1 items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 focus-within:ring-2 focus-within:ring-primary-600">
-              <Search className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+              <Search className="h-4 w-4 text-neutral-500" aria-hidden="true" />
               <input
                 type="search"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
                 placeholder="Search companies..."
                 aria-label="Search companies"
-                className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400 [&::-webkit-search-cancel-button]:hidden"
+                className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-500 [&::-webkit-search-cancel-button]:hidden"
               />
               {searchInput && (
                 <button type="button" onClick={() => setSearchInput('')} aria-label="Clear search">
-                  <X className="h-4 w-4 text-neutral-400" />
+                  <X className="h-4 w-4 text-neutral-500" />
                 </button>
               )}
             </div>

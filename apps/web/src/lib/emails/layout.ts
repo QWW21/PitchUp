@@ -8,7 +8,7 @@
  */
 
 /** Brand colours, from UIUX_SPEC. Repeated literally — email cannot import. */
-const PRIMARY = '#16A34A'
+const PRIMARY = '#15803D' // primary-600, darkened for WCAG AA (see tailwind.config.ts)
 const INK = '#111827'
 const MUTED = '#6B7280'
 const BORDER = '#E5E7EB'

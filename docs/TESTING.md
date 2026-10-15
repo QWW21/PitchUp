@@ -1,8 +1,8 @@
 # Testing
 
-Four layers, each runnable on its own and all run by CI
+Five layers, each runnable on its own and all run by CI
 (`.github/workflows/ci.yml`) on every push to `main` and every pull request.
-Tracked under the **E16 — Testing** milestone (#178–#187).
+Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
 
 | Layer         | Tool                        | Where                              | Command            | Needs    |
 | ------------- | --------------------------- | ---------------------------------- | ------------------ | -------- |
@@ -11,25 +11,38 @@ Tracked under the **E16 — Testing** milestone (#178–#187).
 | Unit — mobile | Jest + RN Testing Library   | `apps/mobile/src/**/*.test.ts(x)`  | `pnpm test:mobile` | nothing  |
 | API           | Playwright (`api` project)  | `apps/web/e2e/api/*.spec.ts`       | `pnpm test:e2e`    | Postgres |
 | Browser E2E   | Playwright Chromium (`web`) | `apps/web/e2e/web/*.spec.ts`       | `pnpm test:e2e`    | Postgres |
+| Accessibility | axe-core in Playwright      | `apps/web/e2e/web/a11y.spec.ts`    | `pnpm test:e2e`    | Postgres |
 
 ## What each layer is for
 
 - **Unit** tests cover rules with no I/O: the venue clock and DST
   (`schedule.ts`), opening hours and overnight venues, nearest-city snapping,
   the Discover query string, schemas, rating rules, URL state, the
-  open-redirect guard (#172), phone normalisation (#174), mobile tokens. They
-  run in seconds.
-- **Mobile** tests render components with fixture data and exercise the
-  stores, the API client's refresh logic (one shared refresh; sign-out when it
+  open-redirect guard (#172), phone normalisation (#174), mobile tokens, and
+  the E01 rules: PRD constants, booking/review/pitch schemas, environment
+  validation, the Prisma singleton and Cloudinary upload signing. They run in
+  seconds.
+- **Mobile** tests render the E02 auth screens (onboarding, login, both
+  registration steps, email verification, forgot password) with a fake
+  navigator and a mocked API, render components with fixture data, and
+  exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
 - **API** tests call every endpoint over HTTP against a real server and
   database: auth (enumeration, refresh rotation and reuse detection, Bearer
-  auth, reset ending sessions), Discover filters/sorting/paging, company and
-  pitch detail, availability, reviews. They replaced `scripts/verify-e03.ts`
-  and `verify-e04.ts`.
+  auth, phone OTP, reset ending sessions), Discover filters/sorting/paging,
+  company and pitch detail, availability, reviews, and the E01 infrastructure
+  (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
+  envelope, the rate limiter, no server secret in the client bundle). They
+  replaced `scripts/verify-e01.sh`, `verify-shared.ts`, `verify-e03.ts` and
+  `verify-e04.ts`.
 - **Browser E2E** drives the real pages: every web auth flow and the player
   pages (Discover, map, company, pitch, Book Now), at 1280px and 375px.
+- **Accessibility** scans every web page, dialog and error state with axe-core
+  against WCAG 2.1 A and AA; any violation fails the test with the rule and
+  the elements. The map's Google canvas is left out. To pass colour contrast,
+  a few web tokens are one shade darker than UIUX_SPEC §2.1 (marked `AA` in
+  `apps/web/tailwind.config.ts`). The mobile palette has not been checked.
 
 ## How the E2E run is isolated
 

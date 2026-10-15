@@ -131,7 +131,7 @@ export default async function PitchPage({ params }: Props) {
               <RatingLine avgRating={pitch.avgRating} reviewCount={pitch.reviewCount} />
             </div>
             {pitch.recentReviews.length === 0 ? (
-              <p className="py-6 text-center text-sm text-neutral-400">No reviews yet</p>
+              <p className="py-6 text-center text-sm text-neutral-500">No reviews yet</p>
             ) : (
               <>
                 {pitch.recentReviews.slice(0, 2).map(r => (

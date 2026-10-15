@@ -44,7 +44,7 @@ export function TextField({
           // rather than only seen.
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={`h-12 w-full rounded-md border bg-white px-3 text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
+          className={`h-12 w-full rounded-md border bg-white px-3 text-base text-neutral-900 placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-offset-0 ${
             error
               ? 'border-error-500 focus:ring-error-500'
               : 'border-neutral-200 focus:border-primary-600 focus:ring-primary-600'
@@ -60,7 +60,7 @@ export function TextField({
             // which the ticket asks for; the toggle is still clickable.
             tabIndex={-1}
             aria-label={revealed ? 'Hide password' : 'Show password'}
-            className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-neutral-400 hover:text-neutral-700"
+            className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-neutral-500 hover:text-neutral-700"
           >
             {revealed ? (
               <svg
@@ -100,7 +100,7 @@ export function TextField({
       </div>
 
       {error && (
-        <p id={errorId} className="mt-1.5 text-sm text-error-500">
+        <p id={errorId} className="mt-1.5 text-sm text-error-600">
           {error}
         </p>
       )}

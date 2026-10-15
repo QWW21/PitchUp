@@ -49,7 +49,7 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
             className={`-mb-px border-b-2 px-1 text-base font-semibold ${
               tab === t
                 ? 'border-primary-600 text-neutral-900'
-                : 'border-transparent text-neutral-400 hover:text-neutral-700'
+                : 'border-transparent text-neutral-500 hover:text-neutral-700'
             }`}
           >
             {t === 'pitches'
@@ -79,7 +79,7 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
                     />
                   ) : (
                     <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-neutral-100">
-                      <ImageOff className="h-6 w-6 text-neutral-400" aria-hidden="true" />
+                      <ImageOff className="h-6 w-6 text-neutral-500" aria-hidden="true" />
                     </span>
                   )}
                   <div className="min-w-0 flex-1 space-y-1.5">

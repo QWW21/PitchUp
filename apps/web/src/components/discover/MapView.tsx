@@ -79,7 +79,7 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
             type="button"
             onClick={() => setSelectedId(null)}
             aria-label="Close preview"
-            className="absolute right-2 top-2 rounded-full p-1 text-neutral-400 hover:bg-neutral-100"
+            className="absolute right-2 top-2 rounded-full p-1 text-neutral-500 hover:bg-neutral-100"
           >
             <X className="h-4 w-4" />
           </button>

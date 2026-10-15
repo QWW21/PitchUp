@@ -92,14 +92,14 @@ export function CityDialog({
 
         <div className="px-4 py-2">
           <div className="flex h-11 items-center gap-2 rounded-full bg-neutral-100 px-4">
-            <Search className="h-4 w-4 text-neutral-400" aria-hidden="true" />
+            <Search className="h-4 w-4 text-neutral-500" aria-hidden="true" />
             <input
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search cities..."
               aria-label="Search cities"
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-400"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-500"
             />
           </div>
         </div>
@@ -124,7 +124,7 @@ export function CityDialog({
             </p>
           )}
 
-          <p className="bg-neutral-50 px-4 pb-1 pt-3 text-[11px] font-medium uppercase text-neutral-400">
+          <p className="bg-neutral-50 px-4 pb-1 pt-3 text-[11px] font-medium uppercase text-neutral-500">
             Romania
           </p>
           {filtered.length === 0 ? (

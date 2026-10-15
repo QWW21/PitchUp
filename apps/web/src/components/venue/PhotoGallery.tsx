@@ -39,8 +39,8 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
   if (count === 0) {
     return (
       <div className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl bg-neutral-100">
-        <ImageOff className="h-12 w-12 text-neutral-400" aria-hidden="true" />
-        <p className="mt-2 text-xs text-neutral-400">No photos available</p>
+        <ImageOff className="h-12 w-12 text-neutral-500" aria-hidden="true" />
+        <p className="mt-2 text-xs text-neutral-500">No photos available</p>
       </div>
     )
   }

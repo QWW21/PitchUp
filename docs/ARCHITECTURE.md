@@ -347,8 +347,11 @@ editing those correctly invalidates everything.
 
 ## 10. Verifying, and why the fresh-clone test mattered
 
-`scripts/verify-e01.sh` re-runs every acceptance criterion: queries the real
-database, starts a dev server, exercises the API, shuts it down.
+`scripts/verify-e01.sh` re-ran every acceptance criterion: it queried the real
+database, started a dev server, exercised the API and shut it down. Its checks
+now live in the test suite (`apps/web/e2e/api/infra.spec.ts`,
+`apps/web/src/lib/infra.test.ts`, `packages/shared/src/rules.test.ts`) and run
+in CI.
 
 Three bugs it caught that passing tests alone would not have:
 

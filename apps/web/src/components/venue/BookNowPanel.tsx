@@ -168,7 +168,7 @@ export function BookNowPanel({ pitchId, offPeakRate, signedIn, block }: BookNowP
         ) : (
           <Link
             href={hrefFor()}
-            className="flex h-12 w-full items-center justify-center rounded-md bg-accent-500 font-semibold text-white hover:bg-accent-600"
+            className="flex h-12 w-full items-center justify-center rounded-md bg-accent-600 font-semibold text-white hover:bg-accent-700"
           >
             {signedIn ? 'Book Now' : 'Sign in to book'}
           </Link>

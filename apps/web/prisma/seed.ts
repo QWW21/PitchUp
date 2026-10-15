@@ -47,7 +47,8 @@ async function seedAdmin(): Promise<void> {
       `⚠ ADMIN_PASSWORD not set — using the default dev password. Set it before seeding any shared environment.`
     )
   }
-  const passwordHash = await bcrypt.hash(password ?? DEFAULT_ADMIN_PASSWORD, AUTH.BCRYPT_COST)
+  // `||`, not `??`: a blank ADMIN_PASSWORD= in .env must not seed an empty password.
+  const passwordHash = await bcrypt.hash(password || DEFAULT_ADMIN_PASSWORD, AUTH.BCRYPT_COST)
 
   await prisma.user.upsert({
     where: { email: 'admin@pitchup.ro' },

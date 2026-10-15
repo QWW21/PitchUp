@@ -25,6 +25,7 @@ export function OtpInput({ value, onChange, error = false }: OtpInputProps) {
       {/* Hidden full-width input captures all keystrokes */}
       <TextInput
         ref={inputRef}
+        accessibilityLabel="Verification code"
         value={value}
         onChangeText={t => onChange(t.replace(/\D/g, '').slice(0, AUTH.OTP_LENGTH))}
         keyboardType="number-pad"

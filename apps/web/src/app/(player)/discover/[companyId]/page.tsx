@@ -64,7 +64,7 @@ export default async function CompanyPage({ params }: Props) {
           />
         ) : (
           <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-white shadow-sm">
-            <Building2 className="h-8 w-8 text-neutral-400" aria-hidden="true" />
+            <Building2 className="h-8 w-8 text-neutral-500" aria-hidden="true" />
           </span>
         )}
         <div className="min-w-0 space-y-2">
@@ -84,7 +84,7 @@ export default async function CompanyPage({ params }: Props) {
             rel="noopener noreferrer"
             className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-900"
           >
-            <MapPin className="h-4 w-4 shrink-0 text-neutral-400" aria-hidden="true" />
+            <MapPin className="h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
             {address}
           </a>
           {company.phone && (

@@ -5,7 +5,8 @@ Last updated at the end of the session that implemented E04 (Player: Pitch Detai
 ## Done
 
 **E01 — Infrastructure: complete.** All ten tickets closed.
-`bash scripts/verify-e01.sh` re-runs every acceptance check (26 of them).
+Its acceptance checks run with the test suite: `apps/web/e2e/api/infra.spec.ts`
+and `apps/web/src/lib/infra.test.ts` (they replaced `scripts/verify-e01.sh`).
 
 **E02 — Auth: all fourteen tickets implemented.**
 
@@ -112,11 +113,14 @@ sign-out, Lighthouse for `/discover`).
 **E02-07 (social login)** is still open, blocked on credentials rather than
 on code.
 
-**Tests (E16, #178–#187)** — see `docs/TESTING.md`. Unit (Vitest: shared +
-web), mobile (Jest + RN Testing Library), API and browser E2E (Playwright on
-its own `pitchup_test` database, production build on :3100), and CI running
-all of it. Web screenshot evidence lives in `docs/test-evidence/web/`. Mobile
-device tests and screenshots (#187) wait for the manual mobile pass. New
+**Tests (E16, #178–#187, #189–#192)** — see `docs/TESTING.md`. Unit (Vitest:
+shared + web), mobile (Jest + RN Testing Library, including the E02 auth
+screens), API and browser E2E (Playwright on its own `pitchup_test` database,
+production build on :3100), accessibility (axe-core, WCAG 2.1 AA on every web
+page) and CI running all of it. E01–E04 are covered in every layer that
+applies to them; nothing runs on a real device yet. Web screenshot evidence
+lives in `docs/test-evidence/web/`. Mobile device tests and screenshots (#187)
+wait for the manual mobile pass. New
 features should land with tests in the matching layer.
 
 Worth doing before moving on, not a ticket:
@@ -275,6 +279,12 @@ E04:
 
 ## Known gaps
 
+- **Web colours are darker than the spec.** UIUX_SPEC §2.1's primary green,
+  hint grey, error red and accent orange fail WCAG AA contrast; the web uses
+  one shade darker where they carry text (marked `AA` in
+  `apps/web/tailwind.config.ts`, and in the email layout). The mobile tokens
+  still use the spec values and have not been checked for contrast. The spec
+  should be updated to match, or a designer should pick other values.
 - **Mobile Discover is built but not run.** Typecheck, lint, Metro bundle and
   the Android APK build pass; screens, the native map and clustering are for
   the mobile tester. The web map is verified against real Google tiles: pills

@@ -100,9 +100,6 @@ pnpm test:e2e       # API + browser tests (Playwright) on a fresh test database
 touches development data. `docs/TESTING.md` covers each layer, the screenshot
 evidence and CI.
 
-`bash scripts/verify-e01.sh` re-runs the E01 acceptance checks (needs
-`apps/web/.env`).
-
 A pre-commit hook runs ESLint and Prettier on staged files. GitHub Actions
 runs typecheck, lint and every test layer on each push.
 

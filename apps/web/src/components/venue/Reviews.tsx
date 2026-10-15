@@ -24,7 +24,7 @@ export function RatingBreakdown({ page }: { page: ReviewPage }) {
             <Stars rating={page.avgRating} size={24} />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-neutral-400">Not rated yet</p>
+          <p className="mt-2 text-sm text-neutral-500">Not rated yet</p>
         )}
         <p className="mt-2 text-xs text-neutral-500">
           {page.total} {page.total === 1 ? 'review' : 'reviews'}
@@ -98,7 +98,7 @@ export function ReviewCard({
           >
             {review.playerName}
           </p>
-          <p className="text-xs text-neutral-400">
+          <p className="text-xs text-neutral-500">
             {formatReviewDate(review.createdAt)}
             {showPitch && ` · ${review.pitchName}`}
           </p>

@@ -19,14 +19,14 @@ export function StepIndicator({ steps, current }: StepIndicatorProps) {
               <div className="flex flex-col items-center gap-1.5">
                 <span
                   className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
-                    done ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-400'
+                    done ? 'bg-primary-600 text-white' : 'bg-neutral-100 text-neutral-500'
                   }`}
                 >
                   {position}
                 </span>
                 <span
                   className={`whitespace-nowrap text-xs ${
-                    done ? 'font-medium text-primary-600' : 'text-neutral-400'
+                    done ? 'font-medium text-primary-600' : 'text-neutral-500'
                   }`}
                 >
                   {step}

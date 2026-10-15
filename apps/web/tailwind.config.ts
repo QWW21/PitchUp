@@ -3,6 +3,10 @@ import type { Config } from 'tailwindcss'
 /**
  * Design tokens from UIUX_SPEC §2.1. The hex values live here and nowhere
  * else in the app, so a palette change is a single edit.
+ *
+ * Shades marked "AA" are darker than the spec: its values fail WCAG AA
+ * contrast (4.5:1) as text or behind white text. e2e/web/a11y.spec.ts
+ * enforces it.
  */
 const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
@@ -14,14 +18,15 @@ const config: Config = {
           100: '#DCFCE7',
           200: '#BBF7D0',
           500: '#22C55E',
-          600: '#16A34A',
-          700: '#15803D',
+          600: '#15803D', // AA; spec #16A34A
+          700: '#166534', // AA; spec #15803D
           900: '#14532D',
         },
         accent: {
           400: '#FB923C',
           500: '#F97316',
-          600: '#EA580C',
+          600: '#C2410C', // AA; spec #EA580C
+          700: '#9A3412',
         },
         neutral: {
           0: '#FFFFFF',
@@ -34,7 +39,7 @@ const config: Config = {
           700: '#374151',
           900: '#111827',
         },
-        error: { 50: '#FEF2F2', 500: '#EF4444', 600: '#DC2626' },
+        error: { 50: '#FEF2F2', 500: '#EF4444', 600: '#B91C1C' /* AA; spec #DC2626 */ },
         warning: { 50: '#FFFBEB', 500: '#F59E0B' },
         success: { 50: '#F0FDF4', 500: '#22C55E' },
         info: { 50: '#EFF6FF', 500: '#3B82F6' },
