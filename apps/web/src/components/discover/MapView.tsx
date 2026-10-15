@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { GoogleMap, OverlayViewF, OverlayView, useJsApiLoader } from '@react-google-maps/api'
 import { MapPinOff, X } from 'lucide-react'
-import { CITIES, type CompanyListItem } from '@pitchup/shared'
+import { mapCenter, type CompanyListItem } from '@pitchup/shared'
 import { env } from '@/lib/env'
 import { CompanyLogo, CompanySummary } from './CompanyCard'
 
@@ -32,13 +32,10 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
   const { isLoaded, loadError } = useJsApiLoader({ id: 'google-maps', googleMapsApiKey: apiKey })
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // Centred on the user when known, otherwise on the city. Memoised so a
-  // re-render does not snap the map back while the user is panning.
-  const center = useMemo(() => {
-    if (coords) return coords
-    const c = CITIES.find(x => x.name === city)
-    return c ? { lat: c.lat, lng: c.lng } : { lat: 45.9432, lng: 24.9668 }
-  }, [coords, city])
+  // On the user when they are in the selected city, otherwise on that city's
+  // centre. Memoised so a re-render does not snap the map back while the
+  // user is panning; a new city moves it.
+  const center = useMemo(() => mapCenter(city, coords), [coords, city])
 
   // A company without coordinates is a data error; leave it off the map.
   const placed = companies.filter(c => c.lat !== null && c.lng !== null)
@@ -48,7 +45,10 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
   if (!isLoaded) return <div className="h-[600px] animate-pulse rounded-xl bg-neutral-100" />
 
   return (
-    <div className="relative h-[600px] overflow-hidden rounded-xl shadow-sm">
+    <div
+      data-testid="discover-map"
+      className="relative h-[600px] overflow-hidden rounded-xl shadow-sm"
+    >
       <GoogleMap
         mapContainerClassName="h-full w-full"
         center={center}

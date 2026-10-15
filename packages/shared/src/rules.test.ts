@@ -13,6 +13,7 @@ import {
   PLATFORM_FEE_PERCENT,
   RegisterPlayerSchema,
   SHIRT_COLOURS,
+  shirtSetsFor,
   TRUST_SCORE_DELTAS,
   TRUST_TIERS,
 } from './index'
@@ -123,15 +124,23 @@ describe('CreatePitchSchema', () => {
     name: 'A',
     surfaceType: 'ARTIFICIAL_GRASS',
     size: 'FIVE_A_SIDE',
-    offPeakRate: 60,
-    peakRate: 80,
+    hourlyRate: 60,
   }
   const ok = (patch: Record<string, unknown>) =>
     CreatePitchSchema.safeParse({ ...base, ...patch }).success
 
-  it('shirts need a rental price', () => {
-    expect(ok({ hasShirts: true })).toBe(false)
-    expect(ok({ hasShirts: true, shirtRentalPrice: 10 })).toBe(true)
+  it('shirts are free: offering them needs no price', () => {
+    expect(ok({ hasShirts: true })).toBe(true)
+  })
+
+  it('has one hourly rate and no peak pricing', () => {
+    expect(ok({ hourlyRate: undefined })).toBe(false)
+    const parsed = CreatePitchSchema.parse({ ...base, peakRate: 80 })
+    expect(parsed).not.toHaveProperty('peakRate')
+  })
+
+  it('accepts 6v6', () => {
+    expect(ok({ size: 'SIX_A_SIDE' })).toBe(true)
   })
 
   it('minimum booking hours cannot exceed the maximum', () => {
@@ -140,5 +149,28 @@ describe('CreatePitchSchema', () => {
 
   it('rejects the old size names', () => {
     expect(ok({ size: '5V5' })).toBe(false)
+  })
+})
+
+describe('free shirts (one set per team but one)', () => {
+  it.each([
+    [2, true, 1],
+    [3, true, 2],
+    [2, false, 0],
+    [3, false, 0],
+  ])('%i teams, wants shirts %s → %i sets', (teams, wants, sets) => {
+    expect(shirtSetsFor(teams, wants)).toBe(sets)
+  })
+
+  it('a booking asks yes or no, and defaults to no', () => {
+    const booking = {
+      pitchId: CUID,
+      startTime: '2026-11-01T10:00:00Z',
+      endTime: '2026-11-01T11:00:00Z',
+      teamCount: 2,
+      teamsData: [{ colour: 'RED' }, {}],
+    }
+    expect(CreateBookingSchema.parse(booking).wantsShirts).toBe(false)
+    expect(CreateBookingSchema.parse({ ...booking, wantsShirts: true }).wantsShirts).toBe(true)
   })
 })

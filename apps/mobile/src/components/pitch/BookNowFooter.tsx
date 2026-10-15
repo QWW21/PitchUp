@@ -8,7 +8,7 @@ export const FOOTER_HEIGHT = 72
 export type BookBlock = null | 'unavailable' | 'restricted'
 
 interface BookNowFooterProps {
-  priceFrom: number
+  hourlyRate: number
   block: BookBlock
   onBook: () => void
 }
@@ -23,12 +23,12 @@ const LABELS: Record<Exclude<BookBlock, null>, string> = {
  * The app's screens are all behind sign-in, so the ticket's "Sign in to book"
  * state cannot occur here; it exists on the web, where browsing is public.
  */
-export function BookNowFooter({ priceFrom, block, onBook }: BookNowFooterProps) {
+export function BookNowFooter({ hourlyRate, block, onBook }: BookNowFooterProps) {
   const insets = useSafeAreaInsets()
   return (
     <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
       <Text style={styles.from}>
-        from <Text style={styles.price}>{priceFrom} RON</Text>/h
+        <Text style={styles.price}>{hourlyRate} RON</Text>/h
       </Text>
       <Pressable
         onPress={onBook}

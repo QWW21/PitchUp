@@ -33,6 +33,7 @@ import {
 import { Button } from '../../components/ui/Button'
 import { FilterChip, type ChipColors } from '../../components/filters/FilterChip'
 import { FilterSection } from '../../components/filters/FilterSection'
+import { SizeInfo } from '../../components/pitch/SizeInfo'
 import { RangeSlider } from '../../components/filters/RangeSlider'
 import { effectiveSort, useDiscoverStore } from '../../stores/discoverStore'
 import { useCompanyCount } from '../../hooks/useCompanies'
@@ -195,7 +196,7 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
             </View>
           </FilterSection>
 
-          <FilterSection title="Pitch size">
+          <FilterSection title="Pitch size" titleAccessory={<SizeInfo />}>
             <View style={styles.chipRow}>
               {FILTERABLE_SIZES.map(s => (
                 <FilterChip
@@ -241,7 +242,9 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
               value={draft.availableNow}
               onChange={v => set({ availableNow: v })}
             />
-            <ToggleRow label="Open now" value={draft.openNow} onChange={v => set({ openNow: v })} />
+            <Text style={styles.hint}>
+              Open, with a pitch free for the next {DISCOVER.AVAILABLE_NOW_WINDOW_HOURS} hours.
+            </Text>
           </FilterSection>
         </ScrollView>
 
@@ -281,6 +284,7 @@ function ToggleRow({
 }
 
 const styles = StyleSheet.create({
+  hint: { fontSize: 12, color: colors.neutral[500], marginTop: 4 },
   backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   sheet: {
     position: 'absolute',

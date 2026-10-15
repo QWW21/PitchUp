@@ -2,8 +2,6 @@
  * Display rules shared by web and mobile — E04.
  */
 import type { AmenityType } from './types'
-import type { PeakHours } from './schemas/pitch'
-import { DAY_SHORT } from './schedule'
 
 /** Every amenity, in the order the pitch page lists them. E04-05. */
 export const AMENITY_LABELS: Record<AmenityType, string> = {
@@ -37,37 +35,6 @@ export function playerDisplayName(fullName: string, isAnonymous: boolean): strin
   return last ? `${first} ${last[0]!.toUpperCase()}.` : first
 }
 
-/** Contiguous runs of days, Monday-first: [1,2,3,4,5] → "Mon–Fri", [0,6] → "Sat–Sun". */
-function formatDays(days: number[]): string {
-  if (days.length === 7) return 'Every day'
-  // Monday-first order, so a weekend reads Sat–Sun rather than Sun, Sat.
-  const order = [1, 2, 3, 4, 5, 6, 0]
-  const sorted = order.filter(d => days.includes(d))
-  const runs: number[][] = []
-  for (const d of sorted) {
-    const run = runs[runs.length - 1]
-    const prev = run?.[run.length - 1]
-    if (run && prev !== undefined && order.indexOf(d) === order.indexOf(prev) + 1) run.push(d)
-    else runs.push([d])
-  }
-  return runs
-    .map(r =>
-      r.length > 2
-        ? `${DAY_SHORT[r[0]!]}–${DAY_SHORT[r[r.length - 1]!]}`
-        : r.map(d => DAY_SHORT[d]).join(', ')
-    )
-    .join(', ')
-}
-
-/**
- * "Mon–Fri 17:00–23:00 + Sat–Sun 07:00–23:00" from a pitch's peak windows.
- * An empty definition means every hour is off-peak. E04-05.
- */
-export function formatPeakHours(peak: PeakHours): string | null {
-  if (!peak.length) return null
-  return peak.map(p => `${formatDays(p.days)} ${p.startTime}–${p.endTime}`).join(' + ')
-}
-
 /** "5v5 (25×45m)", or just "5v5" without dimensions. PRD §7.4. */
 export function formatPitchSize(
   label: string,
@@ -75,4 +42,12 @@ export function formatPitchSize(
   lengthMeters: number | null
 ): string {
   return widthMeters && lengthMeters ? `${label} (${widthMeters}×${lengthMeters}m)` : label
+}
+
+/** "blue, red and yellow" from a pitch's shirt inventory; "" when it has none. */
+export function formatShirtColours(inventory: { colour: string; quantity: number }[]): string {
+  const names = inventory.filter(s => s.quantity > 0).map(s => s.colour.toLowerCase())
+  return names.length > 1
+    ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`
+    : (names[0] ?? '')
 }

@@ -10,8 +10,12 @@ export interface DiscoverFilters {
   /** Null means the slider is at its bound, i.e. no limit. */
   priceMin: number | null
   priceMax: number | null
+  /**
+   * Open and with a free pitch now. There is no separate "open now" filter:
+   * an open venue with every pitch booked has nothing to offer, so it would
+   * only add results a player cannot use. The card still shows "Open".
+   */
   availableNow: boolean
-  openNow: boolean
 }
 
 export const DEFAULT_FILTERS: DiscoverFilters = {
@@ -21,7 +25,6 @@ export const DEFAULT_FILTERS: DiscoverFilters = {
   priceMin: null,
   priceMax: null,
   availableNow: false,
-  openNow: false,
 }
 
 export function hasActiveFilters(f: DiscoverFilters): boolean {
@@ -31,8 +34,7 @@ export function hasActiveFilters(f: DiscoverFilters): boolean {
     f.amenities.length > 0 ||
     f.priceMin !== null ||
     f.priceMax !== null ||
-    f.availableNow ||
-    f.openNow
+    f.availableNow
   )
 }
 
@@ -75,7 +77,6 @@ export function companyListQueryString(r: CompanyListRequest): string {
   if (r.filters.priceMin !== null) pairs.push(['priceMin', r.filters.priceMin])
   if (r.filters.priceMax !== null) pairs.push(['priceMax', r.filters.priceMax])
   if (r.filters.availableNow) pairs.push(['availableNow', true])
-  if (r.filters.openNow) pairs.push(['openNow', true])
   if (r.cursor) pairs.push(['cursor', r.cursor])
   if (r.limit) pairs.push(['limit', r.limit])
 

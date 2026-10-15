@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import {
   AMENITY_FILTERS,
+  DISCOVER,
   COMPANY_SORTS,
   FILTERABLE_SIZES,
   SIZE_LABELS,
@@ -26,6 +27,7 @@ import {
   type DiscoverFilters,
   type SurfaceType,
 } from '@pitchup/shared'
+import { SizeInfo } from '@/components/venue/bits'
 import { PriceRange } from './PriceRange'
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
@@ -109,7 +111,7 @@ export function FilterSidebar({
         ))}
       </Section>
 
-      <Section title="Pitch size">
+      <Section title="Pitch size" aside={<SizeInfo fill />}>
         {FILTERABLE_SIZES.map(s => (
           <Checkbox
             key={s}
@@ -149,16 +151,29 @@ export function FilterSidebar({
           checked={filters.availableNow}
           onChange={availableNow => set({ availableNow })}
         />
-        <Switch label="Open now" checked={filters.openNow} onChange={openNow => set({ openNow })} />
+        <p className="text-xs text-neutral-500">
+          Open, with a pitch free for the next {DISCOVER.AVAILABLE_NOW_WINDOW_HOURS} hours.
+        </p>
       </Section>
     </div>
   )
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  aside,
+  children,
+}: {
+  title: string
+  aside?: ReactNode
+  children: ReactNode
+}) {
   return (
     <fieldset className="border-t border-neutral-100 pt-5">
-      <legend className="mb-3 text-base font-semibold text-neutral-900">{title}</legend>
+      <legend className="relative mb-3 flex w-full items-center gap-1.5 text-base font-semibold text-neutral-900">
+        {title}
+        {aside}
+      </legend>
       <div className="space-y-2">{children}</div>
     </fieldset>
   )

@@ -19,6 +19,7 @@ import { useToast } from '../../components/common/Toast'
 import { GALLERY_HEIGHT, PhotoGallery } from '../../components/pitch/PhotoGallery'
 import { AmenitiesGrid, PricingCard } from '../../components/pitch/PitchSections'
 import { AvailabilityPreview } from '../../components/pitch/AvailabilityPreview'
+import { SizeInfo } from '../../components/pitch/SizeInfo'
 import { BookNowFooter, FOOTER_HEIGHT, type BookBlock } from '../../components/pitch/BookNowFooter'
 import { ReviewCard } from '../../components/reviews/ReviewCard'
 import { colors } from '../../theme/tokens'
@@ -93,8 +94,7 @@ export function PitchDetailScreen({ route, navigation }: Props) {
       pitchId: p.id,
       pitchName: p.name,
       companyName: p.company.name,
-      offPeakRate: p.offPeakRate,
-      peakRate: p.peakRate,
+      hourlyRate: p.hourlyRate,
       ...(date ? { date } : {}),
     })
 
@@ -118,6 +118,7 @@ export function PitchDetailScreen({ route, navigation }: Props) {
             <Text style={styles.size}>
               {formatPitchSize(SIZE_LABELS[p.size], p.widthMeters, p.lengthMeters)}
             </Text>
+            <SizeInfo />
           </View>
           <View style={styles.gapSm}>
             <RatingLine avgRating={p.avgRating} reviewCount={p.reviewCount} />
@@ -212,7 +213,7 @@ export function PitchDetailScreen({ route, navigation }: Props) {
         </View>
       </Animated.ScrollView>
 
-      <BookNowFooter priceFrom={p.offPeakRate} block={block} onBook={() => book()} />
+      <BookNowFooter hourlyRate={p.hourlyRate} block={block} onBook={() => book()} />
       {toastView}
     </View>
   )

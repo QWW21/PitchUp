@@ -7,7 +7,7 @@ import { SIZE_LABELS, formatPitchSize, trustTier } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPitchDetail } from '@/lib/venues/pitch'
-import { RatingLine, SurfaceChip } from '@/components/venue/bits'
+import { RatingLine, SizeInfo, SurfaceChip } from '@/components/venue/bits'
 import { PhotoGallery } from '@/components/venue/PhotoGallery'
 import { AmenitiesGrid, PricingCard } from '@/components/venue/PitchInfo'
 import { ExpandableText } from '@/components/venue/ExpandableText'
@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!pitch) return { title: 'Pitch not found · PitchUp' }
   const description =
     pitch.description?.slice(0, 155) ??
-    `${SIZE_LABELS[pitch.size]} pitch at ${pitch.company.name}, from ${pitch.offPeakRate} RON/h.`
+    `${SIZE_LABELS[pitch.size]} pitch at ${pitch.company.name}, ${pitch.hourlyRate} RON/h.`
   return {
     title: `${pitch.name} — ${pitch.company.name} | PitchUp`,
     description,
@@ -78,7 +78,7 @@ export default async function PitchPage({ params }: Props) {
         <div className="lg:row-span-2">
           <BookNowPanel
             pitchId={pitch.id}
-            offPeakRate={pitch.offPeakRate}
+            hourlyRate={pitch.hourlyRate}
             signedIn={!!session?.user}
             block={block}
           />
@@ -97,6 +97,7 @@ export default async function PitchPage({ params }: Props) {
               <span className="text-sm text-neutral-500">
                 {formatPitchSize(SIZE_LABELS[pitch.size], pitch.widthMeters, pitch.lengthMeters)}
               </span>
+              <SizeInfo />
             </div>
             <RatingLine avgRating={pitch.avgRating} reviewCount={pitch.reviewCount} />
             <Link

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { foldForSearch, haversineKm, nearestCity, NEAREST_CITY_MAX_KM } from './geo'
+import { foldForSearch, haversineKm, mapCenter, nearestCity, NEAREST_CITY_MAX_KM } from './geo'
+import { CITIES } from './constants/cities'
 
 describe('haversineKm', () => {
   it('is zero for the same point', () => {
@@ -39,5 +40,25 @@ describe('foldForSearch', () => {
   })
   it('handles the cedilla variants (ş ţ) as well as comma-below (ș ț)', () => {
     expect(foldForSearch('Timişoara')).toBe('timisoara')
+  })
+})
+
+describe('mapCenter', () => {
+  const inCluj = { lat: 46.7476, lng: 23.4904 } // Florești
+  const cluj = CITIES.find(c => c.name === 'Cluj-Napoca')!
+  const iasi = CITIES.find(c => c.name === 'Iași')!
+
+  it('centres on the player when they are in the selected city', () => {
+    expect(mapCenter('Cluj-Napoca', inCluj)).toEqual(inCluj)
+  })
+  it('centres on the selected city when the player is elsewhere', () => {
+    expect(mapCenter('Iași', inCluj)).toEqual({ lat: iasi.lat, lng: iasi.lng })
+  })
+  it('uses the city centre without a position', () => {
+    expect(mapCenter('Cluj-Napoca', null)).toEqual({ lat: cluj.lat, lng: cluj.lng })
+  })
+  it('falls back to the player, then to Romania, with no city', () => {
+    expect(mapCenter(null, inCluj)).toEqual(inCluj)
+    expect(mapCenter(null, null)).toEqual({ lat: 45.9432, lng: 24.9668 })
   })
 })

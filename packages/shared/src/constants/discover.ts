@@ -39,14 +39,28 @@ export const SURFACE_COLORS: Record<SurfaceType, { background: string; text: str
 }
 
 /** CUSTOM is a pitch size but not something a player filters by. */
-export const FILTERABLE_SIZES = ['FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE'] as const
+export const FILTERABLE_SIZES = [
+  'FIVE_A_SIDE',
+  'SIX_A_SIDE',
+  'SEVEN_A_SIDE',
+  'ELEVEN_A_SIDE',
+] as const
 
 export const SIZE_LABELS: Record<PitchSize, string> = {
   FIVE_A_SIDE: '5v5',
+  SIX_A_SIDE: '6v6',
   SEVEN_A_SIDE: '7v7',
   ELEVEN_A_SIDE: '11v11',
   CUSTOM: 'Custom',
 }
+
+/**
+ * Shown beside a pitch size wherever a player sees one. The size is the
+ * owner's recommendation, not a limit: the price is per hour, however many
+ * players come.
+ */
+export const SIZE_INFO =
+  'The number of players per team the owner recommends for the best game. It is not a limit: the price is the same however many of you come.'
 
 /**
  * What the player picks in the amenity filter. Free and paid variants are one

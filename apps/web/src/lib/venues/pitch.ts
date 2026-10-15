@@ -2,7 +2,7 @@
  * Pitch detail — E04-02.
  */
 import 'server-only'
-import { PeakHoursSchema, normalizeWeek, type PitchDetail } from '@pitchup/shared'
+import { normalizeWeek, type PitchDetail } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { publicRating } from './ratings'
 import { reviewInclude, toReviewItem } from './reviews'
@@ -40,8 +40,6 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
     _count: { _all: true },
   })
 
-  const peak = PeakHoursSchema.safeParse(pitch.peakHoursDefinition ?? [])
-
   return {
     id: pitch.id,
     name: pitch.name,
@@ -51,16 +49,11 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
     widthMeters: pitch.widthMeters,
     lengthMeters: pitch.lengthMeters,
     isActive: pitch.isActive,
-    offPeakRate: Number(pitch.offPeakRate),
-    peakRate: Number(pitch.peakRate),
-    // Unreadable peak windows are treated as none: every hour off-peak.
-    peakHoursDefinition: peak.success ? peak.data : [],
+    hourlyRate: Number(pitch.hourlyRate),
     minBookingHours: pitch.minBookingHours,
     maxBookingHours: pitch.maxBookingHours,
     advanceBookingDays: pitch.advanceBookingDays,
     hasShirts: pitch.hasShirts,
-    shirtRentalPrice:
-      pitch.hasShirts && pitch.shirtRentalPrice !== null ? Number(pitch.shirtRentalPrice) : null,
     photos: pitch.photos,
     amenities: pitch.amenities.map(a => ({
       amenityType: a.amenityType,

@@ -18,7 +18,7 @@ import {
 import {
   ALL_AMENITIES,
   AMENITY_LABELS,
-  formatPeakHours,
+  formatShirtColours,
   type AmenityType,
   type PitchDetail,
 } from '@pitchup/shared'
@@ -68,37 +68,31 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
   )
 }
 
+/** One hourly rate at any time of day; shirts are free. */
 export function PricingCard({ pitch }: { pitch: PitchDetail }) {
-  const peak = formatPeakHours(pitch.peakHoursDefinition)
+  const colours = formatShirtColours(pitch.shirtInventory)
   return (
     <div className="rounded-lg bg-neutral-50 p-3">
       <dl>
         <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-xs text-neutral-500">
-            {peak ? 'Off-peak · all other hours' : 'All hours'}
-          </dt>
+          <dt className="text-xs text-neutral-500">Any time</dt>
           <dd className="font-mono text-xl font-bold text-neutral-900">
-            {pitch.offPeakRate} RON
+            {pitch.hourlyRate} RON
             <span className="font-sans text-sm font-normal text-neutral-500">/h</span>
           </dd>
         </div>
-        {peak && (
-          <div className="flex items-center justify-between gap-4 border-t border-neutral-200 py-2">
-            <dt className="text-xs text-neutral-500">Peak · {peak}</dt>
-            <dd className="font-mono text-xl font-bold text-neutral-900">
-              {pitch.peakRate} RON
-              <span className="font-sans text-sm font-normal text-neutral-500">/h</span>
-            </dd>
-          </div>
-        )}
       </dl>
       <p className="mt-2 text-xs text-neutral-500">
         Min. {pitch.minBookingHours}h · Max. {pitch.maxBookingHours}h · Billed per 30 min
       </p>
-      {pitch.hasShirts && pitch.shirtRentalPrice !== null && (
-        <p className="mt-2 flex items-center gap-2 border-t border-neutral-200 pt-2 text-xs text-neutral-700">
-          <Shirt className="h-4 w-4 text-neutral-500" aria-hidden="true" />
-          Shirt rental: <strong>{pitch.shirtRentalPrice} RON</strong>/shirt
+      {pitch.hasShirts && (
+        <p className="mt-2 flex items-start gap-2 border-t border-neutral-200 pt-2 text-xs text-neutral-700">
+          <Shirt className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
+          <span>
+            <strong>Free shirts</strong>
+            {colours && <> in {colours}</>}. Ask for them when you book: one set for every team but
+            one.
+          </span>
         </p>
       )}
     </div>

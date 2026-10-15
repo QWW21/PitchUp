@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   ALL_AMENITIES,
   AMENITY_LABELS,
-  formatPeakHours,
   formatPitchSize,
+  formatShirtColours,
   playerDisplayName,
 } from './format'
 import { trustTier } from './constants/trust'
@@ -20,30 +20,6 @@ describe('playerDisplayName', () => {
   })
   it('hides everything for an anonymous review', () => {
     expect(playerDisplayName('Alexandru Serea', true)).toBe('Anonymous player')
-  })
-})
-
-describe('formatPeakHours', () => {
-  it('is null when there is no peak window', () => {
-    expect(formatPeakHours([])).toBeNull()
-  })
-  it('groups weekdays into a range and keeps a pair as a list', () => {
-    expect(
-      formatPeakHours([
-        { days: [1, 2, 3, 4, 5], startTime: '17:00', endTime: '23:00' },
-        { days: [0, 6], startTime: '08:00', endTime: '23:00' },
-      ])
-    ).toBe('Mon–Fri 17:00–23:00 + Sat, Sun 08:00–23:00')
-  })
-  it('says "Every day" for all seven', () => {
-    expect(
-      formatPeakHours([{ days: [0, 1, 2, 3, 4, 5, 6], startTime: '18:00', endTime: '22:00' }])
-    ).toBe('Every day 18:00–22:00')
-  })
-  it('splits non-contiguous days into runs', () => {
-    expect(formatPeakHours([{ days: [1, 2, 3, 5], startTime: '18:00', endTime: '22:00' }])).toBe(
-      'Mon–Wed, Fri 18:00–22:00'
-    )
   })
 })
 
@@ -73,5 +49,19 @@ describe('trustTier', () => {
     [0, 'Suspended', false],
   ])('score %i → %s (can book: %s)', (score, label, canBook) => {
     expect(trustTier(score)).toMatchObject({ label, canBook })
+  })
+})
+
+describe('formatShirtColours', () => {
+  it('lists the colours a pitch can lend, skipping empty ones', () => {
+    expect(
+      formatShirtColours([
+        { colour: 'BLUE', quantity: 2 },
+        { colour: 'RED', quantity: 0 },
+        { colour: 'YELLOW', quantity: 1 },
+      ])
+    ).toBe('blue and yellow')
+    expect(formatShirtColours([{ colour: 'RED', quantity: 1 }])).toBe('red')
+    expect(formatShirtColours([])).toBe('')
   })
 })

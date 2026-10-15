@@ -48,7 +48,7 @@ function pitchWhere(q: CompanyListQuery): Prisma.PitchWhereInput {
     ...(q.size.length ? { size: { in: q.size } } : {}),
     ...(q.priceMin !== undefined || q.priceMax !== undefined
       ? {
-          offPeakRate: {
+          hourlyRate: {
             ...(q.priceMin !== undefined ? { gte: q.priceMin } : {}),
             ...(q.priceMax !== undefined ? { lte: q.priceMax } : {}),
           },
@@ -107,7 +107,7 @@ export async function listCompanies(
       workingHours: true,
       status: true,
       createdAt: true,
-      pitches: { where: { isActive: true }, select: { id: true, offPeakRate: true } },
+      pitches: { where: { isActive: true }, select: { id: true, hourlyRate: true } },
     },
   })
 
@@ -132,7 +132,6 @@ export async function listCompanies(
   const rows: Row[] = []
   for (const c of companies) {
     const isOpenNow = isOpenAt(c.workingHours, now)
-    if (q.openNow && !isOpenNow) continue
     // A pitch is only bookable while the venue is open.
     if (freeCompanies && (!isOpenNow || !freeCompanies.has(c.id))) continue
 
@@ -151,7 +150,7 @@ export async function listCompanies(
       avgRating,
       reviewCount,
       pitchCount: c.pitches.length,
-      priceFrom: Math.min(...c.pitches.map(p => Number(p.offPeakRate))),
+      priceFrom: Math.min(...c.pitches.map(p => Number(p.hourlyRate))),
       isOpenNow,
       distanceKm:
         hasCoords && c.lat !== null && c.lng !== null

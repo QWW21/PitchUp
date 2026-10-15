@@ -93,16 +93,22 @@ test.describe('GET /companies/:id', () => {
 })
 
 test.describe('GET /pitches/:id', () => {
-  test('photos, amenities, shirts, peak hours, recent reviews', async ({ request }) => {
+  test('photos, amenities, one rate, free shirts, recent reviews', async ({ request }) => {
     const teren1 = gheorgheni.pitches[0]!
     const p = (await get<PitchDetail>(request, `/pitches/${teren1.id}`)).data!
     expect(p.company).toMatchObject({ id: gheorgheni.id, isVerified: true })
     expect(p.photos.length).toBeGreaterThanOrEqual(3)
     expect(p.photos.map(ph => ph.order)).toEqual(p.photos.map((_, i) => i))
     expect(p.amenities).toHaveLength(await db.pitchAmenity.count({ where: { pitchId: teren1.id } }))
-    expect(p).toMatchObject({ hasShirts: true, shirtRentalPrice: 10, isBookable: true })
-    expect(p.shirtInventory).toHaveLength(3)
-    expect(p.peakHoursDefinition).toHaveLength(2)
+    expect(p).toMatchObject({ hourlyRate: 120, hasShirts: true, isBookable: true })
+    for (const gone of ['offPeakRate', 'peakRate', 'peakHoursDefinition', 'shirtRentalPrice']) {
+      expect(p).not.toHaveProperty(gone)
+    }
+    expect(p.shirtInventory).toEqual([
+      { colour: 'RED', quantity: 2 },
+      { colour: 'BLUE', quantity: 2 },
+      { colour: 'YELLOW', quantity: 1 },
+    ])
     expect(p.recentReviews.length).toBeLessThanOrEqual(3)
     const dates = p.recentReviews.map(r => r.createdAt)
     expect([...dates].sort().reverse()).toEqual(dates)

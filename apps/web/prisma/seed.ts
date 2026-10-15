@@ -118,8 +118,7 @@ async function seedDevFixtures(): Promise<void> {
         name: 'Pitch A',
         surfaceType: SurfaceType.ARTIFICIAL_GRASS,
         size: PitchSize.FIVE_A_SIDE,
-        offPeakRate: 60,
-        peakRate: 80,
+        hourlyRate: 60,
       },
     })
   }
@@ -135,8 +134,8 @@ interface DemoPitch {
   name: string
   surface: SurfaceType
   size: PitchSize
-  offPeak: number
-  peak: number
+  /** RON per hour, at any time of day. */
+  rate: number
   amenities: AmenityType[]
   isActive?: boolean
 }
@@ -158,7 +157,7 @@ interface DemoVenue {
 }
 
 const { NATURAL_GRASS, ARTIFICIAL_GRASS, FUTSAL } = SurfaceType
-const { FIVE_A_SIDE, SEVEN_A_SIDE, ELEVEN_A_SIDE } = PitchSize
+const { FIVE_A_SIDE, SIX_A_SIDE, SEVEN_A_SIDE, ELEVEN_A_SIDE } = PitchSize
 
 /**
  * Enough venues in Cluj-Napoca to page through (limit=5), sort meaningfully,
@@ -179,16 +178,14 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren 1',
         surface: ARTIFICIAL_GRASS,
         size: FIVE_A_SIDE,
-        offPeak: 120,
-        peak: 160,
+        rate: 120,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'PARKING_FREE', 'NIGHT_LIGHTING'],
       },
       {
         name: 'Teren 2',
         surface: ARTIFICIAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 180,
-        peak: 240,
+        rate: 180,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'NIGHT_LIGHTING'],
       },
     ],
@@ -207,8 +204,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Main',
         surface: ARTIFICIAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 90,
-        peak: 130,
+        rate: 90,
         amenities: ['PARKING_PAID', 'NIGHT_LIGHTING', 'BALL_RENTAL_PAID'],
       },
     ],
@@ -227,8 +223,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Stadion',
         surface: NATURAL_GRASS,
         size: ELEVEN_A_SIDE,
-        offPeak: 450,
-        peak: 600,
+        rate: 450,
         amenities: [
           'SHOWERS_FREE',
           'CHANGING_ROOMS',
@@ -243,8 +238,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Antrenament',
         surface: NATURAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 220,
-        peak: 300,
+        rate: 220,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS'],
       },
     ],
@@ -263,16 +257,14 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Sala A',
         surface: FUTSAL,
         size: FIVE_A_SIDE,
-        offPeak: 100,
-        peak: 140,
+        rate: 100,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'WIFI', 'REFRESHMENTS', 'WHEELCHAIR'],
       },
       {
         name: 'Sala B',
         surface: FUTSAL,
         size: FIVE_A_SIDE,
-        offPeak: 100,
-        peak: 140,
+        rate: 100,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS'],
       },
     ],
@@ -291,9 +283,8 @@ const DEMO_VENUES: DemoVenue[] = [
       {
         name: 'Teren mic',
         surface: ARTIFICIAL_GRASS,
-        size: FIVE_A_SIDE,
-        offPeak: 70,
-        peak: 100,
+        size: SIX_A_SIDE,
+        rate: 70,
         amenities: ['NIGHT_LIGHTING'],
       },
     ],
@@ -312,8 +303,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren 1',
         surface: ARTIFICIAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 150,
-        peak: 190,
+        rate: 150,
         amenities: ['PARKING_FREE', 'SHOWERS_PAID', 'CHANGING_ROOMS'],
       },
     ],
@@ -330,9 +320,8 @@ const DEMO_VENUES: DemoVenue[] = [
       {
         name: 'Teren nocturn',
         surface: ARTIFICIAL_GRASS,
-        size: FIVE_A_SIDE,
-        offPeak: 80,
-        peak: 110,
+        size: SIX_A_SIDE,
+        rate: 80,
         amenities: ['NIGHT_LIGHTING', 'REFRESHMENTS', 'PARKING_FREE'],
       },
     ],
@@ -351,8 +340,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren A',
         surface: NATURAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 200,
-        peak: 260,
+        rate: 200,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'BALL_RENTAL_FREE'],
       },
     ],
@@ -370,8 +358,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Sala',
         surface: FUTSAL,
         size: FIVE_A_SIDE,
-        offPeak: 130,
-        peak: 160,
+        rate: 130,
         amenities: ['SHOWERS_FREE', 'LOCKERS', 'WIFI'],
       },
     ],
@@ -390,16 +377,14 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren 1',
         surface: ARTIFICIAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 110,
-        peak: 140,
+        rate: 110,
         amenities: ['PARKING_FREE'],
       },
       {
         name: 'Teren 2',
         surface: ARTIFICIAL_GRASS,
         size: FIVE_A_SIDE,
-        offPeak: 60,
-        peak: 90,
+        rate: 60,
         amenities: ['PARKING_FREE'],
       },
     ],
@@ -417,8 +402,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Rooftop',
         surface: ARTIFICIAL_GRASS,
         size: FIVE_A_SIDE,
-        offPeak: 140,
-        peak: 180,
+        rate: 140,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'REFRESHMENTS', 'WIFI'],
       },
     ],
@@ -437,8 +421,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren mare',
         surface: NATURAL_GRASS,
         size: ELEVEN_A_SIDE,
-        offPeak: 350,
-        peak: 450,
+        rate: 350,
         amenities: ['CHANGING_ROOMS', 'SHOWERS_FREE', 'PARKING_FREE', 'REFEREE'],
       },
     ],
@@ -457,8 +440,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren',
         surface: ARTIFICIAL_GRASS,
         size: FIVE_A_SIDE,
-        offPeak: 50,
-        peak: 60,
+        rate: 50,
         amenities: [],
       },
     ],
@@ -476,8 +458,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren',
         surface: ARTIFICIAL_GRASS,
         size: FIVE_A_SIDE,
-        offPeak: 50,
-        peak: 60,
+        rate: 50,
         amenities: [],
         isActive: false,
       },
@@ -496,8 +477,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Teren 1',
         surface: NATURAL_GRASS,
         size: SEVEN_A_SIDE,
-        offPeak: 250,
-        peak: 320,
+        rate: 250,
         amenities: ['SHOWERS_FREE', 'CHANGING_ROOMS', 'PARKING_PAID'],
       },
     ],
@@ -516,8 +496,7 @@ const DEMO_VENUES: DemoVenue[] = [
         name: 'Sala',
         surface: FUTSAL,
         size: FIVE_A_SIDE,
-        offPeak: 120,
-        peak: 150,
+        rate: 120,
         amenities: ['SHOWERS_FREE'],
       },
     ],
@@ -594,8 +573,7 @@ async function seedDiscoverFixtures(): Promise<void> {
             name: p.name,
             surfaceType: p.surface,
             size: p.size,
-            offPeakRate: p.offPeak,
-            peakRate: p.peak,
+            hourlyRate: p.rate,
             isActive: p.isActive ?? true,
             amenities: { create: p.amenities.map(amenityType => ({ amenityType })) },
           },
@@ -614,9 +592,9 @@ async function seedDiscoverFixtures(): Promise<void> {
           endTime: new Date(start.getTime() + HOUR),
           teamCount: 2,
           status: BookingStatus.COMPLETED,
-          pitchRateSnapshot: pitch.offPeakRate,
-          platformFee: Number(pitch.offPeakRate) * (PLATFORM_FEE_PERCENT / 100),
-          totalAmount: Number(pitch.offPeakRate) * (1 + PLATFORM_FEE_PERCENT / 100),
+          pitchRateSnapshot: pitch.hourlyRate,
+          platformFee: Number(pitch.hourlyRate) * (PLATFORM_FEE_PERCENT / 100),
+          totalAmount: Number(pitch.hourlyRate) * (1 + PLATFORM_FEE_PERCENT / 100),
         },
       })
       await prisma.review.create({
@@ -635,9 +613,9 @@ async function seedDiscoverFixtures(): Promise<void> {
             endTime: new Date(Date.now() + 3 * HOUR),
             teamCount: 2,
             status: BookingStatus.CONFIRMED,
-            pitchRateSnapshot: pitch.peakRate,
+            pitchRateSnapshot: pitch.hourlyRate,
             platformFee: 0,
-            totalAmount: pitch.peakRate,
+            totalAmount: pitch.hourlyRate,
           },
         })
       }
@@ -649,6 +627,7 @@ async function seedDiscoverFixtures(): Promise<void> {
 
 const DIMENSIONS: Record<PitchSize, [number, number] | null> = {
   FIVE_A_SIDE: [25, 40],
+  SIX_A_SIDE: [30, 50],
   SEVEN_A_SIDE: [40, 60],
   ELEVEN_A_SIDE: [68, 105],
   CUSTOM: null,
@@ -707,19 +686,15 @@ async function seedDetailFixtures(): Promise<void> {
               'Please arrive ten minutes early so the previous game can finish on time.',
             widthMeters: dims?.[0] ?? null,
             lengthMeters: dims?.[1] ?? null,
-            peakHoursDefinition: [
-              { days: [1, 2, 3, 4, 5], startTime: '17:00', endTime: '23:00' },
-              { days: [0, 6], startTime: '08:00', endTime: '23:00' },
-            ],
             hasShirts: shirts,
-            shirtRentalPrice: shirts ? 10 : null,
           },
         })
         if (shirts) {
           for (const [colour, quantity] of [
-            ['RED', 14],
-            ['BLUE', 12],
-            ['YELLOW', 10],
+            // Sets, one per team: free to borrow.
+            ['RED', 2],
+            ['BLUE', 2],
+            ['YELLOW', 1],
           ] as const) {
             await prisma.shirtInventory.upsert({
               where: { pitchId_colour: { pitchId: pitch.id, colour } },
@@ -788,9 +763,9 @@ async function seedDetailFixtures(): Promise<void> {
           endTime: new Date(start.getTime() + HOUR),
           teamCount: 2,
           status: BookingStatus.COMPLETED,
-          pitchRateSnapshot: pitch.offPeakRate,
+          pitchRateSnapshot: pitch.hourlyRate,
           platformFee: 0,
-          totalAmount: pitch.offPeakRate,
+          totalAmount: pitch.hourlyRate,
         },
       })
       await prisma.review.create({
@@ -834,9 +809,9 @@ async function seedDetailFixtures(): Promise<void> {
             endTime: at(date, to),
             teamCount: 2,
             status,
-            pitchRateSnapshot: teren.peakRate,
+            pitchRateSnapshot: teren.hourlyRate,
             platformFee: 0,
-            totalAmount: teren.peakRate,
+            totalAmount: teren.hourlyRate,
           },
         })
       }

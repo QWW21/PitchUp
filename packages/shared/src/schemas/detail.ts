@@ -3,7 +3,6 @@
  */
 import type { AmenityType, PitchSize, ShirtColour, SurfaceType } from '../types'
 import type { DayHours } from '../schedule'
-import type { PeakHours } from './pitch'
 
 /** A pitch as listed on its company's page. GET /companies/:id. */
 export interface PitchSummary {
@@ -11,8 +10,8 @@ export interface PitchSummary {
   name: string
   surfaceType: SurfaceType
   size: PitchSize
-  offPeakRate: number
-  peakRate: number
+  /** RON per hour, the same at any time of day. */
+  hourlyRate: number
   coverPhotoUrl: string | null
   /** Null below REVIEW.MIN_FOR_PUBLIC_RATING reviews. */
   avgRating: number | null
@@ -70,16 +69,16 @@ export interface PitchDetail {
   widthMeters: number | null
   lengthMeters: number | null
   isActive: boolean
-  offPeakRate: number
-  peakRate: number
-  peakHoursDefinition: PeakHours
+  /** RON per hour, the same at any time of day. */
+  hourlyRate: number
   minBookingHours: number
   maxBookingHours: number
   advanceBookingDays: number
+  /** Shirts are free; a booking asks for teamCount - 1 sets. */
   hasShirts: boolean
-  shirtRentalPrice: number | null
   photos: { id: string; url: string; order: number }[]
   amenities: { amenityType: AmenityType; isPaid: boolean; price: number | null }[]
+  /** Sets per colour; one set dresses one team. Empty when hasShirts is false. */
   shirtInventory: { colour: ShirtColour; quantity: number }[]
   avgRating: number | null
   reviewCount: number

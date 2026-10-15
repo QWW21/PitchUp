@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
   ALL_AMENITIES,
   AMENITY_LABELS,
-  formatPeakHours,
+  formatShirtColours,
   type AmenityType,
   type PitchDetail,
 } from '@pitchup/shared'
@@ -60,30 +60,25 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
   )
 }
 
+/** One hourly rate at any time of day; shirts are free. */
 export function PricingCard({ pitch }: { pitch: PitchDetail }) {
-  const peak = formatPeakHours(pitch.peakHoursDefinition)
+  const colours = formatShirtColours(pitch.shirtInventory)
   return (
     <View style={styles.card}>
       <View style={styles.priceRow}>
-        <Text style={styles.range}>{peak ? 'Off-peak · all other hours' : 'All hours'}</Text>
+        <Text style={styles.range}>Any time</Text>
         <Text style={styles.price}>
-          {pitch.offPeakRate} RON<Text style={styles.per}>/h</Text>
+          {pitch.hourlyRate} RON<Text style={styles.per}>/h</Text>
         </Text>
       </View>
-      {peak ? (
-        <View style={[styles.priceRow, styles.divider]}>
-          <Text style={styles.range}>Peak · {peak}</Text>
-          <Text style={styles.price}>
-            {pitch.peakRate} RON<Text style={styles.per}>/h</Text>
-          </Text>
-        </View>
-      ) : null}
       <Text style={styles.note}>Min. {pitch.minBookingHours}h · Billed per 30 min</Text>
-      {pitch.hasShirts && pitch.shirtRentalPrice !== null ? (
+      {pitch.hasShirts ? (
         <View style={[styles.shirts, styles.divider]}>
           <Icon name="tshirt-crew" size={16} color={colors.neutral[500]} />
           <Text style={styles.shirtText}>
-            Shirt rental: <Text style={styles.bold}>{pitch.shirtRentalPrice} RON</Text>/shirt
+            <Text style={styles.bold}>Free shirts</Text>
+            {colours ? ` in ${colours}` : ''}. Ask for them when you book: one set for every team
+            but one.
           </Text>
         </View>
       ) : null}

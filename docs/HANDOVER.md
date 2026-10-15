@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E04 (Player: Pitch Detail).
+Last updated after the product changes that followed the E04 review (C-1 to C-5).
 
 ## Done
 
@@ -74,7 +74,7 @@ see README "Seeded accounts".
 
 The backend acceptance checks are API tests (`apps/web/e2e/api/venues.spec.ts`). The seed
 now gives the Discover venues photos (placeholder images), descriptions,
-dimensions, peak hours, shirt rental, review text with a manager reply and an
+dimensions, free shirt sets, review text with a manager reply and an
 anonymous review, fourteen reviews on Cluj Arena Park for paging, and on Arena
 Gheorgheni Teren 1 a booking tomorrow 18:00–20:00, a fully booked day after
 tomorrow and a maintenance closure the day after that. Zorilor closes on Sundays.
@@ -183,6 +183,45 @@ way without that flag fails with "Unable to load script".
 - **Phone verification claims nothing until a real SMS confirms it.**
   `phoneVerified` stays false rather than being set by an emailed code.
 
+### Product changes after the E04 review (milestone E17, #193–#197)
+
+These override the PRD and every open ticket that says otherwise; each of
+those tickets carries a comment pointing here.
+
+- **C-1 Shirts are free.** A pitch either lends shirts or not
+  (`Pitch.hasShirts`); `ShirtInventory.quantity` counts **sets**, one set
+  dressing one team. A booking asks yes or no (`wantsShirts`) and gets
+  `shirtSetsFor(teamCount, true)` = teams − 1 sets: two teams, one set.
+  `shirtRentalPrice` and `Booking.shirtRateSnapshot` are gone;
+  `Booking.shirtSets` records what was lent.
+- **C-2 One price per hour.** `Pitch.hourlyRate` replaces `offPeakRate`,
+  `peakRate` and `peakHoursDefinition`. A booking costs rate × hours, whatever
+  the time. Existing pitches kept their off-peak rate.
+- **C-3 Pitch size is a recommendation.** 6v6 (`SIX_A_SIDE`) is added, and
+  every size shown to a player has an (i) explaining that it is the owner's
+  recommended players per team, not a limit: the price is the same however
+  many come (`SIZE_INFO`). Web shows it on hover and focus; mobile on tap.
+- **C-4 No "Open now" filter.** Available now already means open _and_ a
+  pitch free for the next two hours; an open venue with every pitch booked
+  is no use to a player, so the second toggle only added confusion. Cards
+  still show the "Open" badge, which answers a different question (can I
+  call or drop in).
+- **C-5 The map opens on the chosen city.** `mapCenter()` centres on the
+  player only when they are in the selected city; otherwise on that city.
+
+**Upgrading a dev database made before C-2.** `pnpm --filter @pitchup/web
+db:push` refuses, because the new required `hourlyRate` column has no value
+for existing pitches. Either start again
+(`pnpm --filter @pitchup/web exec prisma db push --force-reset` then
+`db:seed`, which loses any accounts you made), or keep your data by running
+this first and then `db:push`:
+
+```sql
+ALTER TABLE "Pitch" ADD COLUMN "hourlyRate" DECIMAL(10,2);
+UPDATE "Pitch" SET "hourlyRate" = "offPeakRate";
+ALTER TABLE "Pitch" ALTER COLUMN "hourlyRate" SET NOT NULL;
+```
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.
@@ -224,7 +263,8 @@ E03:
   same pitch as the other pitch filters. The ticket's single `in` list would
   have made Showers + Parking mean "either".
 - **`availableNow`** = open now and a matching pitch with no pending or
-  confirmed booking in the next two hours. No five-minute cache: it is one
+  confirmed booking in the next two hours. It is the only availability
+  filter (C-4). No five-minute cache: it is one
   indexed query.
 - **Sorting and paging happen in memory** over the whole filtered city, since
   rating, price and distance are derived. Fine for v1.0 volumes; denormalise
@@ -342,6 +382,11 @@ E04:
 
 ## Things that will need a decision
 
+- **Versioned migrations before real data.** Schema changes are applied
+  with `prisma db push`, which is fine while every database holds seed data
+  only. C-2 showed the cost: a column change needed hand-written SQL to keep
+  existing rows. Before any deployment holds real bookings, switch to
+  `prisma migrate` so each change is a reviewed SQL file (ARCHITECTURE §14).
 - `PROFILE_VERIFIED`, a manager trust score, and `ADMIN_ADJUSTMENT` appear
   in later tickets but are not in the PRD or the schema. Flagged in place
   on E12 and E15; each needs a call before that epic starts.

@@ -4,13 +4,21 @@
  */
 import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
-import type { CompanyListItem, PitchDetail, ReviewItem, ReviewPage } from '@pitchup/shared'
+import { Alert } from 'react-native'
+import {
+  SIZE_INFO,
+  type CompanyListItem,
+  type PitchDetail,
+  type ReviewItem,
+  type ReviewPage,
+} from '@pitchup/shared'
 import { CompanyCard } from './discover/CompanyCard'
 import { FilterChip } from './filters/FilterChip'
 import { ReviewCard } from './reviews/ReviewCard'
 import { RatingBreakdown } from './reviews/RatingBreakdown'
 import { AmenitiesGrid, PricingCard } from './pitch/PitchSections'
 import { BookNowFooter } from './pitch/BookNowFooter'
+import { SizeInfo } from './pitch/SizeInfo'
 
 const company: CompanyListItem = {
   id: 'c1',
@@ -144,12 +152,13 @@ describe('RatingBreakdown', () => {
 })
 
 const pitch = {
-  offPeakRate: 120,
-  peakRate: 160,
-  peakHoursDefinition: [{ days: [1, 2, 3, 4, 5], startTime: '17:00', endTime: '23:00' }],
+  hourlyRate: 120,
   minBookingHours: 1,
   hasShirts: true,
-  shirtRentalPrice: 10,
+  shirtInventory: [
+    { colour: 'BLUE', quantity: 2 },
+    { colour: 'RED', quantity: 2 },
+  ],
 } as unknown as PitchDetail
 
 describe('pitch sections', () => {
@@ -160,25 +169,34 @@ describe('pitch sections', () => {
     expect(screen.getAllByLabelText(/available$/)).toHaveLength(14)
   })
 
-  it('prices off-peak and peak, with the peak window and shirt rental', () => {
+  it('shows one rate for any time, and free shirts with their colours', () => {
     render(<PricingCard pitch={pitch} />)
-    expect(screen.getByText('Peak · Mon–Fri 17:00–23:00')).toBeTruthy()
+    expect(screen.getByText('Any time')).toBeTruthy()
     expect(screen.getByText(/120 RON/)).toBeTruthy()
-    expect(screen.getByText(/160 RON/)).toBeTruthy()
-    expect(screen.getByText(/Shirt rental/)).toBeTruthy()
+    expect(screen.queryByText(/Peak|Off-peak/)).toBeNull()
+    expect(screen.getByText(/in blue and red\. Ask for them when you book/)).toBeTruthy()
+    expect(screen.queryByText(/RON\/shirt/)).toBeNull()
   })
 
-  it('without peak windows shows one "All hours" price and no shirt row', () => {
-    render(<PricingCard pitch={{ ...pitch, peakHoursDefinition: [], hasShirts: false }} />)
-    expect(screen.getByText('All hours')).toBeTruthy()
-    expect(screen.queryByText(/Shirt rental/)).toBeNull()
+  it('has no shirt row when the pitch lends none', () => {
+    render(<PricingCard pitch={{ ...pitch, hasShirts: false, shirtInventory: [] }} />)
+    expect(screen.queryByText(/Free shirts/)).toBeNull()
+  })
+})
+
+describe('SizeInfo', () => {
+  it('explains the size on tap, since a phone has no hover', () => {
+    const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
+    render(<SizeInfo />)
+    fireEvent.press(screen.getByRole('button', { name: 'About pitch sizes' }))
+    expect(alert).toHaveBeenCalledWith('Pitch size', SIZE_INFO)
   })
 })
 
 describe('BookNowFooter', () => {
   it('books when allowed', () => {
     const onBook = jest.fn()
-    render(<BookNowFooter priceFrom={120} block={null} onBook={onBook} />)
+    render(<BookNowFooter hourlyRate={120} block={null} onBook={onBook} />)
     fireEvent.press(screen.getByRole('button', { name: 'Book Now' }))
     expect(onBook).toHaveBeenCalled()
   })
@@ -188,7 +206,7 @@ describe('BookNowFooter', () => {
     ['restricted', 'Account restricted'],
   ] as const)('%s: says "%s" and does nothing on press', (block, label) => {
     const onBook = jest.fn()
-    render(<BookNowFooter priceFrom={120} block={block} onBook={onBook} />)
+    render(<BookNowFooter hourlyRate={120} block={block} onBook={onBook} />)
     expect(screen.getByText(label)).toBeTruthy()
     fireEvent.press(screen.getByRole('button'))
     expect(onBook).not.toHaveBeenCalled()

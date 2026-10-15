@@ -8,7 +8,7 @@ describe('readUrlState', () => {
   it('reads every field', () => {
     expect(
       read(
-        'city=Cluj-Napoca&search=arena&sort=price&view=map&surface=FUTSAL&size=FIVE_A_SIDE&amenity=showers&priceMin=40&priceMax=200&availableNow=true&openNow=true'
+        'city=Cluj-Napoca&search=arena&sort=price&view=map&surface=FUTSAL&size=SIX_A_SIDE&amenity=showers&priceMin=40&priceMax=200&availableNow=true'
       )
     ).toEqual({
       city: 'Cluj-Napoca',
@@ -17,12 +17,11 @@ describe('readUrlState', () => {
       view: 'map',
       filters: {
         surfaces: ['FUTSAL'],
-        sizes: ['FIVE_A_SIDE'],
+        sizes: ['SIX_A_SIDE'],
         amenities: ['showers'],
         priceMin: 40,
         priceMax: 200,
         availableNow: true,
-        openNow: true,
       },
     })
   })

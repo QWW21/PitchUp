@@ -5,13 +5,13 @@
  * which wraps MapView and lags behind react-native-maps releases; the pinned
  * maps version already needs patches to build on RN 0.76.
  */
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Platform, Pressable, StyleSheet, View } from 'react-native'
 import MapView, { Marker, PROVIDER_DEFAULT, PROVIDER_GOOGLE, type Region } from 'react-native-maps'
 import Supercluster from 'supercluster'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { CITIES, type CompanyListItem } from '@pitchup/shared'
+import { mapCenter, type CompanyListItem } from '@pitchup/shared'
 import { ClusterMarker, MapMarker } from '../../components/discover/MapMarker'
 import { MAP_SHEET_HEIGHT, MapCompanySheet } from '../../components/discover/MapCompanySheet'
 import { useDiscoverStore } from '../../stores/discoverStore'
@@ -39,13 +39,23 @@ export function DiscoverMapView({ companies, onOpenCompany }: DiscoverMapViewPro
   const city = useDiscoverStore(s => s.selectedCity)
   const { requestAndDetect } = useLocation()
 
+  // On the player when they are in the selected city, otherwise on that
+  // city: a player browsing another city wants to see its venues.
   const initialRegion = useMemo(() => {
-    if (coords) return regionAround(coords.lat, coords.lng)
-    const c = CITIES.find(x => x.name === city)
-    return c ? regionAround(c.lat, c.lng) : regionAround(45.9432, 24.9668, 6)
-    // The map owns its region after mount; recentering is the button's job.
+    const c = mapCenter(city, coords)
+    return city || coords ? regionAround(c.lat, c.lng) : regionAround(c.lat, c.lng, 6)
+    // The map owns its region after mount; see the effect below for a new city.
   }, [])
   const [region, setRegion] = useState<Region>(initialRegion)
+
+  // A different city chosen while the map is open moves the map there.
+  const shownCity = useRef(city)
+  useEffect(() => {
+    if (city === shownCity.current) return
+    shownCity.current = city
+    const c = mapCenter(city, coords)
+    mapRef.current?.animateToRegion(regionAround(c.lat, c.lng), 400)
+  }, [city, coords])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const lastTap = useRef(0)
 

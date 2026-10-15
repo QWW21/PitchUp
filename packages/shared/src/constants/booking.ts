@@ -12,3 +12,11 @@ export const BOOKING = {
   MAX_PLAYERS_PER_TEAM: 15,
   MAX_NOTE_LENGTH: 200,
 } as const
+
+/**
+ * Free shirt sets lent for a booking that asks for them: one per team except
+ * one, which plays in its own kit. Two teams → one set, three → two.
+ */
+export function shirtSetsFor(teamCount: number, wantsShirts: boolean): number {
+  return wantsShirts ? Math.max(0, teamCount - 1) : 0
+}

@@ -150,6 +150,13 @@ test.describe('filters', () => {
     ])
   })
 
+  test('size: 6v6', async ({ request }) => {
+    expect(await names(request, `${CLUJ}&size=SIX_A_SIDE`)).toEqual([
+      'Iris Arena',
+      'Zorilor Sports',
+    ])
+  })
+
   test('price range: a pitch priced inside it', async ({ request }) => {
     expect(await names(request, `${CLUJ}&priceMin=50&priceMax=100`)).toEqual(
       [
@@ -177,9 +184,10 @@ test.describe('filters', () => {
     ])
   })
 
-  test('openNow: only open companies', async ({ request }) => {
-    const { companies } = await list(request, `${CLUJ}&openNow=true&limit=50`)
-    expect(companies.every(c => c.isOpenNow)).toBe(true)
+  test('there is no openNow filter: the parameter changes nothing', async ({ request }) => {
+    const all = await list(request, `${CLUJ}&limit=50`)
+    const withParam = await list(request, `${CLUJ}&openNow=true&limit=50`)
+    expect(withParam.companies.map(c => c.id)).toEqual(all.companies.map(c => c.id))
   })
 
   test('availableNow: open, and a fully booked venue left out', async ({ request }) => {
@@ -198,9 +206,9 @@ test.describe('filters', () => {
             endTime: new Date(Date.now() + 3 * 3600_000),
             teamCount: 2,
             status: 'CONFIRMED',
-            pitchRateSnapshot: p.peakRate,
+            pitchRateSnapshot: p.hourlyRate,
             platformFee: 0,
-            totalAmount: p.peakRate,
+            totalAmount: p.hourlyRate,
           },
         })
       )

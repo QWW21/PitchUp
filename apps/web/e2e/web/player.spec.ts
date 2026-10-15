@@ -101,6 +101,48 @@ test.describe('Discover', () => {
     await snap(page, info, AREA, '06-discover-phone-filters')
   })
 
+  test('filters: 6v6 with an explanation, and only "Available now" (C-3, C-4)', async ({
+    page,
+  }, info) => {
+    await page.goto(CLUJ)
+    const sidebar = page.getByRole('group', { name: /Pitch size/ })
+    await expect(sidebar.getByLabel('6v6')).toBeVisible()
+    await sidebar.getByLabel('6v6').click()
+    await expect(page).toHaveURL(/size=SIX_A_SIDE/)
+    await expect(page.getByText('2 venues')).toBeVisible()
+    await expect(page.getByRole('switch', { name: 'Available now' })).toBeVisible()
+    await expect(page.getByRole('switch', { name: 'Open now' })).toHaveCount(0)
+    await sidebar.getByRole('button', { name: 'About pitch sizes' }).hover()
+    await expect(sidebar.getByRole('tooltip')).toBeVisible()
+    await snap(page, info, AREA, '18-filters-size-info')
+  })
+
+  test('the map opens on the chosen city, not where the player is (C-5)', async ({
+    page,
+    context,
+  }, info) => {
+    // The player is in Cluj, browsing București.
+    await context.grantPermissions(['geolocation'])
+    await context.setGeolocation({ latitude: 46.77, longitude: 23.59 })
+    await page.goto('/discover?city=Bucure%C8%99ti&view=map')
+    const pills = page.getByRole('button', { name: /, from \d+ RON$/ })
+    const noKey = page.getByText('The map needs a Google Maps key')
+    await expect(noKey.or(pills.first())).toBeVisible()
+    test.skip(await noKey.isVisible(), 'needs NEXT_PUBLIC_GOOGLE_MAPS_API_KEY')
+
+    // Every București pill is inside the map, so the map is on București.
+    await expect(pills).toHaveCount(2)
+    const map = (await page.getByTestId('discover-map').boundingBox())!
+    for (const pill of await pills.all()) {
+      const box = (await pill.boundingBox())!
+      expect(box.x).toBeGreaterThanOrEqual(map.x)
+      expect(box.x + box.width).toBeLessThanOrEqual(map.x + map.width)
+      expect(box.y).toBeGreaterThanOrEqual(map.y)
+      expect(box.y + box.height).toBeLessThanOrEqual(map.y + map.height)
+    }
+    await snap(page, info, AREA, '19-map-selected-city')
+  })
+
   test('map view: pills and a preview with a key, a clear message without one', async ({
     page,
   }, info) => {
@@ -173,7 +215,12 @@ test.describe('pitch page', () => {
     await expect(
       page.locator('li').filter({ hasText: 'Wi-Fi' }).locator('.line-through')
     ).toHaveCount(1)
-    await expect(page.getByText('Shirt rental:')).toBeVisible()
+    // One rate at any time (C-2) and free shirts (C-1).
+    await expect(page.getByText('Any time')).toBeVisible()
+    await expect(page.getByText(/Peak|Off-peak/)).toHaveCount(0)
+    await expect(page.locator('p', { hasText: 'Free shirts' })).toContainText(
+      'Free shirts in red, blue and yellow. Ask for them when you book'
+    )
 
     const today = venueClock(new Date()).date
     const day = (offset: number) => {
@@ -187,6 +234,22 @@ test.describe('pitch page', () => {
 
     await day(3).click()
     await expect(page.getByRole('status')).toContainText('This pitch is closed on')
+  })
+
+  test('the size explains itself on hover and on focus (C-3)', async ({ page }, info) => {
+    const g = await venue('gheorgheni')
+    await page.goto(`/discover/${g.id}/${g.pitches[0]!.id}`)
+    const info_ = page.getByRole('button', { name: 'About pitch sizes' })
+    const tip = page.getByRole('tooltip')
+    await expect(tip).toBeHidden()
+    await info_.hover()
+    await expect(tip).toBeVisible()
+    await expect(tip).toContainText('the price is the same however many of you come')
+    await snap(page, info, AREA, '17-size-info')
+    await page.mouse.move(0, 0)
+    await expect(tip).toBeHidden()
+    await info_.focus()
+    await expect(tip).toBeVisible()
   })
 
   test('gallery and lightbox', async ({ page }, info) => {

@@ -3,7 +3,13 @@ import { COMPANY_SORTS, DISCOVER } from '../constants/discover'
 import { CITY_NAMES } from '../constants/cities'
 
 const surfaceTypeSchema = z.enum(['NATURAL_GRASS', 'ARTIFICIAL_GRASS', 'FUTSAL'])
-const pitchSizeSchema = z.enum(['FIVE_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE', 'CUSTOM'])
+const pitchSizeSchema = z.enum([
+  'FIVE_A_SIDE',
+  'SIX_A_SIDE',
+  'SEVEN_A_SIDE',
+  'ELEVEN_A_SIDE',
+  'CUSTOM',
+])
 const amenityTypeSchema = z.enum([
   'SHOWERS_FREE',
   'SHOWERS_PAID',
@@ -50,7 +56,6 @@ export const CompanyListQuerySchema = z
     priceMin: z.coerce.number().nonnegative().optional(),
     priceMax: z.coerce.number().nonnegative().optional(),
     availableNow: queryBoolean,
-    openNow: queryBoolean,
     cursor: z.string().min(1).optional(),
     limit: z.coerce
       .number()
@@ -83,7 +88,7 @@ export interface CompanyListItem {
   avgRating: number | null
   reviewCount: number
   pitchCount: number
-  /** Lowest off-peak hourly rate across active pitches, RON. */
+  /** Lowest hourly rate across active pitches, RON. */
   priceFrom: number
   isOpenNow: boolean
   /** Null when the request carried no lat/lng. */

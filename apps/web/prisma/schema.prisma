@@ -54,8 +54,11 @@ enum SurfaceType {
   FUTSAL
 }
 
+/// The format the owner recommends (players per team), not a cap: the price
+/// is per hour whoever turns up.
 enum PitchSize {
   FIVE_A_SIDE
+  SIX_A_SIDE
   SEVEN_A_SIDE
   ELEVEN_A_SIDE
   CUSTOM
@@ -204,10 +207,9 @@ model Pitch {
   minBookingHours     Int         @default(1)
   maxBookingHours     Int         @default(4)
   advanceBookingDays  Int         @default(60)
-  offPeakRate         Decimal     @db.Decimal(10, 2)
-  peakRate            Decimal     @db.Decimal(10, 2)
-  peakHoursDefinition Json?
-  shirtRentalPrice    Decimal?    @db.Decimal(10, 2)
+  /// One price per hour at any time of day. No peak pricing.
+  hourlyRate          Decimal     @db.Decimal(10, 2)
+  /// Shirts are always free; the inventory says which colours there are.
   hasShirts           Boolean     @default(false)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
@@ -263,6 +265,7 @@ model PitchAmenity {
   @@index([pitchId])
 }
 
+/// Shirt sets a pitch can lend, by colour. One set dresses one team.
 model ShirtInventory {
   id       String      @id @default(cuid())
   pitchId  String
@@ -289,7 +292,8 @@ model Booking {
   cancelledAt           DateTime?
   cancellationReason    String?
   pitchRateSnapshot     Decimal       @db.Decimal(10, 2)
-  shirtRateSnapshot     Decimal?      @db.Decimal(10, 2)
+  /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
+  shirtSets             Int           @default(0)
   platformFee           Decimal       @db.Decimal(10, 2)
   totalAmount           Decimal       @db.Decimal(10, 2)
   refundAmount          Decimal?      @db.Decimal(10, 2)

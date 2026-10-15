@@ -40,9 +40,9 @@ describe('discoverStore', () => {
 
   it('resets filters to the defaults', () => {
     const { setFilters, resetFilters } = useDiscoverStore.getState()
-    setFilters({ ...useDiscoverStore.getState().filters, openNow: true, surfaces: ['FUTSAL'] })
+    setFilters({ ...useDiscoverStore.getState().filters, availableNow: true, surfaces: ['FUTSAL'] })
     resetFilters()
-    expect(useDiscoverStore.getState().filters).toMatchObject({ openNow: false, surfaces: [] })
+    expect(useDiscoverStore.getState().filters).toMatchObject({ availableNow: false, surfaces: [] })
   })
 })
 

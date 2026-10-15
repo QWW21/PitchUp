@@ -14,7 +14,7 @@ export function PitchListCard({ pitch, onPress }: { pitch: PitchSummary; onPress
       onPress={onPress}
       style={styles.card}
       accessibilityRole="button"
-      accessibilityLabel={`${pitch.name}, from ${pitch.offPeakRate} RON per hour`}
+      accessibilityLabel={`${pitch.name}, ${pitch.hourlyRate} RON per hour`}
     >
       {pitch.coverPhotoUrl ? (
         <Image source={{ uri: pitch.coverPhotoUrl }} style={styles.thumb} resizeMode="cover" />
@@ -32,7 +32,7 @@ export function PitchListCard({ pitch, onPress }: { pitch: PitchSummary; onPress
           <Text style={styles.size}>{SIZE_LABELS[pitch.size]}</Text>
         </View>
         <Text style={styles.price}>
-          from <Text style={styles.priceBold}>{pitch.offPeakRate} RON</Text>/h
+          <Text style={styles.priceBold}>{pitch.hourlyRate} RON</Text>/h
         </Text>
         <RatingLine avgRating={pitch.avgRating} reviewCount={pitch.reviewCount} />
       </View>

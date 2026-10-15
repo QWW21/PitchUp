@@ -60,8 +60,7 @@ export type AppStackParamList = {
     pitchId: string
     pitchName: string
     companyName: string
-    offPeakRate: number
-    peakRate: number
+    hourlyRate: number
     date?: string
   }
 }

@@ -1,9 +1,11 @@
 /**
  * Small display pieces shared by the company and pitch pages — E04-08.
  */
-import { Star } from 'lucide-react'
+import { useId } from 'react'
+import { Info, Star } from 'lucide-react'
 import {
   REVIEW,
+  SIZE_INFO,
   SIZE_LABELS,
   SURFACE_COLORS,
   SURFACE_LABELS,
@@ -64,6 +66,39 @@ export function SurfaceChip({ surface }: { surface: SurfaceType }) {
 }
 
 export const sizeLabel = (size: PitchSize) => SIZE_LABELS[size]
+
+/**
+ * An (i) beside a pitch size, explaining that it is the owner's
+ * recommendation rather than a limit. Shown on hover and on keyboard focus;
+ * screen readers get the text as the button's description.
+ *
+ * `fill`: the tooltip spans the nearest positioned ancestor instead of
+ * centring on the icon, for narrow places like the filter sidebar, where a
+ * centred bubble would be cut off.
+ */
+export function SizeInfo({ fill = false }: { fill?: boolean }) {
+  // Unique per instance: the filter panel renders twice (sidebar and drawer).
+  const id = useId()
+  return (
+    <span className={`group inline-flex ${fill ? '' : 'relative'}`}>
+      <button
+        type="button"
+        aria-label="About pitch sizes"
+        aria-describedby={id}
+        className="rounded-full text-neutral-500 hover:text-neutral-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-600"
+      >
+        <Info className="h-4 w-4" aria-hidden="true" />
+      </button>
+      <span
+        id={id}
+        role="tooltip"
+        className={`invisible absolute top-full z-20 mt-2 ${fill ? 'inset-x-0' : 'left-1/2 w-64 -translate-x-1/2'} rounded-md bg-neutral-900 px-3 py-2 text-xs font-normal leading-snug text-white opacity-0 shadow-lg transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100`}
+      >
+        {SIZE_INFO}
+      </span>
+    </span>
+  )
+}
 
 /** "Oct 1, 2026". */
 export const formatReviewDate = (iso: string) =>

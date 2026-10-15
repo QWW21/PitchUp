@@ -3,7 +3,7 @@
  *
  * Query: city (required), search, sort=distance|rating|price|newest, lat+lng,
  * surface*, size*, amenities* (* repeatable: surface=FUTSAL&surface=NATURAL_GRASS),
- * priceMin, priceMax, availableNow, openNow, cursor, limit (default 20, max 50).
+ * priceMin, priceMax, availableNow, cursor, limit (default 20, max 50).
  *
  * Returns { companies, nextCursor, total }. See CompanyListQuerySchema and
  * CompanyListItem in @pitchup/shared for the exact contract.

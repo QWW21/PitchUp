@@ -35,6 +35,26 @@ export function nearestCity(lat: number, lng: number): City | null {
   return bestKm <= NEAREST_CITY_MAX_KM ? best : null
 }
 
+/** Geographic centre of Romania: where the map opens with no city at all. */
+const ROMANIA = { lat: 45.9432, lng: 24.9668 }
+
+/**
+ * Where the Discover map opens. On the player when they are in the selected
+ * city; on the city centre when they are browsing another city, because the
+ * map shows that city's venues and centring on the player would put them
+ * off-screen.
+ */
+export function mapCenter(
+  city: string | null,
+  coords: { lat: number; lng: number } | null
+): { lat: number; lng: number } {
+  const selected = CITIES.find(c => c.name === city)
+  if (coords && (!selected || nearestCity(coords.lat, coords.lng)?.name === selected.name)) {
+    return coords
+  }
+  return selected ? { lat: selected.lat, lng: selected.lng } : ROMANIA
+}
+
 /** U+0300–U+036F: the accents NFD splits off a letter (ș → s + comma below). */
 const COMBINING_MARKS = new RegExp(
   `[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`,

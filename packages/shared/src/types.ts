@@ -18,7 +18,7 @@ export type ModerationStatus = 'APPROVED' | 'PENDING' | 'REMOVED'
 
 export type SurfaceType = 'NATURAL_GRASS' | 'ARTIFICIAL_GRASS' | 'FUTSAL'
 
-export type PitchSize = 'FIVE_A_SIDE' | 'SEVEN_A_SIDE' | 'ELEVEN_A_SIDE' | 'CUSTOM'
+export type PitchSize = 'FIVE_A_SIDE' | 'SIX_A_SIDE' | 'SEVEN_A_SIDE' | 'ELEVEN_A_SIDE' | 'CUSTOM'
 
 export type CancelledBy = 'PLAYER' | 'MANAGER' | 'ADMIN' | 'SYSTEM'
 

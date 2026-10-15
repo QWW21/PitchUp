@@ -55,7 +55,6 @@ export function readUrlState(params: URLSearchParams): DiscoverUrlState {
       priceMin: num(params.get('priceMin')),
       priceMax: num(params.get('priceMax')),
       availableNow: params.get('availableNow') === 'true',
-      openNow: params.get('openNow') === 'true',
     },
   }
 }
@@ -73,6 +72,5 @@ export function writeUrlState(state: DiscoverUrlState): string {
   if (f.priceMin !== null) params.set('priceMin', String(f.priceMin))
   if (f.priceMax !== null) params.set('priceMax', String(f.priceMax))
   if (f.availableNow) params.set('availableNow', 'true')
-  if (f.openNow) params.set('openNow', 'true')
   return params.toString()
 }

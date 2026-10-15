@@ -54,7 +54,7 @@ async function fetchDay(pitchId: string, date: string): Promise<PitchAvailabilit
 
 interface BookNowPanelProps {
   pitchId: string
-  offPeakRate: number
+  hourlyRate: number
   signedIn: boolean
   block: BookingBlock
 }
@@ -63,7 +63,7 @@ interface BookNowPanelProps {
  * Price, today + six days of availability, and Book Now. Sticky beside the
  * gallery on desktop, a full-width section on small screens. E04-08.
  */
-export function BookNowPanel({ pitchId, offPeakRate, signedIn, block }: BookNowPanelProps) {
+export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPanelProps) {
   // The venue's today, not the browser's: a visitor abroad still sees Romanian dates.
   const today = venueClock(new Date()).date
   const dates = Array.from({ length: 7 }, (_, i) => addDays(today, i))
@@ -88,8 +88,7 @@ export function BookNowPanel({ pitchId, offPeakRate, signedIn, block }: BookNowP
   return (
     <aside className="rounded-xl bg-white p-5 shadow-sm lg:sticky lg:top-24">
       <p className="text-sm text-neutral-500">
-        from <span className="font-mono text-xl font-bold text-neutral-900">{offPeakRate} RON</span>
-        /h
+        <span className="font-mono text-xl font-bold text-neutral-900">{hourlyRate} RON</span>/h
       </p>
 
       {block !== 'unavailable' && (

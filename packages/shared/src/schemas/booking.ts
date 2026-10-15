@@ -7,16 +7,9 @@ import { idSchema } from './common'
 const shirtColourSchema = z.enum(SHIRT_COLOURS as unknown as [string, ...string[]])
 
 const teamSchema = z.object({
+  /** The shirt colour this team plays in, when it borrows a set. */
   colour: shirtColourSchema.optional(),
   playerCount: z.number().int().min(1).max(BOOKING.MAX_PLAYERS_PER_TEAM).optional(),
-  shirts: z
-    .array(
-      z.object({
-        colour: shirtColourSchema,
-        quantity: z.number().int().min(1).max(BOOKING.MAX_PLAYERS_PER_TEAM),
-      })
-    )
-    .optional(),
 })
 
 export const CreateBookingSchema = z
@@ -26,6 +19,8 @@ export const CreateBookingSchema = z
     endTime: z.string().datetime({ message: 'Must be an ISO-8601 UTC timestamp' }),
     teamCount: z.number().int().min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
     teamsData: z.array(teamSchema).min(BOOKING.MIN_TEAM_COUNT).max(BOOKING.MAX_TEAM_COUNT),
+    /** Free shirts: the booking gets shirtSetsFor(teamCount, true) sets. */
+    wantsShirts: z.boolean().default(false),
     noteToManager: z.string().max(BOOKING.MAX_NOTE_LENGTH).optional(),
   })
   .refine(data => new Date(data.endTime) > new Date(data.startTime), {

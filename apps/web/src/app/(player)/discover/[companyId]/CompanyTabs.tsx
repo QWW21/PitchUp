@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from 'next/navigation'
 import { ChevronRight, ImageOff } from 'lucide-react'
 import type { CompanyDetail } from '@pitchup/shared'
 import { RatingLine, SurfaceChip, sizeLabel } from '@/components/venue/bits'
@@ -15,7 +15,6 @@ type Tab = 'pitches' | 'reviews'
  * straight to that pitch's reviews.
  */
 export function CompanyTabs({ company }: { company: CompanyDetail }) {
-  const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
   const tab: Tab = params.get('tab') === 'reviews' ? 'reviews' : 'pitches'
@@ -27,7 +26,10 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
       q.delete('tab')
       q.delete('pitch')
     }
-    router.replace(`${pathname}${q.size ? `?${q}` : ''}`, { scroll: false })
+    // The browser's own history call: Next.js keeps useSearchParams in step,
+    // and unlike router.replace it does not refetch the page from the server
+    // (which also blanked the document title mid-switch).
+    window.history.replaceState(null, '', `${pathname}${q.size ? `?${q}` : ''}`)
   }
 
   return (
@@ -89,7 +91,7 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
                       <span className="text-xs text-neutral-500">{sizeLabel(p.size)}</span>
                     </div>
                     <p className="text-xs text-neutral-700">
-                      from <strong className="text-primary-700">{p.offPeakRate} RON</strong>/h
+                      <strong className="text-primary-700">{p.hourlyRate} RON</strong>/h
                     </p>
                     <RatingLine avgRating={p.avgRating} reviewCount={p.reviewCount} />
                   </div>

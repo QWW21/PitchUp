@@ -51,12 +51,12 @@ describe('companyListQueryString', () => {
         search: '   ',
         sort: 'distance',
         coords: { lat: 46.77, lng: 23.59 },
-        filters: { ...DEFAULT_FILTERS, priceMax: 200, openNow: true },
+        filters: { ...DEFAULT_FILTERS, priceMax: 200, availableNow: true },
         cursor: 'abc',
         limit: 5,
       })
     ).toBe(
-      'city=Cluj-Napoca&sort=distance&lat=46.77&lng=23.59&priceMax=200&openNow=true&cursor=abc&limit=5'
+      'city=Cluj-Napoca&sort=distance&lat=46.77&lng=23.59&priceMax=200&availableNow=true&cursor=abc&limit=5'
     )
   })
 
@@ -67,12 +67,11 @@ describe('companyListQueryString', () => {
       sort: 'price',
       filters: {
         surfaces: ['ARTIFICIAL_GRASS'],
-        sizes: ['FIVE_A_SIDE'],
+        sizes: ['SIX_A_SIDE'],
         amenities: ['parking', 'lighting'],
         priceMin: 50,
         priceMax: 150,
         availableNow: true,
-        openNow: false,
       },
     })
     const result = parse(qs)
@@ -82,8 +81,8 @@ describe('companyListQueryString', () => {
       search: 'arena',
       amenities: ['PARKING_FREE', 'PARKING_PAID', 'NIGHT_LIGHTING'],
       priceMin: 50,
+      size: ['SIX_A_SIDE'],
       availableNow: true,
-      openNow: false,
       limit: 20,
     })
   })
@@ -92,7 +91,7 @@ describe('companyListQueryString', () => {
 describe('hasActiveFilters', () => {
   it('is false for the defaults and true for any change', () => {
     expect(hasActiveFilters(DEFAULT_FILTERS)).toBe(false)
-    expect(hasActiveFilters({ ...DEFAULT_FILTERS, openNow: true })).toBe(true)
+    expect(hasActiveFilters({ ...DEFAULT_FILTERS, availableNow: true })).toBe(true)
     expect(hasActiveFilters({ ...DEFAULT_FILTERS, priceMin: 40 })).toBe(true)
   })
 })
@@ -119,6 +118,6 @@ describe('CompanyListQuerySchema', () => {
     expect(parse('city=Cluj-Napoca&limit=51').success).toBe(false)
   })
   it('rejects booleans that are not true/false', () => {
-    expect(parse('city=Cluj-Napoca&openNow=yes').success).toBe(false)
+    expect(parse('city=Cluj-Napoca&availableNow=yes').success).toBe(false)
   })
 })
