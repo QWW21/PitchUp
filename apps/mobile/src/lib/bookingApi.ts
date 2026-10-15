@@ -10,6 +10,7 @@ import type {
   CancelBookingResult,
   CalendarDay,
   CreateBookingResult,
+  MyReview,
   PaymentConfig,
   PitchAvailability,
   SavedCard,
@@ -81,4 +82,6 @@ export const bookingApi = {
   updateReview: (id: string, body: { rating: number; text?: string; isAnonymous: boolean }) =>
     apiRequest<{ updated: true }>({ method: 'PUT', url: `/reviews/${id}`, data: body }),
   deleteReview: (id: string) => apiRequest<null>({ method: 'DELETE', url: `/reviews/${id}` }),
+  // ── My reviews (E07) ──
+  myReviews: () => apiRequest<MyReview[]>({ method: 'GET', url: '/reviews/mine' }),
 }

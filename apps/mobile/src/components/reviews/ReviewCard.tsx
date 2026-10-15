@@ -90,7 +90,10 @@ export function ReviewCard({ review, compact = false }: ReviewCardProps) {
       ) : null}
       {!compact && review.managerReply ? (
         <View style={styles.reply}>
-          <Text style={styles.replyLabel}>RESPONSE FROM MANAGER</Text>
+          <Text style={styles.replyLabel}>
+            RESPONSE FROM THE VENUE
+            {review.managerRepliedAt ? ` · ${formatDate(review.managerRepliedAt)}` : ''}
+          </Text>
           <Text style={styles.text}>{review.managerReply}</Text>
         </View>
       ) : null}

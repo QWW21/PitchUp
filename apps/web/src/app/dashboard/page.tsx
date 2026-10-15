@@ -1,30 +1,44 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { auth, signOut } from '@/auth'
+import { MessageSquare } from 'lucide-react'
+import { auth } from '@/auth'
+import { prisma } from '@/lib/prisma'
 
+export const metadata: Metadata = { title: 'Dashboard | PitchUp' }
+
+/** The manager's start page. The full dashboard is E09. */
 export default async function DashboardPage() {
+  // The layout redirects too, but layouts and pages render in parallel.
   const session = await auth()
-  if (!session?.user) redirect('/login')
-  // The dashboard is the manager area. Players who sign in on the web
-  // belong on Discover (PRD §5.3), not on a page with nothing for them.
-  if (session.user.role === 'PLAYER') redirect('/discover')
+  if (!session?.user) redirect('/login?callbackUrl=%2Fdashboard')
+  const unanswered = await prisma.review.count({
+    where: {
+      deletedAt: null,
+      moderationStatus: 'APPROVED',
+      managerReply: null,
+      pitch: { company: { ownerId: session.user.id } },
+    },
+  })
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4">
+    <>
       <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
-      <p className="text-neutral-500">Signed in as {session.user.email}</p>
-      <form
-        action={async () => {
-          'use server'
-          await signOut({ redirectTo: '/login' })
-        }}
+      <p className="mt-1 text-neutral-500">Signed in as {session.user.email}</p>
+      <Link
+        href="/dashboard/reviews?sort=unanswered"
+        className="mt-6 flex max-w-sm items-center gap-3 rounded-xl bg-white p-4 shadow-sm hover:shadow-md"
       >
-        <button
-          type="submit"
-          className="rounded-lg bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-200"
-        >
-          Sign out
-        </button>
-      </form>
-    </main>
+        <MessageSquare className="h-6 w-6 text-primary-600" aria-hidden="true" />
+        <span>
+          <span className="block font-semibold text-neutral-900">Reviews</span>
+          <span className="text-sm text-neutral-700">
+            {unanswered === 0
+              ? 'Every review has a reply'
+              : `${unanswered} ${unanswered === 1 ? 'review is' : 'reviews are'} waiting for a reply`}
+          </span>
+        </span>
+      </Link>
+    </>
   )
 }

@@ -1,17 +1,49 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { MessageSquare, X } from 'lucide-react'
-import type { ReviewItem, ReviewPage } from '@pitchup/shared'
+import {
+  REVIEW_SORTS,
+  REVIEW_SORT_LABELS,
+  type ReviewItem,
+  type ReviewPage,
+  type ReviewSort,
+} from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
 import { Stars, formatReviewDate } from './bits'
+import { ReportReview } from './ReportReview'
 
-/** Big number, stars, and a 5★→1★ bar per star. UIUX_SPEC §6.1. */
+/** True once the element has scrolled into view (and stays true). */
+function useSeen<T extends Element>() {
+  const ref = useRef<T>(null)
+  const [seen, setSeen] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el || seen) return
+    // Without IntersectionObserver (old browsers), just show it.
+    if (typeof IntersectionObserver === 'undefined') {
+      setSeen(true)
+      return
+    }
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting) setSeen(true)
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [seen])
+  return [ref, seen] as const
+}
+
+/**
+ * Big number, stars, and a 5★→1★ bar per star. UIUX_SPEC §6.1. The bars grow
+ * when the chart scrolls into view (E07-10).
+ */
 export function RatingBreakdown({ page }: { page: ReviewPage }) {
   const max = page.total || 1
+  const [ref, seen] = useSeen<HTMLDivElement>()
   return (
-    <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
+    <div ref={ref} className="flex flex-col gap-6 sm:flex-row sm:items-center">
       <div className="shrink-0">
         <p className="flex items-baseline gap-2">
           <span className="text-3xl font-bold text-neutral-900">
@@ -38,8 +70,8 @@ export function RatingBreakdown({ page }: { page: ReviewPage }) {
               <span className="w-8">{star} ★</span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-neutral-200">
                 <div
-                  className="h-full rounded-full bg-primary-600 transition-[width] duration-700"
-                  style={{ width: `${(count / max) * 100}%` }}
+                  className="h-full rounded-full bg-primary-600 transition-[width] duration-[600ms] ease-out"
+                  style={{ width: seen ? `${(count / max) * 100}%` : 0 }}
                 />
               </div>
               <span className="w-8 text-right">{count}</span>
@@ -81,18 +113,21 @@ export function ReviewCard({
   review,
   compact = false,
   showPitch = false,
+  canReport = false,
 }: {
   review: ReviewItem
   /** Pitch-page preview: three lines, no photos, no reply. */
   compact?: boolean
   showPitch?: boolean
+  /** Signed in: offer "Report" (E07-04). */
+  canReport?: boolean
 }) {
   const [lightbox, setLightbox] = useState<string | null>(null)
   return (
     <article className="border-b border-neutral-200 py-4 last:border-b-0">
       <header className="flex items-center gap-3">
         <Avatar review={review} />
-        <div>
+        <div className="flex-1">
           <p
             className={`text-[13px] font-medium ${review.isAnonymous ? 'text-neutral-500' : 'text-neutral-900'}`}
           >
@@ -103,6 +138,7 @@ export function ReviewCard({
             {showPitch && ` · ${review.pitchName}`}
           </p>
         </div>
+        {canReport && !compact && <ReportReview reviewId={review.id} />}
       </header>
       <div className="mt-1.5">
         <Stars rating={review.rating} />
@@ -124,7 +160,8 @@ export function ReviewCard({
       {!compact && review.managerReply && (
         <div className="ml-3 mt-3 rounded-md bg-neutral-50 p-2">
           <p className="mb-1 text-[11px] font-medium uppercase text-neutral-500">
-            Response from manager
+            Response from the venue
+            {review.managerRepliedAt && ` · ${formatReviewDate(review.managerRepliedAt)}`}
           </p>
           <p className="text-sm text-neutral-700">{review.managerReply}</p>
         </div>
@@ -155,18 +192,39 @@ async function fetchReviews(query: string, page: number): Promise<ReviewPage> {
   return body.data as ReviewPage
 }
 
-/** Breakdown + paginated list, for a company (optionally one pitch). E04-07, E04-08. */
+const isSort = (v: string | undefined): v is ReviewSort =>
+  (REVIEW_SORTS as readonly string[]).includes(v ?? '')
+
+/**
+ * Breakdown + list, for a company (optionally one pitch). E04-07, E04-08;
+ * E07-10 adds the order (kept in the URL as ?sort=) and loads the next page
+ * by itself as the end of the list scrolls into view.
+ */
 export function ReviewsList({
   companyId,
   pitches,
   initialPitchId,
+  initialSort,
+  signedIn = false,
 }: {
   companyId: string
   pitches: { id: string; name: string }[]
   initialPitchId?: string | undefined
+  initialSort?: string | undefined
+  signedIn?: boolean
 }) {
   const [pitchId, setPitchId] = useState(initialPitchId ?? '')
-  const query = pitchId ? `pitchId=${pitchId}` : `companyId=${companyId}`
+  const [sort, setSort] = useState<ReviewSort>(isSort(initialSort) ? initialSort : 'newest')
+  const query = `${pitchId ? `pitchId=${pitchId}` : `companyId=${companyId}`}&sort=${sort}`
+
+  const chooseSort = (next: ReviewSort) => {
+    setSort(next)
+    const q = new URLSearchParams(window.location.search)
+    if (next === 'newest') q.delete('sort')
+    else q.set('sort', next)
+    // As in CompanyTabs: the browser's own call, so the page is not refetched.
+    window.history.replaceState(null, '', `${window.location.pathname}${q.size ? `?${q}` : ''}`)
+  }
 
   const reviews = useInfiniteQuery({
     queryKey: ['reviews', query],
@@ -177,6 +235,20 @@ export function ReviewsList({
 
   const first = reviews.data?.pages[0]
   const items = reviews.data?.pages.flatMap(p => p.reviews) ?? []
+
+  // The end of the list in view: fetch the next page. The button stays for
+  // keyboards and browsers without IntersectionObserver.
+  const end = useRef<HTMLDivElement>(null)
+  const { hasNextPage, isFetchingNextPage, fetchNextPage } = reviews
+  useEffect(() => {
+    const el = end.current
+    if (!el || !hasNextPage || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry?.isIntersecting && !isFetchingNextPage) void fetchNextPage()
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   return (
     <div>
@@ -197,6 +269,24 @@ export function ReviewsList({
           </select>
         </label>
       )}
+
+      <div role="group" aria-label="Sort reviews" className="mb-6 flex flex-wrap gap-2">
+        {REVIEW_SORTS.map(s => (
+          <button
+            key={s}
+            type="button"
+            aria-pressed={sort === s}
+            onClick={() => chooseSort(s)}
+            className={`h-9 rounded-full px-4 text-sm font-medium ${
+              sort === s
+                ? 'bg-primary-600 text-white'
+                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
+            }`}
+          >
+            {REVIEW_SORT_LABELS[s]}
+          </button>
+        ))}
+      </div>
 
       {reviews.isPending ? (
         <div className="h-40 animate-pulse rounded-xl bg-neutral-100" />
@@ -222,11 +312,16 @@ export function ReviewsList({
           {first && <RatingBreakdown page={first} />}
           <div className="mt-6">
             {items.map(r => (
-              <ReviewCard key={r.id} review={r} showPitch={!pitchId && pitches.length > 1} />
+              <ReviewCard
+                key={r.id}
+                review={r}
+                showPitch={!pitchId && pitches.length > 1}
+                canReport={signedIn}
+              />
             ))}
           </div>
           {reviews.hasNextPage && (
-            <div className="mt-4 flex justify-center">
+            <div ref={end} className="mt-4 flex justify-center">
               <div className="w-48">
                 <Button
                   variant="secondary"

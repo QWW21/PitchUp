@@ -23,7 +23,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { REVIEW, formatDateLong } from '@pitchup/shared'
+import { REVIEW, formatDateLong, fromMinutes, venueClock } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
@@ -31,6 +31,12 @@ import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Review'>
+
+/** "5 November 2026 at 18:00", venue time, without Intl. */
+const closes = (iso: string) => {
+  const c = venueClock(new Date(iso))
+  return `${formatDateLong(c.date)} at ${fromMinutes(c.minutes)}`
+}
 
 const LABELS = [
   null,
@@ -84,6 +90,8 @@ export function ReviewScreen({ navigation, route }: Props) {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['booking', id] }),
         queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+        // My reviews (E07-06), when the edit started there.
+        queryClient.invalidateQueries({ queryKey: ['reviews'] }),
       ])
       navigation.goBack()
     },
@@ -126,6 +134,9 @@ export function ReviewScreen({ navigation, route }: Props) {
             <Text style={styles.muted}>{b.company.name}</Text>
             <Text style={styles.muted}>Played {formatDateLong(b.date)}</Text>
           </View>
+        ) : null}
+        {existing ? (
+          <Text style={styles.muted}>Edit window closes {closes(existing.editableUntil)}</Text>
         ) : null}
 
         <Animated.View

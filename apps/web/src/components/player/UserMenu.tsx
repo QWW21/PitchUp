@@ -70,6 +70,13 @@ export function UserMenu({ name, signOutAction }: UserMenuProps) {
           >
             My Bookings
           </Link>
+          <Link
+            role="menuitem"
+            href="/my-reviews"
+            className="block px-4 py-2 text-sm hover:bg-neutral-50"
+          >
+            My Reviews
+          </Link>
           <form action={signOutAction}>
             <button
               role="menuitem"

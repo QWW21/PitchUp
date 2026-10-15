@@ -10,8 +10,12 @@ import {
   CreatePitchSchema,
   CreateReviewSchema,
   LoginSchema,
+  ManagerReplySchema,
+  ManagerReviewQuerySchema,
   PLATFORM_FEE_PERCENT,
   RegisterPlayerSchema,
+  ReportReviewSchema,
+  ReviewListQuerySchema,
   SHIRT_COLOURS,
   shirtSetsFor,
   TRUST_SCORE_DELTAS,
@@ -207,5 +211,30 @@ describe('review text (E06-05)', () => {
     expect(review('Too short').success).toBe(false) // 9
     expect(review('Just right').success).toBe(true) // 10
     expect(review('x'.repeat(501)).success).toBe(false)
+  })
+})
+
+describe('review replies, reports and lists (E07)', () => {
+  it('a reply is 1 to 300 characters (PRD §8.5)', () => {
+    expect(ManagerReplySchema.safeParse({ reply: '  ' }).success).toBe(false)
+    expect(ManagerReplySchema.safeParse({ reply: 'x'.repeat(300) }).success).toBe(true)
+    expect(ManagerReplySchema.safeParse({ reply: 'x'.repeat(301) }).success).toBe(false)
+  })
+  it('a report has one of the PRD §11.3 categories; blank detail is none', () => {
+    expect(ReportReviewSchema.safeParse({ category: 'SPAM' }).success).toBe(true)
+    expect(ReportReviewSchema.safeParse({ category: 'RUDE' }).success).toBe(false)
+    const blank = ReportReviewSchema.safeParse({ category: 'FAKE', detail: ' ' })
+    expect(blank.success && blank.data.detail).toBeUndefined()
+    expect(
+      ReportReviewSchema.safeParse({ category: 'FAKE', detail: 'x'.repeat(301) }).success
+    ).toBe(false)
+  })
+  it('lists default to newest, page 1, and refuse unknown orders', () => {
+    expect(ReviewListQuerySchema.parse({})).toEqual({ sort: 'newest', page: 1, limit: 10 })
+    expect(ReviewListQuerySchema.safeParse({ sort: 'best' }).success).toBe(false)
+    expect(ReviewListQuerySchema.safeParse({ limit: '51' }).success).toBe(false)
+    // Managers cannot sort by highest: it is not a question they need answered.
+    expect(ManagerReviewQuerySchema.safeParse({ sort: 'highest' }).success).toBe(false)
+    expect(ManagerReviewQuerySchema.parse({ sort: 'unanswered' })).toMatchObject({ limit: 20 })
   })
 })

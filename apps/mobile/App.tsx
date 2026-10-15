@@ -32,6 +32,7 @@ import { BookingFlowScreen } from './src/screens/booking/BookingFlowScreen'
 import { MyBookingsScreen } from './src/screens/bookings/MyBookingsScreen'
 import { BookingDetailScreen } from './src/screens/bookings/BookingDetailScreen'
 import { ReviewScreen } from './src/screens/bookings/ReviewScreen'
+import { MyReviewsScreen } from './src/screens/bookings/MyReviewsScreen'
 import type { BookingTab } from '@pitchup/shared'
 
 // ---------------------------------------------------------------------------
@@ -72,6 +73,8 @@ export type AppStackParamList = {
   MyBookings: { tab?: BookingTab; notice?: string } | undefined
   BookingDetail: { id: string }
   Review: { bookingId: string }
+  /** E07-06. */
+  MyReviews: undefined
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -109,6 +112,7 @@ function AppNavigator() {
       <AppStack.Screen name="MyBookings" component={MyBookingsScreen} />
       <AppStack.Screen name="BookingDetail" component={BookingDetailScreen} />
       <AppStack.Screen name="Review" component={ReviewScreen} />
+      <AppStack.Screen name="MyReviews" component={MyReviewsScreen} />
     </AppStack.Navigator>
   )
 }

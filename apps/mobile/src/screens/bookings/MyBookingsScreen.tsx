@@ -75,6 +75,15 @@ export function MyBookingsScreen({ navigation, route }: Props) {
         <Text style={styles.title} accessibilityRole="header">
           My bookings
         </Text>
+        <Pressable
+          onPress={() => navigation.navigate('MyReviews')}
+          style={styles.reviews}
+          accessibilityRole="button"
+          accessibilityLabel="My reviews"
+        >
+          <Icon name="star-outline" size={20} color={colors.primary[600]} />
+          <Text style={styles.reviewsText}>My reviews</Text>
+        </Pressable>
       </View>
 
       <View style={styles.tabs} accessibilityRole="tablist">
@@ -162,7 +171,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.neutral[50] },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.xs, height: 52 },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 20, fontWeight: '700', color: colors.neutral[900] },
+  title: { flex: 1, fontSize: 20, fontWeight: '700', color: colors.neutral[900] },
+  reviews: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 44,
+    paddingHorizontal: spacing.sm,
+  },
+  reviewsText: { fontSize: 14, fontWeight: '500', color: colors.primary[600] },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: colors.neutral[200] },
   tab: { flex: 1, height: 44, alignItems: 'center', justifyContent: 'center' },
   tabOn: { borderBottomWidth: 2, borderBottomColor: colors.primary[600] },

@@ -10,11 +10,17 @@ import { ReviewsList } from '@/components/venue/Reviews'
 type Tab = 'pitches' | 'reviews'
 
 /**
- * Pitches | Reviews. The active tab and a pitch filter live in the URL
- * (?tab=reviews&pitch=…), so "See all reviews" on a pitch page can link
+ * Pitches | Reviews. The active tab, a pitch filter and the review order live
+ * in the URL (?tab=reviews&pitch=…&sort=…), so "See all reviews" on a pitch page can link
  * straight to that pitch's reviews.
  */
-export function CompanyTabs({ company }: { company: CompanyDetail }) {
+export function CompanyTabs({
+  company,
+  signedIn = false,
+}: {
+  company: CompanyDetail
+  signedIn?: boolean
+}) {
   const pathname = usePathname()
   const params = useSearchParams()
   const tab: Tab = params.get('tab') === 'reviews' ? 'reviews' : 'pitches'
@@ -25,6 +31,7 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
     else {
       q.delete('tab')
       q.delete('pitch')
+      q.delete('sort')
     }
     // The browser's own history call: Next.js keeps useSearchParams in step,
     // and unlike router.replace it does not refetch the page from the server
@@ -107,6 +114,8 @@ export function CompanyTabs({ company }: { company: CompanyDetail }) {
             companyId={company.id}
             pitches={company.pitches.map(p => ({ id: p.id, name: p.name }))}
             initialPitchId={params.get('pitch') ?? undefined}
+            initialSort={params.get('sort') ?? undefined}
+            signedIn={signedIn}
           />
         )}
       </div>

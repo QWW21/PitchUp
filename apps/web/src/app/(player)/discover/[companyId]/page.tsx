@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { Suspense, cache } from 'react'
 import { BadgeCheck, Building2, ChevronLeft, Globe, MapPin, Phone } from 'lucide-react'
+import { auth } from '@/auth'
 import { getCompanyDetail } from '@/lib/venues/company'
 import { RatingLine } from '@/components/venue/bits'
 import { WorkingHours } from '@/components/venue/WorkingHours'
@@ -36,6 +37,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function CompanyPage({ params }: Props) {
   const company = await loadCompany((await params).companyId)
   if (!company) notFound()
+  const session = await auth()
 
   const address = [company.addressLine1, company.addressLine2, company.city]
     .filter(Boolean)
@@ -116,7 +118,7 @@ export default async function CompanyPage({ params }: Props) {
 
       {/* The tabs read ?tab= from the URL. */}
       <Suspense>
-        <CompanyTabs company={company} />
+        <CompanyTabs company={company} signedIn={!!session?.user} />
       </Suspense>
     </main>
   )

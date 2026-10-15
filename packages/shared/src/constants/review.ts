@@ -12,7 +12,10 @@ export const REVIEW = {
   SUBMIT_WINDOW_DAYS: 14,
   /** Reviews below this count are not shown publicly. PRD §11.2. */
   MIN_FOR_PUBLIC_RATING: 3,
-  MAX_MANAGER_REPLY_LENGTH: 500,
+  /** PRD §8.5: a reply of up to 300 characters, editable for 24 hours. */
+  MAX_MANAGER_REPLY_LENGTH: 300,
+  REPLY_EDIT_WINDOW_HOURS: 24,
+  MAX_REPORT_DETAIL_LENGTH: 300,
   /** Free-text length for a no-show dispute. PRD §9.4. */
   MAX_DISPUTE_TEXT_LENGTH: 300,
 } as const

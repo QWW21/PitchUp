@@ -9,6 +9,7 @@ import {
   type PitchAvailability,
   type PitchDetail,
   type ReviewPage,
+  type ReviewSort,
 } from '@pitchup/shared'
 import { apiRequest } from '../lib/apiClient'
 
@@ -50,8 +51,13 @@ export function usePitchWeek(pitchId: string, enabled: boolean) {
 
 const PAGE_SIZE = 10
 
-export function useReviews(params: { companyId: string; pitchId?: string | undefined }) {
-  const filter = params.pitchId ? `pitchId=${params.pitchId}` : `companyId=${params.companyId}`
+/** E07-07: `sort` orders the list (newest by default). */
+export function useReviews(params: {
+  companyId: string
+  pitchId?: string | undefined
+  sort?: ReviewSort | undefined
+}) {
+  const filter = `${params.pitchId ? `pitchId=${params.pitchId}` : `companyId=${params.companyId}`}&sort=${params.sort ?? 'newest'}`
   return useInfiniteQuery({
     queryKey: ['reviews', filter],
     queryFn: ({ pageParam }) =>

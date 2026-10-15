@@ -2,27 +2,15 @@
 
 /**
  * The actions on a booking detail — E06-10: cancel (a dialog showing the
- * refund the policy gives), review, dispute a no-show, and edit or delete
- * one's own review while it is still editable.
+ * refund the policy gives), review, dispute a no-show, and edit one's own
+ * review while it is still editable or delete it (any time, E07-06).
  */
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { REVIEW, formatDateLong, type BookingDetail } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
-
-async function send(url: string, method: string, body?: unknown) {
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  })
-  if (res.status === 204) return null
-  const json = await res.json().catch(() => null)
-  if (!res.ok || json?.error)
-    throw new Error(json?.error?.message ?? 'Something went wrong. Try again.')
-  return json.data
-}
+import { send } from '@/lib/http'
 
 export function BookingActions({ booking: b }: { booking: BookingDetail }) {
   return (
@@ -231,7 +219,7 @@ export function ReviewActions({
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
-  if (new Date(editableUntil).getTime() <= Date.now()) return null
+  const editable = new Date(editableUntil).getTime() > Date.now()
 
   const remove = async () => {
     if (!window.confirm('Delete your review? This cannot be undone.')) return
@@ -245,12 +233,14 @@ export function ReviewActions({
 
   return (
     <div className="mt-3 flex items-center gap-4 text-sm">
-      <Link
-        href={`/my-bookings/${bookingId}/review`}
-        className="font-medium text-primary-700 hover:underline"
-      >
-        Edit review
-      </Link>
+      {editable && (
+        <Link
+          href={`/my-bookings/${bookingId}/review`}
+          className="font-medium text-primary-700 hover:underline"
+        >
+          Edit review
+        </Link>
+      )}
       <button type="button" onClick={remove} className="font-medium text-error-600 hover:underline">
         Delete review
       </button>

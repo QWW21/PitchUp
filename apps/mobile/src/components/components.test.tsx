@@ -100,17 +100,18 @@ const review: ReviewItem = {
   playerAvatarUrl: null,
   photoUrls: [],
   managerReply: 'Thanks for playing!',
+  managerRepliedAt: '2026-10-02T09:00:00.000Z',
   createdAt: '2026-10-01T14:32:00.000Z',
 }
 
 describe('ReviewCard', () => {
-  it('shows initials, name, date, text and the manager reply', () => {
+  it("shows initials, name, date, text and the venue's reply with its date", () => {
     render(<ReviewCard review={review} />)
     expect(screen.getByText('DP')).toBeTruthy()
     expect(screen.getByText('Demo P.')).toBeTruthy()
     expect(screen.getByText('Oct 1, 2026')).toBeTruthy()
     expect(screen.getByText('Great surface.')).toBeTruthy()
-    expect(screen.getByText('RESPONSE FROM MANAGER')).toBeTruthy()
+    expect(screen.getByText('RESPONSE FROM THE VENUE · Oct 2, 2026')).toBeTruthy()
   })
 
   it('anonymous: a "?" avatar and no name', () => {

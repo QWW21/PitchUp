@@ -116,8 +116,18 @@ enum NotificationType {
   DISPUTE_RESOLVED
   REVIEW_LEFT
   MANAGER_REPLIED
+  /// To admins: someone reported a review (E07-04).
+  REVIEW_REPORTED
   OTP
   PASSWORD_RESET
+}
+
+/// Why a review was reported. PRD §11.3.
+enum ReviewReportCategory {
+  SPAM
+  OFFENSIVE
+  IRRELEVANT
+  FAKE
 }
 
 enum CancelledBy {
@@ -154,6 +164,7 @@ model User {
   company             Company?
   bookings            Booking[]
   reviews             Review[]
+  reviewReports       ReviewReport[]
   notifications       Notification[]
   trustScoreEvents    TrustScoreEvent[]
   noShowsReported     NoShow[]             @relation("NoShowReportedByManager")
@@ -389,13 +400,30 @@ model Review {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  pitch   Pitch   @relation(fields: [pitchId], references: [id], onDelete: Cascade)
-  player  User    @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  booking Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  pitch   Pitch          @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+  player  User           @relation(fields: [playerId], references: [id], onDelete: Restrict)
+  reports ReviewReport[]
 
   @@index([pitchId])
   @@index([playerId])
   @@index([moderationStatus])
+}
+
+/// One user's report of one review (E07-04). The review stays visible;
+/// it is flagged for an admin to decide (E15).
+model ReviewReport {
+  id         String               @id @default(cuid())
+  reviewId   String
+  reporterId String
+  category   ReviewReportCategory
+  detail     String?
+  createdAt  DateTime             @default(now())
+
+  review   Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  reporter User   @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, reporterId])
 }
 
 model Notification {

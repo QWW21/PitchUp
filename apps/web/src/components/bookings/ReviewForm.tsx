@@ -20,6 +20,8 @@ interface Props {
   bookingId: string
   existing: BookingDetail['review']
   photosEnabled: boolean
+  /** Where to go once saved; the booking by default. */
+  returnTo?: string | undefined
 }
 
 async function uploadPhoto(bookingId: string, file: File): Promise<string> {
@@ -50,7 +52,7 @@ async function uploadPhoto(bookingId: string, file: File): Promise<string> {
   return body.secure_url as string
 }
 
-export function ReviewForm({ bookingId, existing, photosEnabled }: Props) {
+export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Props) {
   const router = useRouter()
   const [rating, setRating] = useState(existing?.rating ?? 0)
   const [hover, setHover] = useState(0)
@@ -110,7 +112,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled }: Props) {
       setBusy(false)
       return
     }
-    router.push(`/my-bookings/${bookingId}?reviewed=1`)
+    router.push(returnTo ?? `/my-bookings/${bookingId}?reviewed=1`)
     router.refresh()
   }
 

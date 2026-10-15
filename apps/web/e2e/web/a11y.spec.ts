@@ -247,3 +247,49 @@ test.describe('my bookings', () => {
     await db.booking.deleteMany({ where: { playerId: player.id } })
   })
 })
+
+test.describe('reviews (E07)', () => {
+  test('My reviews, the report dialog, and the manager reviews page', async ({ page }) => {
+    const email = uniqueEmail('a11y-rev')
+    await createPlayer(email)
+    const player = await db.user.findUniqueOrThrow({ where: { email } })
+    const g = await venue('gheorgheni')
+    const pitchId = g.pitches[1]!.id
+    const b = await seedBooking({
+      pitchId,
+      playerId: player.id,
+      startsIn: -26,
+      status: 'COMPLETED',
+    })
+    await db.review.create({
+      data: {
+        bookingId: b.id,
+        pitchId,
+        playerId: player.id,
+        rating: 3,
+        text: 'An accessible review text.',
+        managerReply: 'An accessible reply.',
+        managerRepliedAt: new Date(),
+      },
+    })
+    await signIn(page, email, 'Testing123')
+
+    await page.goto('/my-reviews')
+    await expect(page.getByRole('article')).toHaveCount(1)
+    await audit(page)
+
+    await page.goto(`/discover/${g.id}?tab=reviews`)
+    await expect(page.getByRole('group', { name: 'Sort reviews' })).toBeVisible()
+    await audit(page)
+    await page.getByRole('button', { name: 'Report' }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await audit(page)
+
+    await signIn(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
+    await page.goto('/dashboard/reviews')
+    await expect(page.getByRole('heading', { name: 'Reviews' })).toBeVisible()
+    await page.getByRole('button', { name: 'Reply to this review' }).first().click()
+    await audit(page)
+    await db.booking.deleteMany({ where: { playerId: player.id } })
+  })
+})

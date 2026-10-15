@@ -1,9 +1,15 @@
 /**
- * Public reviews — E04-02 (preview) and E04-07 (full list).
+ * Public reviews — E04-02 (preview), E04-07 (full list), E07-01 (sorting,
+ * replies).
  */
 import 'server-only'
 import type { Prisma } from '@prisma/client'
-import { playerDisplayName, type ReviewItem, type ReviewPage } from '@pitchup/shared'
+import {
+  playerDisplayName,
+  type ReviewItem,
+  type ReviewPage,
+  type ReviewSort,
+} from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { companyRating, pitchStats, publicRating } from './ratings'
 
@@ -30,6 +36,7 @@ export function toReviewItem(r: ReviewRow): ReviewItem {
     playerAvatarUrl: r.isAnonymous ? null : r.player.profilePhotoUrl,
     photoUrls,
     managerReply: r.managerReply,
+    managerRepliedAt: r.managerRepliedAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
   }
 }
@@ -37,12 +44,26 @@ export function toReviewItem(r: ReviewRow): ReviewItem {
 export interface ReviewQuery {
   pitchId?: string | undefined
   companyId?: string | undefined
+  sort?: ReviewSort | undefined
   page: number
   limit: number
 }
 
+/** The id last, so equal ratings or dates still page in a fixed order. */
+export const REVIEW_ORDER: Record<ReviewSort, Prisma.ReviewOrderByWithRelationInput[]> = {
+  newest: [{ createdAt: 'desc' }, { id: 'desc' }],
+  highest: [{ rating: 'desc' }, { createdAt: 'desc' }, { id: 'desc' }],
+  lowest: [{ rating: 'asc' }, { createdAt: 'desc' }, { id: 'desc' }],
+  // No reply first (nulls first), then the rest by latest reply.
+  unanswered: [
+    { managerRepliedAt: { sort: 'desc', nulls: 'first' } },
+    { createdAt: 'desc' },
+    { id: 'desc' },
+  ],
+}
+
 /**
- * One page of approved reviews for a pitch or a company, newest first, with
+ * One page of approved reviews for a pitch or a company, in the order asked (newest first by default), with
  * the star distribution and rating that head the list. Returns null when the
  * pitch or company is not publicly visible.
  */
@@ -66,7 +87,7 @@ export async function listReviews(q: ReviewQuery): Promise<ReviewPage | null> {
     prisma.review.findMany({
       where,
       include: reviewInclude,
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      orderBy: REVIEW_ORDER[q.sort ?? 'newest'],
       skip: (q.page - 1) * q.limit,
       take: q.limit,
     }),

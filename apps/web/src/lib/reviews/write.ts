@@ -1,8 +1,8 @@
 /**
  * Writing reviews — E06-05. One per booking, for a completed booking, within
- * REVIEW.SUBMIT_WINDOW_DAYS of its end (PRD §11.1). Editable and deletable
- * by its author for REVIEW.EDIT_WINDOW_HOURS. Published at once (no
- * moderation queue in v1); the venue's manager is notified.
+ * REVIEW.SUBMIT_WINDOW_DAYS of its end (PRD §11.1). Editable by its author
+ * for REVIEW.EDIT_WINDOW_HOURS and deletable at any time (E07-06). Published
+ * at once (no moderation queue in v1); the venue's manager is notified.
  *
  * Deleting is soft: the row stays (the booking still counts as reviewed)
  * but disappears from every list and rating.
@@ -88,7 +88,12 @@ export async function createReview(
   }
 }
 
-async function ownEditable(reviewId: string, viewer: { id: string; role: string }, now: Date) {
+async function own(
+  reviewId: string,
+  viewer: { id: string; role: string },
+  now: Date,
+  { editing }: { editing: boolean }
+) {
   const review = await prisma.review.findUnique({
     where: { id: reviewId },
     select: { playerId: true, createdAt: true, deletedAt: true },
@@ -97,10 +102,14 @@ async function ownEditable(reviewId: string, viewer: { id: string; role: string 
   if (!review || review.deletedAt || (review.playerId !== viewer.id && !isAdmin)) {
     throw notFound('Review not found')
   }
-  if (!isAdmin && now.getTime() > review.createdAt.getTime() + REVIEW.EDIT_WINDOW_HOURS * HOUR) {
+  if (
+    editing &&
+    !isAdmin &&
+    now.getTime() > review.createdAt.getTime() + REVIEW.EDIT_WINDOW_HOURS * HOUR
+  ) {
     throw new ApiException(
       'VALIDATION_ERROR',
-      `Reviews can be changed for ${REVIEW.EDIT_WINDOW_HOURS} hours after posting`,
+      `Reviews can be edited for ${REVIEW.EDIT_WINDOW_HOURS} hours after posting`,
       { reason: 'EDIT_WINDOW_CLOSED' }
     )
   }
@@ -112,7 +121,7 @@ export async function updateReview(
   input: UpdateReviewInput,
   now: Date = new Date()
 ): Promise<void> {
-  await ownEditable(reviewId, viewer, now)
+  await own(reviewId, viewer, now, { editing: true })
   await prisma.review.update({
     where: { id: reviewId },
     data: {
@@ -129,7 +138,7 @@ export async function deleteReview(
   viewer: { id: string; role: string },
   now: Date = new Date()
 ): Promise<void> {
-  await ownEditable(reviewId, viewer, now)
+  await own(reviewId, viewer, now, { editing: false })
   await prisma.review.update({
     where: { id: reviewId },
     data: { deletedAt: now, text: null, photoUrls: Prisma.DbNull },

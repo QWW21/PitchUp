@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E06 (Player: My Bookings).
+Last updated at the end of the session that implemented E07 (Reviews & Ratings).
 
 ## Done
 
@@ -162,14 +162,47 @@ the user menu and the mobile Discover header (with an upcoming-count badge)
 link to My Bookings. Mobile adds no dependency: it is typechecked, linted and
 covered by Jest (`src/screens/bookings/bookings.test.tsx`), not built.
 
+**E07 — Reviews & Ratings: all ten tickets implemented.**
+
+| Ticket                            | State                                                                         |
+| --------------------------------- | ----------------------------------------------------------------------------- |
+| E07-01 `GET /pitches/:id/reviews` | done, verified — newest/highest/lowest/unanswered, breakdown, replies         |
+| E07-02 `GET /reviews/mine`        | done, verified — newest first, `isEditable` on the server's clock             |
+| E07-03 venue reply                | done, verified — `POST/PUT/DELETE /reviews/:id/reply`, 300 chars, 24 h edits  |
+| E07-04 report                     | done, verified — once per person, review flagged and stays up, admins told    |
+| E07-05 manager list               | done, verified — `GET /companies/:id/reviews`; ratings still computed on read |
+| E07-06 mobile My reviews          | built — cards, reply, Edit (server says when), Delete with optimistic removal |
+| E07-07 mobile all reviews         | built — sort pills on the company Reviews tab; animated bars, infinite scroll |
+| E07-08 web My reviews             | done, verified in a browser — `/my-reviews`, edit via the review form         |
+| E07-09 web manager reviews        | done, verified in a browser — `/dashboard/reviews`, filters, inline reply     |
+| E07-10 web review display         | done, verified in a browser — sort in the URL, report, JSON-LD on pitches     |
+
+New endpoints: `GET /pitches/:id/reviews`, `GET /reviews/mine`,
+`POST/PUT/DELETE /reviews/:id/reply`, `POST /reviews/:id/report`,
+`GET /companies/:id/reviews`; `GET /reviews` takes `sort`.
+
+Schema: `ReviewReport` (one per person per review) with its
+`ReviewReportCategory` enum, and the `REVIEW_REPORTED` notification type.
+The reply stays on the review row (`managerReply`, `managerRepliedAt`),
+which makes "one reply per review" automatic. Applied with `prisma db push`.
+
+**The manager area starts here.** `/dashboard` now has a layout (header,
+Overview and Reviews links, sign out) that redirects players to Discover;
+E09 grows it into the full dashboard. Players reach My reviews from the
+account menu (web) and from My Bookings (mobile); there is no profile page
+yet (E08).
+
 ## Next
 
-**E07 — Reviews & Ratings** builds on E06's reviews: `POST/PUT/DELETE
-/reviews` exist, reviews are soft-deleted (`deletedAt`, filtered out of every
-public query), and the edit window is `REVIEW.EDIT_WINDOW_HOURS`. E07-08
-(web "my reviews") and E07-06 can reuse `updateReview`/`deleteReview` in
-`lib/reviews/write.ts`; E07-05 should decide whether to keep computing
-ratings on read (`lib/venues/ratings.ts`) or store them.
+**E08 — Player: Profile & Account** (#71–#80): profile read/update, the
+trust score screen, password change and account deletion, saved cards, the
+notifications list and push. Things already in place: `GET /me` (with
+`trustScore`), `trustTier()` in `@pitchup/shared`, saved cards
+(`GET/DELETE /payments/methods`, E05-09), and `Notification` rows written
+by E06/E07 (`REVIEW_LEFT`, `MANAGER_REPLIED`, `DISPUTE_OPENED`,
+`REVIEW_REPORTED`) that nobody reads yet. The web account menu links to
+`/profile`, which does not exist yet. My reviews and My Bookings can move
+under the new profile screens.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -453,6 +486,37 @@ E04:
   tabs over one `FlatList` (not `react-native-tab-view`), and a `Modal` (not
   `@gorhom/bottom-sheet`).
 
+### E07 — Reviews & Ratings
+
+- **Ratings are still computed when read, not stored on the pitch**
+  (E07-05 asks for `Pitch.avgRating`/`reviewCount` kept in sync). Decided
+  with the owner: one indexed grouped query, so it cannot go stale. Revisit
+  if review counts grow large.
+- **Review lists page by number (`?page=`), not by cursor.** E04's clients
+  already page that way, and a rating sort makes a cursor awkward. The id is
+  the last sort key, so pages never shuffle.
+- **The reply lives on the review row**, not in a `ReviewReply` table: the
+  columns existed since E01 and one reply per review needs no unique index.
+- **A reply is 1–300 characters** (PRD §8.5); `REVIEW.MAX_MANAGER_REPLY_LENGTH`
+  was 500 and is now 300.
+- **Report reasons are the PRD's** (spam, offensive, irrelevant, fake), not
+  the ticket's list. Reporting your own review is refused (`OWN_REVIEW`).
+- **Authors can delete a review at any time**; editing stays limited to 24
+  hours (E07-06 shows Delete after the window; E06 limited both).
+- **A wrong manager gets 404, a player 403** on replies and the manager list,
+  as with other people's bookings.
+- **Manager search never matches anonymous reviews**, and managers see
+  "Anonymous player" like everyone else.
+- **No standalone `/pitches/:id/reviews` web page.** "See all reviews" on a
+  pitch already opens the company's Reviews tab for that pitch (E17); sorting
+  and the auto-loading list were added there. JSON-LD sits in the pitch
+  page's body (Google reads it there too), only once the rating is public.
+- **No separate mobile `AllReviewsScreen` or `EditReviewScreen`**: the
+  company Reviews tab already lists a pitch's reviews (E17), and the E06
+  Review screen edits in place. Mobile still has no review photos.
+- **Manager paging is Previous/Next links**, rendered on the server; the
+  ticket leaves the paging style open.
+
 ## Known gaps
 
 - **Stripe has never run against a real account.** Unit tests cover the
@@ -518,6 +582,8 @@ E04:
   and Next runs its own pass. Worth aligning before CI exists.
 - **Nothing has been delivered to a real inbox or handset.** Templates and
   the signing algorithm are verified; delivery and rendering are not.
+- **No profanity filter yet** (PRD §11.3's auto-flag). Reports flag reviews
+  for admins, but nothing flags them automatically.
 - **Rate limiting is in-memory**, so it resets on restart and is per
   instance. Fine for one server, not for serverless. Redis in v1.1.
 

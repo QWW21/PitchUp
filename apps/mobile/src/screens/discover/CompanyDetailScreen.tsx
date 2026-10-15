@@ -27,6 +27,8 @@ import { CompanyHero } from '../../components/company/CompanyHero'
 import { PitchListCard } from '../../components/company/PitchListCard'
 import { RatingBreakdown } from '../../components/reviews/RatingBreakdown'
 import { ReviewCard } from '../../components/reviews/ReviewCard'
+import { ReviewSortSelector } from '../../components/reviews/ReviewSortSelector'
+import type { ReviewSort } from '@pitchup/shared'
 import { SkeletonBox } from '../../components/common/SkeletonBox'
 import { EmptyState } from '../../components/common/EmptyState'
 import { colors } from '../../theme/tokens'
@@ -42,7 +44,8 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
   const company = useCompany(id)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'pitches')
   const scrollY = useRef(new Animated.Value(0)).current
-  const reviews = useReviews({ companyId: id, pitchId })
+  const [sort, setSort] = useState<ReviewSort>('newest')
+  const reviews = useReviews({ companyId: id, pitchId, sort })
 
   const title = company.data?.name ?? route.params.name ?? ''
 
@@ -201,6 +204,7 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
             ) : (
               <>
                 {firstPage ? <RatingBreakdown page={firstPage} /> : null}
+                <ReviewSortSelector value={sort} onChange={setSort} />
                 {reviewItems.map(r => (
                   <ReviewCard key={r.id} review={r} />
                 ))}

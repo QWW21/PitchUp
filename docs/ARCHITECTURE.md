@@ -3,7 +3,8 @@
 A walkthrough of the decisions behind PitchUp so far: the infrastructure
 (E01, sections 1–10), auth (11), Discover (12), venue time and availability
 (13), the product changes after the E04 review (14), testing (15),
-bookings and payments (16) and what happens to a booking afterwards (17). Each
+bookings and payments (16), what happens to a booking afterwards (17) and
+reviews and the first manager page (18). Each
 section is a problem, the options, and why one was chosen, and ends with
 **what to learn** to understand it properly. Written for someone who knows
 React Native and is learning the backend and system-design side.
@@ -786,6 +787,100 @@ discipline; cursor (keyset) vs offset pagination; authorization by ownership
 
 ---
 
+## 18. Reviews: who may see and change what (E07)
+
+Reviews look simple: a number and some text. Most of E07 is about
+permissions, and about one choice of what to store.
+
+### Store the average, or compute it?
+
+The ticket wanted `avgRating` and `reviewCount` columns on the pitch,
+updated after every review change. That is **denormalisation**: copying a
+value you could compute, so reading is cheap. The price is that every write
+path must remember to update the copy (create, edit, delete, moderation,
+an admin's hard delete), and one forgotten path leaves a wrong number on the
+page until someone notices.
+
+PitchUp keeps computing it: one `groupBy` over an index on `pitchId`, in the
+same query that fetches the reviews. At thousands of reviews per pitch that
+is still milliseconds. The day it is not, the fix is a cached copy, and the
+code that computes it today becomes the code that refreshes the copy.
+"Derive rather than store" (§12) is a default, not a law: measure before
+paying for a copy.
+
+### One reply per review, enforced by the shape of the data
+
+A reply could be its own table with a unique index on `reviewId`. Here it
+is two columns on the review: `managerReply` and `managerRepliedAt`. With
+only one place to put a reply, there can't be two. Two managers clicking at
+once are handled by a **conditional update**:
+
+```ts
+prisma.review.updateMany({ where: { id, managerReply: null }, data: { … } })
+```
+
+The database applies the condition and the write together. If the count
+comes back 0, someone else replied first and the API answers 409. This is
+**optimistic concurrency**: no lock is taken, and the loser is told.
+
+### Authorisation is more than a role
+
+`requireRole('MANAGER')` says _what kind of user_ you are; it doesn't say
+_which reviews are yours_. Every reply and list call also checks that the
+review's pitch belongs to the signed-in manager's company. Without that
+check, any manager could reply on a rival's page. Getting this wrong is
+called **broken object-level authorisation** (BOLA). It's the most common
+API security bug, because the role check feels like enough. A manager who
+asks about another company's review gets **404, not 403**: telling them it
+exists but isn't theirs would itself leak information.
+
+The same thinking shapes what the manager sees. An anonymous review stays
+"Anonymous player" in the manager's list, and the name search skips
+anonymous reviews. Otherwise searching a name would reveal who wrote the
+anonymous one.
+
+### Reports: flag, don't act
+
+A report doesn't hide the review. If it did, one competitor with a few
+accounts could remove every good review a venue has. Instead the report is
+stored (once per person, enforced by a unique index on
+`[reviewId, reporterId]`), the review is flagged, and admins are notified.
+A person decides (E15). Automating the decision is tempting; it's also an
+attack surface.
+
+### The server's clock decides
+
+"Can I still edit this?" is computed on the server and sent as
+`isEditable`. A phone with the wrong date would otherwise show an Edit
+button that fails, or hide one that would work. The server enforces the
+window anyway; sending the answer just keeps the screen honest. The same
+goes for `reply.isEditable` on the manager page.
+
+### URL state on the server
+
+The manager page reads its filters (`?pitch=&sort=&q=&page=`) on the
+server and renders the list there. The filter bar only changes the URL. So
+Back works, a filtered view can be bookmarked, and the page needs no
+client-side data fetching. Typing in the search box waits 300 ms after the
+last key (**debouncing**) so each letter doesn't trigger a request.
+
+### Telling search engines about ratings
+
+The pitch page includes a small JSON-LD block (schema.org
+`AggregateRating`). Google reads it to show stars in search results. It's
+only emitted once the rating is public (3+ reviews), and `<` is escaped so
+review-derived text can never close the `<script>` tag. That's the same
+class of bug as XSS.
+
+**What to learn:** denormalisation and cache invalidation; optimistic
+concurrency and conditional updates; object-level authorisation (OWASP API
+Top 10 #1, BOLA/IDOR); privacy by default (anonymity has to survive every
+view, including search); moderation design (flag, then a human decides);
+server vs client clocks; URL-driven server rendering and debouncing;
+structured data (schema.org, JSON-LD) and escaping data inside HTML.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -802,6 +897,8 @@ Honest inventory, so none of it is mistaken for finished:
 | Mobile colours       | Spec palette; not yet checked for WCAG contrast               |
 | Stripe               | Unit-tested with fakes; never run against a real account      |
 | Booking completion   | Settled lazily on read until the E11 scheduled job exists     |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15 |
+| Manager dashboard    | A header and the Reviews page; the full dashboard is E09      |
 
 ---
 
@@ -832,3 +929,7 @@ Honest inventory, so none of it is mistaken for finished:
     write; if the refund fails, nothing changed.
 16. **If you can't recompute it, record it.** Current state is a row;
     history is a log.
+17. **A role is not a permission.** Check that this object belongs to this
+    user, every time.
+18. **Store a copy only when computing it hurts.** Every copy is a promise
+    to keep it in sync.

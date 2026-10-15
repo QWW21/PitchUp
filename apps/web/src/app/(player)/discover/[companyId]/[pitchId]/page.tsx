@@ -59,8 +59,27 @@ export default async function PitchPage({ params }: Props) {
 
   const companyPath = `/discover/${pitch.company.id}`
 
+  // E07-10: rating rich results. Only once the rating is public (3+ reviews),
+  // which is also Google's minimum. `<` is escaped so text cannot close the tag.
+  const jsonLd =
+    pitch.avgRating !== null
+      ? JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'SportsActivityLocation',
+          name: `${pitch.name} — ${pitch.company.name}`,
+          aggregateRating: {
+            '@type': 'AggregateRating',
+            ratingValue: pitch.avgRating.toFixed(1),
+            reviewCount: String(pitch.reviewCount),
+            bestRating: '5',
+            worstRating: '1',
+          },
+        }).replace(/</g, '\\u003c')
+      : null
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-6 lg:px-6">
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />}
       <Link
         href={companyPath}
         className="inline-flex items-center gap-1 text-sm font-medium text-neutral-500 hover:text-neutral-900"

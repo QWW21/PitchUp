@@ -56,6 +56,7 @@ export interface ReviewItem {
   playerAvatarUrl: string | null
   photoUrls: string[]
   managerReply: string | null
+  managerRepliedAt: string | null
   createdAt: string
 }
 
