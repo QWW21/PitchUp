@@ -56,6 +56,22 @@ export default defineConfig({
       NEXT_PUBLIC_APP_URL: E2E_BASE_URL,
       // Lets tests reset rate limits between cases (see the dev route).
       ALLOW_TEST_HOOKS: '1',
+      // Its own build folder: a build here must never overwrite the `.next`
+      // that a running `pnpm dev` serves from (it did, and broke it).
+      NEXT_DIST_DIR: '.next-e2e',
+      // The tests use the built-in fakes (test payments, emails and SMS in the
+      // log, no uploads), whatever real keys a developer has in .env. Next
+      // keeps variables that are already set, so blanks here win over .env.
+      STRIPE_SECRET_KEY: '',
+      STRIPE_WEBHOOK_SECRET: '',
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: '',
+      RESEND_API_KEY: '',
+      TWILIO_ACCOUNT_SID: '',
+      TWILIO_AUTH_TOKEN: '',
+      TWILIO_PHONE_NUMBER: '',
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: '',
+      CLOUDINARY_API_KEY: '',
+      CLOUDINARY_API_SECRET: '',
     },
   },
 })

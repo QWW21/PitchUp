@@ -78,26 +78,45 @@ interface VenueClock {
 }
 
 export function venueClock(instant: Date): VenueClock {
-  const p = Object.fromEntries(zoneParts.formatToParts(instant).map(x => [x.type, x.value]))
+  const ms = instant.getTime()
+  // Shift by the venue's offset and read the result as if it were UTC.
+  const local = new Date(ms + zoneOffsetMs(ms))
   return {
-    date: `${p.year}-${p.month}-${p.day}`,
-    day: DAY_SHORT.indexOf(p.weekday as (typeof DAY_SHORT)[number]),
-    minutes: Number(p.hour) * 60 + Number(p.minute),
+    date: local.toISOString().slice(0, 10),
+    day: local.getUTCDay(),
+    minutes: local.getUTCHours() * 60 + local.getUTCMinutes(),
   }
 }
 
+const HOUR = 3_600_000
+/**
+ * Offset per UTC hour. Asking Intl is slow (a calendar of 31 days asks
+ * thousands of times), and the venue's offset only changes on the hour
+ * (Europe/Bucharest switches at 01:00 UTC), so one answer per hour is exact.
+ */
+const offsetByHour = new Map<number, number>()
+
 /** Offset of venue time from UTC at an instant, in ms (+3h in summer → 10_800_000). */
 function zoneOffsetMs(utcMs: number): number {
-  const p = Object.fromEntries(zoneParts.formatToParts(new Date(utcMs)).map(x => [x.type, x.value]))
+  const hour = Math.floor(utcMs / HOUR)
+  const cached = offsetByHour.get(hour)
+  if (cached !== undefined) return cached
+  const at = hour * HOUR
+  const p = Object.fromEntries(zoneParts.formatToParts(new Date(at)).map(x => [x.type, x.value]))
   const asUtc = Date.UTC(
     Number(p.year),
     Number(p.month) - 1,
     Number(p.day),
-    Number(p.hour),
+    // en-GB with h23 never says 24, but guard anyway: midnight is hour 0.
+    Number(p.hour) % 24,
     Number(p.minute),
     Number(p.second)
   )
-  return asUtc - Math.floor(utcMs / 1000) * 1000
+  const offset = asUtc - at
+  // A long-running server sees new hours forever; keep the map small.
+  if (offsetByHour.size > 50_000) offsetByHour.clear()
+  offsetByHour.set(hour, offset)
+  return offset
 }
 
 /**

@@ -671,7 +671,15 @@ E04:
 
 ## Running it
 
-See `README.md` for setup. `docs/ARCHITECTURE.md` explains why the
+See `README.md` for setup.
+
+**`pnpm dev` is for changing code; `pnpm preview` is for trying the app.**
+The dev server compiles each page the first time it is opened (5–10 s for
+some pages), ships unminified code, and re-renders without caches. `pnpm
+preview` builds the production version into `apps/web/.next-preview` and serves
+it on port 3000: pages answer in about 15–50 ms and API calls in 5–15 ms
+(measured locally). Rebuild it after changing code. Every database query is
+no longer printed by `pnpm dev`; set `PRISMA_LOG_QUERIES=1` to see them. `docs/ARCHITECTURE.md` explains why the
 infrastructure is shaped the way it is — worth reading before changing the
 schema or the auth flow. `docs/TESTING_E02_MOBILE.md` is the manual test plan
 for the mobile auth screens.

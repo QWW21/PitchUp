@@ -75,6 +75,13 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
 2. `next build`, then `next start --port 3100` with `DATABASE_URL` pointing at
    the test database and `ALLOW_TEST_HOOKS=1`.
 
+The build goes to **`.next-e2e`**, not `.next`: building into the folder a
+running `pnpm dev` serves from broke that dev server. And the run **blanks
+every integration key** (Stripe, Resend, Twilio, Cloudinary), so it always
+uses test payments, logged emails and SMS, and no uploads, whatever real keys
+are in `apps/web/.env`. Without that, a developer's Resend key made every test
+registration send a real email to a made-up address, and fail.
+
 `ALLOW_TEST_HOOKS=1` enables `POST /api/v1/dev/reset-rate-limits` on that
 production build, so tests can clear the in-memory rate limits between cases.
 It is never set anywhere else; without it the route is a 404 outside dev.

@@ -9,6 +9,7 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import bcrypt from 'bcryptjs'
+import { cache } from 'react'
 import { AUTH, LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { RecipientThrottledError, sendEmailVerification } from '@/lib/auth/service'
@@ -21,6 +22,15 @@ import { RecipientThrottledError, sendEmailVerification } from '@/lib/auth/servi
  * emails are registered. PRD §6.6.
  */
 const DUMMY_HASH = bcrypt.hashSync('invalid-password-placeholder', AUTH.BCRYPT_COST)
+
+/**
+ * A page asks for the session several times (the top bar, the page, a
+ * panel); React's `cache` makes that one database read per request. Outside
+ * a server render (API routes) it simply calls through.
+ */
+const sessionFreshness = cache((id: string) =>
+  prisma.user.findUnique({ where: { id }, select: { passwordChangedAt: true, deletedAt: true } })
+)
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
@@ -113,11 +123,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // The session is a stateless cookie, so a password reset cannot delete
       // it. Instead every check compares when this session began with when
       // the password last changed; returning null signs the browser out.
-      // One indexed lookup by primary key per session read.
-      const current = await prisma.user.findUnique({
-        where: { id: token.id as string },
-        select: { passwordChangedAt: true, deletedAt: true },
-      })
+      // One indexed lookup by primary key, once per request however many
+      // components ask for the session (see sessionFreshness below).
+      const current = await sessionFreshness(token.id as string)
       if (!current || current.deletedAt) return null
       const authAt = typeof token.authAt === 'number' ? token.authAt : 0
       if (current.passwordChangedAt && current.passwordChangedAt.getTime() > authAt) return null

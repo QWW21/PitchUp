@@ -6,6 +6,7 @@
     "dev": "next dev --port 3000",
     "build": "next build",
     "start": "next start",
+    "preview": "cross-env NEXT_DIST_DIR=.next-preview next build && cross-env NEXT_DIST_DIR=.next-preview next start --port 3000",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "postinstall": "prisma generate",

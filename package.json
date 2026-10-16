@@ -4,6 +4,7 @@
   "packageManager": "pnpm@9.12.3",
   "scripts": {
     "dev": "turbo dev",
+    "preview": "pnpm --filter @pitchup/web preview",
     "build": "turbo build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -5,6 +5,8 @@ node_modules/
 
 # Build outputs
 .next/
+# Separate build folders: E2E (.next-e2e), local preview (.next-preview).
+.next-*/
 dist/
 build/
 out/
