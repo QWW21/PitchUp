@@ -67,8 +67,12 @@ const MESSAGES: Record<string, string> = {
   TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
   SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
   PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
+  ACTIVE_BOOKING_LIMIT:
+    'At your trust score you can have one upcoming booking at a time. Play or cancel it first.',
 }
 const describe = (e: ApiError) => (e.details?.reason && MESSAGES[e.details.reason]) || e.message
+/** Refusals that come from the player's trust score link to the trust page. */
+const TRUST_REASONS = ['TRUST_SCORE_TOO_LOW', 'TRUST_TIER_INSUFFICIENT', 'ACTIVE_BOOKING_LIMIT']
 
 const dateLabel = (date: string) =>
   `${DAY_LONG[dayOfWeek(date)]}, ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}`
@@ -346,6 +350,7 @@ function NoPayment({
   const { pitch, draft } = useBooking()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
 
   const book = async () => {
     setBusy(true)
@@ -359,6 +364,7 @@ function NoPayment({
       )
     } catch (caught) {
       setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
@@ -366,6 +372,14 @@ function NoPayment({
   return (
     <section aria-label="Payment" className="space-y-3">
       {error && <Alert>{error}</Alert>}
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
       <button
         type="button"
         onClick={book}
@@ -389,6 +403,7 @@ function TestPayment({
   const { pitch, draft } = useBooking()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
 
   const pay = async (outcome: 'succeed' | 'decline') => {
     setBusy(true)
@@ -406,6 +421,7 @@ function TestPayment({
       setError('Your card was declined. Nothing was charged; try again.')
     } catch (caught) {
       setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
@@ -423,6 +439,14 @@ function TestPayment({
         charged.
       </p>
       {error && <Alert>{error}</Alert>}
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
       <PayButton amount={amount} deposit={deposit} busy={busy} onClick={() => pay('succeed')} />
       <button
         type="button"
@@ -454,6 +478,7 @@ function StripePayment({
   const [save, setSave] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
 
   useEffect(() => {
     if (cards.data?.[0]) setMethod(m => (m === 'new' ? cards.data![0]!.id : m))
@@ -484,6 +509,7 @@ function StripePayment({
       }
     } catch (caught) {
       setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
@@ -551,6 +577,14 @@ function StripePayment({
         </>
       )}
       {error && <Alert>{error}</Alert>}
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
       <PayButton amount={amount} deposit={deposit} busy={busy || !stripe} onClick={pay} />
     </section>
   )

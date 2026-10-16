@@ -9,7 +9,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ImageOff, Pencil, Plus, Star, Trash2, Trophy } from 'lucide-react'
-import { SIZE_LABELS, SURFACE_COLORS, SURFACE_LABELS, type ManagerPitchRow } from '@pitchup/shared'
+import {
+  SIZE_LABELS,
+  SURFACE_COLORS,
+  SURFACE_LABELS,
+  deriveTier,
+  type ManagerPitchRow,
+} from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
 
@@ -162,6 +168,9 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
               <th scope="col" className="px-4 py-3">
                 Status
               </th>
+              <th scope="col" className="px-4 py-3">
+                Min. tier
+              </th>
               {header('today', "Today's bookings", 'text-center')}
               {header('rating', 'Rating')}
               <th scope="col" className="px-4 py-3">
@@ -222,6 +231,15 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
                         {p.isActive ? 'Active' : 'Inactive'}
                       </span>
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {p.minTrustScore > 0 ? (
+                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
+                        {deriveTier(p.minTrustScore)}+
+                      </span>
+                    ) : (
+                      <span aria-label="Anyone">–</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-center text-neutral-900">{p.bookingsToday}</td>
                   <td className="px-4 py-3 text-neutral-700">

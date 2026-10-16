@@ -6,6 +6,7 @@
  * players can see and book it.
  */
 import {
+  MIN_TRUST_OPTIONS,
   PITCH_DEFAULT_DIMENSIONS,
   PITCH_LIMITS,
   SIZE_INFO,
@@ -32,6 +33,7 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
     length: pitch.lengthMeters ? String(pitch.lengthMeters) : '',
     description: pitch.description ?? '',
     isActive: pitch.isActive,
+    minTrustScore: pitch.minTrustScore,
   })
   const v = f.values
   const set = (patch: Partial<typeof v>) => f.setValues(prev => ({ ...prev, ...patch }))
@@ -49,6 +51,7 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       surfaceType: v.surfaceType,
       size: v.size,
       description: v.description,
+      minTrustScore: v.minTrustScore,
       ...(v.width ? { widthMeters: Number(v.width) } : {}),
       ...(v.length ? { lengthMeters: Number(v.length) } : {}),
     })
@@ -163,6 +166,30 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
           {v.description.length} / {PITCH_LIMITS.DESCRIPTION_MAX}
         </p>
       </div>
+
+      <fieldset>
+        <legend className="text-sm font-medium text-neutral-900">Who can book</legend>
+        <p className="text-xs text-neutral-500">
+          Players below this trust score can&rsquo;t book this pitch. Everyone else can.
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {MIN_TRUST_OPTIONS.map(o => (
+            <Choice
+              key={o.score}
+              name="min-trust"
+              checked={v.minTrustScore === o.score}
+              onChange={() => set({ minTrustScore: o.score })}
+            >
+              {o.label}
+            </Choice>
+          ))}
+        </div>
+        {v.minTrustScore >= 90 && (
+          <p className="mt-2 text-sm text-amber-800">
+            Very few players qualify: one no-show takes anyone below Excellent.
+          </p>
+        )}
+      </fieldset>
 
       <div className="flex items-start justify-between gap-4 rounded-lg bg-neutral-50 p-4">
         <div>

@@ -27,6 +27,7 @@ import {
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { chargedOnline } from './charged'
+import { applyTrustEvent } from '@/lib/trust/apply'
 import { recordStatus } from './status'
 
 const HOUR = 3_600_000
@@ -49,7 +50,7 @@ export async function settleBookings(
   const [finished, abandoned] = await Promise.all([
     prisma.booking.findMany({
       where: { ...scope, status: 'CONFIRMED', endTime: { lte: now } },
-      select: { id: true },
+      select: { id: true, playerId: true },
     }),
     prisma.booking.findMany({
       where: { ...scope, status: 'PENDING', createdAt: { lte: holdStart } },
@@ -66,6 +67,9 @@ export async function settleBookings(
         data: { status: 'COMPLETED' },
       })
       await recordStatus(tx, ids, 'COMPLETED')
+      // +2 trust each (E12-02), within the monthly cap.
+      for (const b of finished)
+        await applyTrustEvent(tx, b.playerId, 'BOOKING_COMPLETED', b.id, now)
     }
     if (abandoned.length) {
       const ids = abandoned.map(b => b.id)

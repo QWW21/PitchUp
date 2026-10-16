@@ -269,6 +269,8 @@ model Pitch {
   workingHours       Json?
   /// Soft delete (E10-05): hidden everywhere, kept for its bookings and reviews.
   deletedAt          DateTime?
+  /// The lowest trust score that may book (E12-06): a tier's lower bound; 0 = anyone allowed to book.
+  minTrustScore      Int         @default(0)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -421,6 +423,8 @@ model NoShow {
   disputeEvidenceUrls Json?
   resolvedByAdminId   String?
   resolvedAt          DateTime?
+  /// What the admin decided and why (E12-04); the player sees it.
+  resolution          String?
   createdAt           DateTime      @default(now())
 
   booking           Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)

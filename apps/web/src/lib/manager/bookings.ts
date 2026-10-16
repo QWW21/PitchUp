@@ -21,8 +21,6 @@ import type { Prisma } from '@prisma/client'
 import {
   NO_SHOW_DISPUTE_WINDOW_HOURS,
   NO_SHOW_WINDOW,
-  TRUST_SCORE_DELTAS,
-  TRUST_SCORE_MIN,
   addDays,
   bookingReference,
   dayOfWeek,
@@ -50,6 +48,7 @@ import { providerFor } from '@/lib/payments'
 import { chargedOnline } from '@/lib/bookings/charged'
 import { liveBookingWhere } from '@/lib/bookings/live'
 import { recordStatus } from '@/lib/bookings/status'
+import { applyTrustEvent } from '@/lib/trust/apply'
 import { managerCompany } from '@/lib/onboarding/company'
 import { dayIntervals, exceptionDates, loadSchedule, slotsFor } from '@/lib/venues/availability'
 
@@ -512,18 +511,7 @@ export async function reportNoShow(
         penaltyAmount: kept,
       },
     })
-    const player = await tx.user.findUniqueOrThrow({
-      where: { id: b.playerId },
-      select: { trustScore: true },
-    })
-    const delta = TRUST_SCORE_DELTAS.NO_SHOW
-    await tx.user.update({
-      where: { id: b.playerId },
-      data: { trustScore: Math.max(TRUST_SCORE_MIN, player.trustScore + delta) },
-    })
-    await tx.trustScoreEvent.create({
-      data: { userId: b.playerId, delta, reason: 'NO_SHOW', relatedBookingId: b.id },
-    })
+    await applyTrustEvent(tx, b.playerId, 'NO_SHOW', b.id, now)
     await tx.notification.create({
       data: {
         userId: b.playerId,
@@ -555,6 +543,7 @@ export async function completeBooking(
     }
     await tx.booking.update({ where: { id: b.id }, data: { status: 'COMPLETED' } })
     await recordStatus(tx, b.id, 'COMPLETED')
+    await applyTrustEvent(tx, b.playerId, 'BOOKING_COMPLETED', b.id, now)
   })
   return one(companyId, bookingId, now)
 }

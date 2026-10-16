@@ -1245,6 +1245,62 @@ containing blocks for absolutely positioned elements.
 
 ---
 
+## 24. A score people can trust: the trust engine (E12)
+
+E12 turns the trust score from a number set in a few places into an engine
+with one entry point, a ledger, and rules that use it.
+
+### One door for every change
+
+Every change to a player's score goes through `applyTrustEvent`. Before,
+the no-show report updated the score itself; with completions, reviews,
+late cancellations, disputes and a monthly bonus coming, six places doing
+their own arithmetic would drift apart. One function means one place for
+the clamp (0–100), the history row and the monthly cap.
+
+### A ledger, and a score you can rebuild
+
+Each change writes a `TrustScoreEvent` (who, why, how much, which booking)
+in the same transaction as the score. The score is then a **cached
+summary of the ledger**, the way a bank balance summarises transactions.
+The monthly job replays every player's events (`replayTrustScore`) and
+corrects any score that disagrees, whether from a manual database edit or
+a bug. Two details make the replay exact: the clamp is applied at every
+step, as the live score does (a +2 at 100 is lost), and when the monthly
+cap stops a completion point, no event is written at all.
+
+### Lost updates, and why one SQL statement fixes them
+
+Two events at once (a review and a completed game, say) would each read
+85, add their delta, and write back: one change lost. The engine updates
+the score with `trustScore = LEAST(100, GREATEST(0, trustScore + delta))`
+in a single statement, so the database applies both, one after the other.
+A short per-player lock also makes the monthly cap check-then-write safe.
+This "read-modify-write race" is one of the most common concurrency bugs.
+
+### Rules as data, decided in one place
+
+What a tier allows (card on file, upfront payment, one active booking,
+no booking) is a table in `@pitchup/shared`, and `bookingTrustGate` turns
+it plus the pitch's minimum into one decision with a reason. The API
+enforces it; the pitch page and the booking flow call the same function to
+explain the refusal before the player gets as far as paying. Showing a
+rule and enforcing it from the same code means they can't disagree.
+
+### Fairness
+
+Managers never see a player's score (PRD §9.1); they see what the player
+did at their venue. A disputed no-show can be reversed (+10), and losing a
+dispute costs nothing extra, so players aren't discouraged from
+challenging a genuine mistake. Incentives are part of the design.
+
+**What to learn:** single entry points for state changes; ledgers and
+derived balances (event sourcing, lightly); lost updates and atomic
+updates; advisory locks; rules as data shared by client and server;
+incentive design in reputation systems.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:

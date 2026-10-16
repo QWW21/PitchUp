@@ -19,6 +19,7 @@ import 'server-only'
 import {
   addDays,
   bookingPrice,
+  bookingTrustGate,
   bookingReference,
   formatShortDuration,
   normalizeWeek,
@@ -79,8 +80,20 @@ export async function createBooking(
     throw notFound('Pitch not found')
   }
   if (!pitch.isActive) throw forbidden('This pitch is not taking bookings', 'PITCH_INACTIVE')
-  if (!trustTier(user.trustScore).canBook) {
-    throw forbidden('Your account cannot make bookings right now', 'TRUST_SCORE_TOO_LOW')
+  // E12-06: suspended players can't book, Poor ones hold one upcoming booking,
+  // and a pitch may ask for a better trust score.
+  const gate = bookingTrustGate({
+    score: user.trustScore,
+    pitchMinScore: pitch.minTrustScore,
+    activeBookings: await prisma.booking.count({
+      where: { playerId: userId, status: 'CONFIRMED', endTime: { gt: now } },
+    }),
+  })
+  if (gate) {
+    throw new ApiException('FORBIDDEN', gate.message, {
+      reason: gate.reason,
+      ...(gate.required ? { required: gate.required, current: gate.current } : {}),
+    })
   }
   const methods = paymentMethodsFor(
     pitch.company.paymentMode,
@@ -258,6 +271,8 @@ export async function createBooking(
       description: `${pitch.name}, ${pitch.company.name} — ${input.date} ${input.startTime}–${input.endTime}`,
       customerId: provider.name === 'stripe' ? await getOrCreateCustomer(userId) : null,
       paymentMethodId: input.paymentMethodId,
+      // Fair and Poor players must have a card on file (PRD §9.1): this one stays.
+      saveCard: trustTier(user.trustScore).requiresCardOnFile,
     })
   } catch (caught) {
     // Booking id only: payment errors can carry card details.

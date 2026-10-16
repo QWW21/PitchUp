@@ -45,6 +45,8 @@ const REASONS: Record<string, string> = {
   TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
   SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
   PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
+  ACTIVE_BOOKING_LIMIT:
+    'At your trust score you can have one upcoming booking at a time. Play or cancel it first.',
 }
 
 export function describeError(e: unknown): string {

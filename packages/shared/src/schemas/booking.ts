@@ -86,10 +86,28 @@ export const DisputeSchema = z.object({
   evidenceUrls: z.array(z.string().url()).max(REVIEW.MAX_PHOTOS).optional(),
 })
 
+/** PUT /admin/disputes/:bookingId/resolve — E12-04. The note is shown to the player. */
 export const ResolveDisputeSchema = z.object({
-  resolution: z.enum(['RESOLVED_PLAYER', 'RESOLVED_MANAGER']),
-  adminNote: z.string().max(500).optional(),
+  outcome: z.enum(['RESOLVED_PLAYER', 'RESOLVED_MANAGER']),
+  note: z.string().trim().min(10, 'Explain the decision (10 characters or more)').max(500),
 })
+
+/** GET /admin/disputes — one open dispute. */
+export interface OpenDispute {
+  bookingId: string
+  reference: string
+  date: string
+  startTime: string
+  endTime: string
+  pitch: string
+  venue: string
+  player: { name: string; email: string }
+  managerReason: string | null
+  disputeText: string | null
+  reportedAt: string
+  /** What the venue kept: the deposit or the online payment. */
+  keptAmount: number
+}
 
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>
 export type CancelBookingInput = z.infer<typeof CancelBookingSchema>

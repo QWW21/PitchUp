@@ -26,6 +26,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           <span className="rounded-full bg-neutral-900 px-2.5 py-0.5 text-xs font-semibold text-white">
             Admin
           </span>
+          <nav aria-label="Admin" className="flex gap-4 text-sm font-medium">
+            <Link href="/admin/companies" className="text-neutral-700 hover:underline">
+              Venues
+            </Link>
+            <Link href="/admin/disputes" className="text-neutral-700 hover:underline">
+              Disputes
+            </Link>
+          </nav>
           <form action={signOutAction} className="ml-auto">
             <button
               type="submit"

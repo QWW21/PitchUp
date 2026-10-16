@@ -5,6 +5,7 @@
 import { z } from 'zod'
 import { SHIRT_COLOURS } from './constants/shirts'
 import { toMinutes, type DayHours } from './schedule'
+import { MIN_TRUST_SCORES } from './trust-engine'
 import type { AmenityType, PitchSize, ShirtColour, SurfaceType } from './types'
 
 export const PITCH_LIMITS = {
@@ -56,6 +57,12 @@ const basicFields = {
     blankToUndefined,
     z.string().trim().max(PITCH_LIMITS.DESCRIPTION_MAX).optional()
   ),
+  /** Who may book (E12-09): a tier's lowest score, 0 for anyone allowed to book. */
+  minTrustScore: z
+    .number()
+    .int()
+    .refine(v => (MIN_TRUST_SCORES as number[]).includes(v), 'Choose one of the options')
+    .optional(),
 }
 
 const customNeedsSize = (d: {
@@ -230,6 +237,7 @@ export interface ManagerPitchRow {
   surfaceType: SurfaceType
   size: PitchSize
   isActive: boolean
+  minTrustScore: number
   coverPhotoUrl: string | null
   /** Null below three reviews, as players see it. */
   avgRating: number | null
@@ -250,6 +258,7 @@ export interface ManagerPitch {
   lengthMeters: number | null
   description: string | null
   isActive: boolean
+  minTrustScore: number
   hourlyRate: number
   minBookingHours: number
   maxBookingHours: number

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { SIZE_LABELS, formatPitchSize, trustTier } from '@pitchup/shared'
+import { SIZE_LABELS, bookingTrustGate, deriveTier, formatPitchSize } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPitchDetail } from '@/lib/venues/pitch'
@@ -48,13 +48,26 @@ export default async function PitchPage({ params }: Props) {
 
   const session = await auth()
   let block: BookingBlock = pitch.isBookable ? null : 'unavailable'
+  let blockNote: string | undefined
   if (!block && session?.user) {
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { trustScore: true },
     })
-    // PRD §9.1: a Suspended tier cannot book. Enforced again in E05's booking API.
-    if (user && !trustTier(user.trustScore).canBook) block = 'restricted'
+    // PRD §9.1 and E12-06, enforced again by the booking API.
+    const gate = user
+      ? bookingTrustGate({
+          score: user.trustScore,
+          pitchMinScore: pitch.minTrustScore,
+          activeBookings: await prisma.booking.count({
+            where: { playerId: session.user.id, status: 'CONFIRMED', endTime: { gt: new Date() } },
+          }),
+        })
+      : null
+    if (gate) {
+      block = 'restricted'
+      blockNote = gate.message
+    }
   }
 
   const companyPath = `/discover/${pitch.company.id}`
@@ -100,6 +113,8 @@ export default async function PitchPage({ params }: Props) {
             hourlyRate={pitch.hourlyRate}
             signedIn={!!session?.user}
             block={block}
+            blockNote={blockNote}
+            minTier={pitch.minTrustScore > 0 ? deriveTier(pitch.minTrustScore) : null}
           />
         </div>
 

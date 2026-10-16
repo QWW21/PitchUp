@@ -75,6 +75,8 @@ export interface PitchDetail {
   minBookingHours: number
   maxBookingHours: number
   advanceBookingDays: number
+  /** The lowest trust score that may book (E12-06); 0 = anyone allowed to book. */
+  minTrustScore: number
   /** Shirts are free; a booking asks for teamCount - 1 sets. */
   hasShirts: boolean
   photos: { id: string; url: string; order: number }[]

@@ -53,6 +53,7 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
     minBookingHours: pitch.minBookingHours,
     maxBookingHours: pitch.maxBookingHours,
     advanceBookingDays: pitch.advanceBookingDays,
+    minTrustScore: pitch.minTrustScore,
     hasShirts: pitch.hasShirts,
     photos: pitch.photos,
     amenities: pitch.amenities.map(a => ({

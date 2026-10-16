@@ -26,7 +26,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   durations (C-6); paying at the venue (C-8: who may, the deposit split,
   the wording); the pitch editor's rules (E10: pitch hours inside the
   venue's, interval overlap, custom sizes, pricing limits, shirt sets); the
-  manager's booking rules (E11: the no-show window, slots, list filters); and the Stripe code against
+  manager's booking rules (E11: the no-show window, slots, list filters);
+  the trust engine (E12: deltas, tiers, replaying a history, late-cancel
+  windows, the booking gate); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
@@ -63,7 +65,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   shirts promised to bookings, pitch hours deciding the slots, blocked
   dates, soft delete), the venue's bookings (E11: who may, filters and
   pages, the week feed, the booking with the player's history, the no-show
-  window, completing, free time, the nightly job and its token), and the E01
+  window, completing, free time, the nightly job and its token), trust (E12: +2
+  per game and the monthly cap, late cancellations, the review point, a
+  pitch's minimum, Poor and Suspended limits, disputes either way, the
+  monthly recovery and correction), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -82,7 +87,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   (C-6), the no-shirts note (C-7), paying at the venue and the manager's
   Bookings and Settings pages (C-8), the pitch list and every tab of the
   pitch editor (E10), the bookings list with URL filters and CSV export, the
-  booking page and the week calendar (E11), at 1280px and 375px.
+  booking page and the week calendar (E11), a pitch's trust minimum and
+  the player told why, and deciding a dispute (E12), at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

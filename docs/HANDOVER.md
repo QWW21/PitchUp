@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E11 (Manager: Calendar & Bookings),
-after E09, E10 and the product changes C-6, C-7 and C-8.
+Last updated at the end of the session that implemented E12 (Penalty & Trust),
+after E09–E11 and the product changes C-6, C-7 and C-8.
 
 ## Done
 
@@ -347,11 +347,36 @@ live. On the phone, Profile → "Venue bookings" for managers.
 deployment; Vercel Cron sends it. Without it the job refuses every call and
 nothing is settled except by the pages and the manual "Mark as complete".
 
+**E12 — Penalty & Trust: nine tickets done, the mobile one already built in E08.**
+
+| Ticket                             | State                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| E12-01 `applyTrustEvent`           | done, verified — one SQL update, clamped, with its history row         |
+| E12-02 +2 per completed game       | done, verified — nightly job, players' reads and Mark as complete      |
+| E12-03 late cancellation           | done, verified — −5 under 24 h, −10 under 2 h, confirmed bookings only |
+| E12-04 disputes                    | done, verified — admin list and decision, minimal `/admin/disputes`    |
+| E12-05 review +1, monthly job      | done, verified — recovery +1, scores rebuilt from history              |
+| E12-06 booking gate                | done, verified — pitch minimum, Poor one at a time, Suspended none     |
+| E12-07 mobile trust history        | built in E08 — awaiting mobile testing                                 |
+| E12-08 web history + gate message  | done, verified in a browser                                            |
+| E12-09 pitch minimum in the editor | done, verified in a browser — "Who can book", list column              |
+| E12-10 shared tests and exports    | done                                                                   |
+
+Every score change goes through `applyTrustEvent` (`src/lib/trust/apply.ts`):
+completions (+2, at most +10 a calendar month), reviews (+1, once per
+booking), late cancellations, no-shows (−20), won disputes (+10) and the
+monthly recovery (+1 in a month with nothing negative). New endpoints:
+`GET /admin/disputes`, `PUT /admin/disputes/:bookingId/resolve`,
+`/cron/trust-monthly` (1st of the month, 03:00 UTC, same `CRON_SECRET`).
+`PUT /pitches/:id` accepts `minTrustScore` (0, 50, 70 or 90).
+
+Schema: `Pitch.minTrustScore`, `NoShow.resolution`.
+
 ## Next
 
-**E12 — Trust score engine** (#111 onwards): `applyTrustEvent` replaces the
-two places that change the score by hand today (the no-show report and,
-later, completions).
+**E13 — Notifications** (#121–#130): one `sendNotification()` over the
+in-app inbox (exists), email (Resend, exists), SMS (Twilio) and push
+(Firebase, still blocked), the 24-hour reminder job, and preferences.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -743,6 +768,35 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Validation errors are 400**, like the rest of the API.
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
+
+### E12 — Penalty & Trust
+
+- **Exactly 2 hours before kick-off counts as a late cancellation (−5)**,
+  not very late, matching the refund tiers (50% back from 2 hours). The
+  ticket's "no penalty at exactly 2h" contradicted its own table.
+- **Only a confirmed booking's cancellation costs trust**; abandoning an
+  unpaid checkout doesn't, nor does cancelling because the account is
+  being deleted.
+- **The history records each event's defined delta; the monthly job
+  replays them with the clamp at every step** (`replayTrustScore`). Past
+  the +10 monthly cap on completions no event is written at all, so the
+  history and the score always agree.
+- **Fair and Poor "card on file"**: their card is kept on their Stripe
+  customer when they pay (`setup_future_usage`), rather than refusing a
+  first booking until a card is saved. Poor players pay in full online
+  (paying at the venue needs 70+, C-8) and hold one upcoming booking.
+- **Pitch minimums are 0, 50, 70 or 90** (a tier's lower bound); "Poor" is
+  not offered because Suspended players can't book anywhere.
+- **Disputes use the existing `NoShow` row** (dispute status, resolution,
+  resolver) rather than a new `Dispute` model. A player who wins gets +10,
+  the booking counts as played, and a kept "deposit back" deposit is
+  refunded. Managers have no trust score, so a wrong report costs the
+  venue nothing (the ticket's open question).
+- **A minimal `/admin/disputes` page** came with the endpoints so disputes
+  can be decided now; E15 builds the full panel.
+- **The trust history** is E08's `GET /profile/trust-score` (already paged
+  with a cursor), not a second endpoint.
+- **A completed game later reported as a no-show keeps its +2.**
 
 ### E11 — Calendar & Bookings
 

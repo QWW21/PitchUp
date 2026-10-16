@@ -12,13 +12,18 @@
  *
  * Deleting an account (E08-03) cancels the player's upcoming bookings with
  * `refundAll`: everything back, whatever the notice.
+ *
+ * Cancelling a confirmed booking late also costs trust (E12-03, PRD §9.1):
+ * −5 within 24 hours of kick-off, −10 within 2 hours, whatever was refunded.
+ * Not for an unpaid checkout, and not when an account is being deleted.
  */
 import 'server-only'
-import { cancellationRefund, type CancelBookingResult } from '@pitchup/shared'
+import { cancellationRefund, lateCancelReason, type CancelBookingResult } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
 import { chargedOnline } from './charged'
+import { applyTrustEvent } from '@/lib/trust/apply'
 import { getBookingForViewer } from './read'
 import { recordStatus } from './status'
 
@@ -105,6 +110,10 @@ export async function cancelBooking(
         },
       })
       await recordStatus(tx, b.id, 'CANCELLED')
+      const late = lateCancelReason((b.startTime.getTime() - now.getTime()) / 3_600_000)
+      if (late && current.status === 'CONFIRMED' && !options.refundAll) {
+        await applyTrustEvent(tx, b.playerId, late, b.id, now)
+      }
       return { refundAmount: paid ? refund.amount : 0, refundPercent: paid ? refund.percent : 0 }
     },
     // A Stripe refund happens inside the transaction.

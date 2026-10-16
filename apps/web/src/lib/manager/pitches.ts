@@ -117,11 +117,19 @@ export async function updateBasicInfo(
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.surfaceType !== undefined ? { surfaceType: input.surfaceType } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.minTrustScore !== undefined ? { minTrustScore: input.minTrustScore } : {}),
       size,
       widthMeters: width ?? null,
       lengthMeters: length ?? null,
     },
-    select: { id: true, name: true, size: true, widthMeters: true, lengthMeters: true },
+    select: {
+      id: true,
+      name: true,
+      size: true,
+      widthMeters: true,
+      lengthMeters: true,
+      minTrustScore: true,
+    },
   })
 }
 
@@ -204,6 +212,7 @@ export async function listPitches(
       surfaceType: p.surfaceType,
       size: p.size,
       isActive: p.isActive,
+      minTrustScore: p.minTrustScore,
       coverPhotoUrl: p.photos[0]?.url ?? null,
       avgRating: publicRating(r?.mean ?? null, r?.count ?? 0),
       reviewCount: r?.count ?? 0,
@@ -236,6 +245,7 @@ export async function getManagerPitch(companyId: string, pitchId: string): Promi
     lengthMeters: p.lengthMeters,
     description: p.description,
     isActive: p.isActive,
+    minTrustScore: p.minTrustScore,
     hourlyRate: Number(p.hourlyRate),
     minBookingHours: p.minBookingHours,
     maxBookingHours: p.maxBookingHours,
