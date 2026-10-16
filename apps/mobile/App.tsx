@@ -40,6 +40,8 @@ import { ChangePasswordScreen } from './src/screens/profile/ChangePasswordScreen
 import { DeleteAccountScreen } from './src/screens/profile/DeleteAccountScreen'
 import { PaymentMethodsScreen } from './src/screens/profile/PaymentMethodsScreen'
 import { NotificationsScreen } from './src/screens/notifications/NotificationsScreen'
+import { ManagerBookingsScreen } from './src/screens/manager/ManagerBookingsScreen'
+import { ManagerBookingDetailScreen } from './src/screens/manager/ManagerBookingDetailScreen'
 import type { BookingTab } from '@pitchup/shared'
 
 // ---------------------------------------------------------------------------
@@ -90,6 +92,9 @@ export type AppStackParamList = {
   DeleteAccount: undefined
   PaymentMethods: undefined
   Notifications: undefined
+  /** E11-09. A venue manager's bookings, opened from Profile. */
+  ManagerBookings: undefined
+  ManagerBookingDetail: { id: string }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -135,6 +140,8 @@ function AppNavigator() {
       <AppStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       <AppStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
       <AppStack.Screen name="Notifications" component={NotificationsScreen} />
+      <AppStack.Screen name="ManagerBookings" component={ManagerBookingsScreen} />
+      <AppStack.Screen name="ManagerBookingDetail" component={ManagerBookingDetailScreen} />
     </AppStack.Navigator>
   )
 }

@@ -148,26 +148,36 @@ test('the manager confirms attendance and reports a no-show', async ({ page }, i
     .click()
   await expect(page).toHaveURL(/\/manager\/bookings$/)
 
-  const row = (id: string) =>
-    page.getByRole('article').filter({ hasText: `#${id.slice(-6).toUpperCase()}` })
-  await expect(row(came.id).getByText('Due at the venue: 90 RON')).toBeVisible()
+  // The list says what is still due; the booking page has the actions (E11).
+  const open = async (id: string) => {
+    await page.goto('/manager/bookings')
+    await page
+      .getByRole('link', { name: new RegExp(`^Open booking #${id.slice(-6).toUpperCase()}`) })
+      .click()
+    await expect(page).toHaveURL(new RegExp(`/manager/bookings/${id}$`))
+  }
+  const listRow = page.getByRole('row').filter({ hasText: '90 RON at the venue' })
+  await expect(listRow.first()).toBeVisible()
   await snap(page, info, AREA, '04-manager-bookings', { fullPage: true })
   await audit(page)
 
-  await row(came.id).getByRole('button', { name: 'Confirm attended' }).click()
-  await expect(row(came.id).getByText('Attended', { exact: true })).toBeVisible()
-  await expect(row(came.id).getByText('90 RON paid at the venue')).toBeVisible()
+  await open(came.id)
+  await expect(page.getByText('Confirming refunds the player’s 18 RON deposit.')).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm attended' }).click()
+  await expect(page.getByText('Attended', { exact: true })).toBeVisible()
+  await expect(page.getByText('Paid at the venue: 90 RON')).toBeVisible()
   expect(
     Number((await db.booking.findUniqueOrThrow({ where: { id: came.id } })).refundAmount)
   ).toBe(18)
 
-  await row(absent.id).getByRole('button', { name: 'Report no-show' }).click()
+  await open(absent.id)
+  await page.getByRole('button', { name: 'Report no-show' }).click()
   const dialog = page.getByRole('dialog', { name: /Report Andrei Pop as a no-show/ })
   await expect(dialog.getByText(/You keep the 18 RON deposit/)).toBeVisible()
   await snap(page, info, AREA, '05-no-show-dialog')
   await audit(page)
   await dialog.getByRole('button', { name: 'Report no-show' }).click()
-  await expect(row(absent.id).getByText('No-show', { exact: true })).toBeVisible()
+  await expect(page.getByText('No-show', { exact: true })).toBeVisible()
   expect((await db.booking.findUniqueOrThrow({ where: { id: absent.id } })).status).toBe('NO_SHOW')
   await db.user.update({ where: { id: player.id }, data: { trustScore: 100 } })
 })
@@ -196,7 +206,7 @@ test.describe('at phone width', () => {
     await startedBooking(1, 'VENUE_DEPOSIT_TOWARDS')
     await signIn(page, 'venue-manastur@demo.ro', 'Player1234!')
     await page.goto('/manager/bookings')
-    await expect(page.getByRole('button', { name: 'Confirm attended' }).first()).toBeVisible()
+    await expect(page.getByText('72 RON at the venue').first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
       PHONE.width
     )

@@ -1,0 +1,3 @@
+{
+  "crons": [{ "path": "/api/v1/cron/auto-complete", "schedule": "0 2 * * *" }]
+}

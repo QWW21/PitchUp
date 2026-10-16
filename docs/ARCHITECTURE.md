@@ -1177,28 +1177,96 @@ drop with a keyboard alternative.
 
 ---
 
+## 23. The venue's day: lists, a calendar and a nightly job (E11)
+
+E11 gives managers their bookings three ways (a filtered list, a week
+calendar, one booking in full) and settles finished games every night.
+
+### Filters belong in the URL
+
+The list's filters (pitch, status, dates, player) are query parameters, not
+component state. Changing one navigates; the server renders the first page
+for those parameters. That makes a filtered view something you can reload,
+bookmark or send to a colleague, and the back button undoes a filter. The
+search box waits for a pause in typing (debouncing) and for two letters, so
+typing a name doesn't fire a request per key.
+
+### Cursor pages
+
+"Load more" asks for the rows after the last one shown (`cursor` = its id),
+not "page 3". With rows ordered by start time and id, a booking created
+while the manager scrolls can't shift a page and make a row appear twice or
+not at all, which offset paging (`skip 40`) allows. The CSV export follows
+the same cursors to fetch everything that matches the filters, not just the
+page on screen.
+
+### Dates are the venue's days
+
+"Bookings on 4 November" means 4 November in Bucharest. The API turns each
+venue day into a UTC range (`venueTimeToUtc`) before querying, as the
+availability code does (§17). Writing `T00:00:00Z` would cut the day two or
+three hours off.
+
+### Lazy and scheduled work
+
+Players' pages settle bookings when they read them (§17): cheap and always
+right for what that player sees. But nothing would ever settle a booking
+nobody looks at, so a nightly job (Vercel Cron, 02:00 UTC) runs the same
+settling for everyone. It is an ordinary HTTP endpoint guarded by a shared
+secret, compared in constant time (`timingSafeEqual`) so the response time
+leaks nothing about the token. The manager's pages deliberately don't
+settle on read: a game that has just ended is still the manager's to
+confirm, report or complete.
+
+### Drawing a calendar
+
+Each booking becomes a block positioned by arithmetic: top = minutes since
+the first hour ÷ 30 × 48 px, height = duration ÷ 30 × 48 px. Bookings that
+overlap in a day (two pitches at once) are given lanes, the same greedy
+interval-colouring a meeting calendar uses, and share the column's width.
+Colours carry meaning (which pitch), so each must still meet contrast with
+white text, and a status is shown by more than colour alone (a cross for a
+no-show, grey for played, stripes for unpaid).
+
+### A bug worth remembering
+
+The tables overflowed the page on a phone even though they sit inside a
+horizontal scroller. The cause was the screen-reader-only labels in their
+headers: `sr-only` is `position: absolute`, and an absolutely positioned
+element is placed against its nearest _positioned_ ancestor. The scroller
+wasn't one, so the labels escaped it and widened the whole page. Making the
+scroller `relative` fixed it.
+
+**What to learn:** state in the URL; debouncing; cursor vs offset
+pagination; timezone-correct date ranges; lazy vs scheduled work and cron
+endpoints; constant-time secret comparison; laying out calendar events and
+interval colouring; colour plus a second cue for accessibility; CSS
+containing blocks for absolutely positioned elements.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
 
-| Item                 | State                                                                                              |
-| -------------------- | -------------------------------------------------------------------------------------------------- |
-| Rate limiting        | In-memory; resets on restart, per-instance                                                         |
-| Edge middleware      | Cookie presence only; the page is the real gate                                                    |
-| Integration env vars | Optional until their epic                                                                          |
-| Cloudinary           | Signing verified against the algorithm; no live upload tested                                      |
-| Schema changes       | `prisma db push`, not versioned migrations (see §14)                                               |
-| Social login         | Placeholder until OAuth credentials exist                                                          |
-| Mobile app           | Built, typechecked and unit-tested; not yet run on a device                                        |
-| Mobile colours       | Spec palette; not yet checked for WCAG contrast                                                    |
-| Stripe               | Unit-tested with fakes; never run against a real account                                           |
-| Booking completion   | Settled lazily on read until the E11 scheduled job exists                                          |
-| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15                                      |
-| Manager dashboard    | Overview, Bookings (minimal), Pitches, Reviews, Settings (payments); Calendar and Analytics "Soon" |
-| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11                                  |
-| Venue approval       | A minimal admin page; the full admin panel is E15                                                  |
-| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)                                       |
-| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist                                     |
+| Item                 | State                                                             |
+| -------------------- | ----------------------------------------------------------------- |
+| Rate limiting        | In-memory; resets on restart, per-instance                        |
+| Edge middleware      | Cookie presence only; the page is the real gate                   |
+| Integration env vars | Optional until their epic                                         |
+| Cloudinary           | Signing verified against the algorithm; no live upload tested     |
+| Schema changes       | `prisma db push`, not versioned migrations (see §14)              |
+| Social login         | Placeholder until OAuth credentials exist                         |
+| Mobile app           | Built, typechecked and unit-tested; not yet run on a device       |
+| Mobile colours       | Spec palette; not yet checked for WCAG contrast                   |
+| Stripe               | Unit-tested with fakes; never run against a real account          |
+| Booking completion   | Nightly job needs `CRON_SECRET` in the deployment                 |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15     |
+| Manager dashboard    | Everything but Analytics and the rest of Settings (later epics)   |
+| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11 |
+| Venue approval       | A minimal admin page; the full admin panel is E15                 |
+| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)      |
+| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist    |
 
 ---
 

@@ -33,19 +33,31 @@ const HOUR = 3_600_000
 const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
 
 /** Settles this player's finished and abandoned bookings. Idempotent. */
-export async function settlePlayerBookings(playerId: string, now: Date = new Date()) {
+export const settlePlayerBookings = (playerId: string, now: Date = new Date()) =>
+  settleBookings({ playerId }, now)
+
+/**
+ * Settles finished and abandoned bookings among `scope`: a player's, a
+ * venue's (the manager pages), or everyone's (the nightly job, E11-10).
+ * Returns how many of each it settled.
+ */
+export async function settleBookings(
+  scope: Prisma.BookingWhereInput,
+  now: Date = new Date()
+): Promise<{ completed: number; cancelled: number }> {
   const holdStart = new Date(now.getTime() - BOOKING.PENDING_HOLD_MINUTES * 60_000)
   const [finished, abandoned] = await Promise.all([
     prisma.booking.findMany({
-      where: { playerId, status: 'CONFIRMED', endTime: { lte: now } },
+      where: { ...scope, status: 'CONFIRMED', endTime: { lte: now } },
       select: { id: true },
     }),
     prisma.booking.findMany({
-      where: { playerId, status: 'PENDING', createdAt: { lte: holdStart } },
+      where: { ...scope, status: 'PENDING', createdAt: { lte: holdStart } },
       select: { id: true },
     }),
   ])
-  if (!finished.length && !abandoned.length) return
+  const counts = { completed: finished.length, cancelled: abandoned.length }
+  if (!finished.length && !abandoned.length) return counts
   await prisma.$transaction(async tx => {
     if (finished.length) {
       const ids = finished.map(b => b.id)
@@ -69,6 +81,7 @@ export async function settlePlayerBookings(playerId: string, now: Date = new Dat
       await recordStatus(tx, ids, 'CANCELLED')
     }
   })
+  return counts
 }
 
 function tabWhere(playerId: string, tab: BookingTab, now: Date): Prisma.BookingWhereInput {

@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E10 (Manager: Pitches & Pricing),
-after E09 and the product changes C-6, C-7 and C-8.
+Last updated at the end of the session that implemented E11 (Manager: Calendar & Bookings),
+after E09, E10 and the product changes C-6, C-7 and C-8.
 
 ## Done
 
@@ -318,10 +318,40 @@ live.
 (they are on your machine); without them the Photos tab says so and the
 rest works.
 
+**E11 — Manager: Calendar & Bookings: nine tickets done, the mobile one built.**
+
+| Ticket                         | State                                                                |
+| ------------------------------ | -------------------------------------------------------------------- |
+| E11-01 `GET /manager/bookings` | done, verified — filters, venue days, cursor pages, no player emails |
+| E11-02 calendar feed           | done, verified — Monday to Sunday, pitch colours, cancelled left out |
+| E11-03 booking detail          | done, verified — payout, history at this venue (no trust score)      |
+| E11-04 no-show                 | done, verified — 30 min to 4 h after kick-off; twice is a no-op      |
+| E11-05 complete + free time    | done, verified                                                       |
+| E11-06 list page               | done, verified in a browser — URL filters, Load more, CSV export     |
+| E11-07 week calendar           | done, verified in a browser — legend toggles, week navigation        |
+| E11-08 booking page            | done, verified in a browser — actions with a confirm dialog          |
+| E11-09 mobile screens          | **built** — list with status and pitch chips, detail with actions    |
+| E11-10 utilities + nightly job | done, verified — `CRON_SECRET`, `vercel.json` at 02:00 UTC           |
+
+New endpoints: `GET /manager/bookings` (now paged and filtered; C-8's
+upcoming/recent shape is gone), `GET /manager/bookings/calendar`,
+`GET /manager/bookings/:id`, `POST /manager/bookings/:id/complete`,
+`GET /manager/pitches/:id/availability-gaps`, `/cron/auto-complete` (GET
+for Vercel Cron, POST too). The C-8 attended and no-show endpoints stay.
+
+**Pages:** `/manager/bookings` (list), `/manager/bookings/calendar` (week),
+`/manager/bookings/:id` (detail and actions). Calendar in the sidebar is
+live. On the phone, Profile → "Venue bookings" for managers.
+
+**Setting up the nightly job:** set `CRON_SECRET` (16+ characters) in the
+deployment; Vercel Cron sends it. Without it the job refuses every call and
+nothing is settled except by the pages and the manual "Mark as complete".
+
 ## Next
 
-**E11 — Manager: Calendar & Bookings.** The minimal Bookings page from C-8
-(confirm attended, report no-show) is the starting point.
+**E12 — Trust score engine** (#111 onwards): `applyTrustEvent` replaces the
+two places that change the score by hand today (the no-show report and,
+later, completions).
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -713,6 +743,34 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Validation errors are 400**, like the rest of the API.
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
+
+### E11 — Calendar & Bookings
+
+- **Another venue's booking is a 404**, not the ticket's 403.
+- **No-shows from 30 minutes to 4 hours after kick-off**: PRD §9.3's 30
+  minutes and the ticket's 4-hour limit together. Completed games (settled
+  by a player's read) can still be reported inside that window. No no-show
+  fee is charged (the venue keeps the deposit or the online payment, C-8);
+  the trust change is still the direct −20 until E12.
+- **Manager pages don't settle bookings when they read** (players' pages
+  still do): a finished game stays Confirmed until the manager confirms
+  attendance, reports a no-show or marks it complete, or the nightly job
+  settles it.
+- **The booking opens on its own page**, not a slide-in panel; the list
+  links to it. "Confirm attended" and "Report no-show" moved there from
+  C-8's list.
+- **Pitch colours are derived, not stored**: by the pitch's place among the
+  venue's pitches (deleted ones included), from the ticket's eight shades
+  darkened for WCAG AA with white text. Played games are grey with the
+  pitch colour on the side rather than faded (fading fails contrast).
+- **The calendar draws the venue's opening hours** (widened to fit every
+  booking), not a fixed 07:00–23:00.
+- **CSV columns:** date, start, end, player, pitch, status, price, payment,
+  due at the venue, reference. Fee and payout are on the booking page.
+- **`calcPrice` is `bookingPrice`** in half-hour slots (C-2); there is one
+  pricing function, not two. `generateSlots` and `isWithinNoShowWindow` are
+  shared.
+- **Mobile** filters by status and pitch; no date filter yet.
 
 ### E10 — Pitches & Pricing
 

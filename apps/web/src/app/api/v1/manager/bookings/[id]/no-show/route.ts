@@ -1,24 +1,18 @@
 /**
- * POST /api/v1/manager/bookings/:id/no-show — C-8. From 30 minutes after
- * kick-off; the venue keeps what was paid online and the player loses trust.
+ * POST /api/v1/manager/bookings/:id/no-show — C-8, E11-04. From 30 minutes
+ * to 4 hours after kick-off; the venue keeps what was paid online and the
+ * player loses 20 trust points. Reporting again returns `alreadyMarked`.
  */
-import type { NextRequest } from 'next/server'
 import { ReportNoShowSchema } from '@pitchup/shared'
-import { ok, withErrorHandling } from '@/lib/api/response'
+import { ok } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
-import { requireManager } from '@/lib/onboarding/guard'
-import { activeCompany, reportNoShow } from '@/lib/manager/bookings'
+import { reportNoShow } from '@/lib/manager/bookings'
+import { managerRoute } from '@/lib/manager/manager-route'
 
 export const dynamic = 'force-dynamic'
 
-export const POST = withErrorHandling(
-  async (request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
-    const { id } = await params
-    return requireManager(async (req, session) => {
-      const body = await validateBody(req, ReportNoShowSchema)
-      if (body.error) return body.error
-      const company = await activeCompany(session.user.id)
-      return ok(await reportNoShow(company.id, session.user.id, id, body.data.reason))
-    })(request)
-  }
-)
+export const POST = managerRoute(async (request, company, { id }, managerId) => {
+  const body = await validateBody(request, ReportNoShowSchema)
+  if (body.error) return body.error
+  return ok(await reportNoShow(company.id, managerId, id!, body.data.reason))
+})

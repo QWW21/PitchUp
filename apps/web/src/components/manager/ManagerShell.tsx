@@ -42,7 +42,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   {
     items: [
       { label: 'Overview', icon: Home, href: '/manager/overview' },
-      { label: 'Calendar', icon: CalendarDays },
+      { label: 'Calendar', icon: CalendarDays, href: '/manager/bookings/calendar' },
       { label: 'Bookings', icon: List, href: '/manager/bookings' },
     ],
   },
@@ -63,11 +63,15 @@ const TITLES: Record<string, string> = {
   '/manager/bookings': 'Bookings',
   '/manager/settings': 'Settings',
   '/manager/pitches': 'Pitches',
+  '/manager/bookings/calendar': 'Calendar',
 }
 
 /** The section a path belongs to: /manager/pitches/abc/edit is under Pitches. */
 const sectionOf = (pathname: string) =>
-  Object.keys(TITLES).find(p => pathname === p || pathname.startsWith(`${p}/`))
+  Object.keys(TITLES)
+    // The longest match wins: the calendar is under Bookings' path.
+    .sort((a, b) => b.length - a.length)
+    .find(p => pathname === p || pathname.startsWith(`${p}/`))
 
 const COLLAPSED_KEY = 'pitchup:manager-sidebar-collapsed'
 

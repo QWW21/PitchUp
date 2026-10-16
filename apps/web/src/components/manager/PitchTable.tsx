@@ -145,7 +145,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
           <Alert>{message}</Alert>
         </div>
       )}
-      <div className="overflow-x-auto rounded-xl bg-white shadow-sm">
+      <div className="relative overflow-x-auto rounded-xl bg-white shadow-sm">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
             <tr>

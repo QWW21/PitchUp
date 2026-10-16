@@ -118,33 +118,6 @@ export const VenuePaymentSettingsSchema = z.object({
 })
 export type VenuePaymentSettings = z.infer<typeof VenuePaymentSettingsSchema>
 
-/** One row of the manager's Bookings page (C-8). */
-export interface ManagerBooking {
-  id: string
-  reference: string
-  status: 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'
-  /** Venue-local date and times. */
-  date: string
-  startTime: string
-  endTime: string
-  pitch: { id: string; name: string }
-  player: { name: string; phone: string | null }
-  total: number
-  paymentMethod: BookingPaymentMethod
-  deposit: number | null
-  dueAtVenue: number
-  attendedAt: string | null
-  canConfirmAttended: boolean
-  canReportNoShow: boolean
-}
-
-/** GET /api/v1/manager/bookings */
-export interface ManagerBookings {
-  upcoming: ManagerBooking[]
-  /** Started in the last seven days, newest first. */
-  recent: ManagerBooking[]
-}
-
 /** POST /api/v1/manager/bookings/:id/no-show */
 export const ReportNoShowSchema = z.object({
   reason: z.string().trim().max(300).optional(),

@@ -17,7 +17,7 @@ import {
   type BookingDetail,
   type CreateBookingResult,
   type ManagerBooking,
-  type ManagerBookings,
+  type ManagerBookingPage,
   type PaymentOptions,
 } from '@pitchup/shared'
 import { get, post, put } from '../support/api'
@@ -206,8 +206,8 @@ test.describe("the manager's Bookings page", () => {
     const b = await startedBooking(1, 'VENUE_REFUND_DEPOSIT')
     const upcoming = await seedBooking({ pitchId, playerId, startsIn: 30, status: 'CONFIRMED' })
 
-    const list = (await get<ManagerBookings>(manager, '/manager/bookings')).data!
-    const row = list.recent.find(r => r.id === b.id)
+    const list = (await get<ManagerBookingPage>(manager, '/manager/bookings?limit=100')).data!
+    const row = list.items.find(r => r.id === b.id)
     expect(row).toMatchObject({
       paymentMethod: 'VENUE_REFUND_DEPOSIT',
       deposit: 60,
@@ -215,7 +215,7 @@ test.describe("the manager's Bookings page", () => {
       canConfirmAttended: true,
       canReportNoShow: true,
     })
-    expect(list.upcoming.find(r => r.id === upcoming.id)).toMatchObject({
+    expect(list.items.find(r => r.id === upcoming.id)).toMatchObject({
       canConfirmAttended: false,
       canReportNoShow: false,
     })
@@ -282,8 +282,8 @@ test.describe("the manager's Bookings page", () => {
   test("another venue's manager cannot see or act on these bookings", async () => {
     const b = await startedBooking(1, 'VENUE_DEPOSIT_TOWARDS')
     const otherManager = await context('venue-gheorgheni@demo.ro', 'Player1234!')
-    const list = (await get<ManagerBookings>(otherManager, '/manager/bookings')).data!
-    expect([...list.recent, ...list.upcoming].map(r => r.id)).not.toContain(b.id)
+    const list = (await get<ManagerBookingPage>(otherManager, '/manager/bookings?limit=100')).data!
+    expect(list.items.map(r => r.id)).not.toContain(b.id)
     expect((await post(otherManager, `/manager/bookings/${b.id}/attended`, {})).status).toBe(404)
     expect((await post(player, `/manager/bookings/${b.id}/attended`, {})).status).toBe(403)
   })

@@ -25,7 +25,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   (company info, location, hours, the admin's reason); start times and
   durations (C-6); paying at the venue (C-8: who may, the deposit split,
   the wording); the pitch editor's rules (E10: pitch hours inside the
-  venue's, interval overlap, custom sizes, pricing limits, shirt sets); and the Stripe code against
+  venue's, interval overlap, custom sizes, pricing limits, shirt sets); the
+  manager's booking rules (E11: the no-show window, slots, list filters); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
@@ -34,7 +35,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the booking flow, My Bookings (list, detail, cancel sheet, dispute,
   review), My reviews (optimistic delete) and the review sort pills, the
   profile screens (profile, trust score, edit, password, delete, cards,
-  notifications) and push routing, and
+  notifications) and push routing, the manager's venue bookings (E11-09:
+  filters, opening one, a no-show asked about first), and
   exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
@@ -59,7 +61,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   default dimensions, partial edits, ten photos and concurrent uploads,
   reorder and its out-of-date check, switching on, pricing, amenities,
   shirts promised to bookings, pitch hours deciding the slots, blocked
-  dates, soft delete), and the E01
+  dates, soft delete), the venue's bookings (E11: who may, filters and
+  pages, the week feed, the booking with the player's history, the no-show
+  window, completing, free time, the nightly job and its token), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -77,7 +81,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the manager shell and who is kept out of it, start time then duration
   (C-6), the no-shirts note (C-7), paying at the venue and the manager's
   Bookings and Settings pages (C-8), the pitch list and every tab of the
-  pitch editor (E10), at 1280px and 375px.
+  pitch editor (E10), the bookings list with URL filters and CSV export, the
+  booking page and the week calendar (E11), at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

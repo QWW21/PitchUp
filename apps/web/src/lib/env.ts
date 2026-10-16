@@ -55,6 +55,8 @@ export const env = createEnv({
 
     /** E2E only: enables /api/v1/dev/* on a production build. Never set in a real deployment. */
     ALLOW_TEST_HOOKS: z.enum(['1']).optional(),
+    /** Bearer token the nightly auto-complete job must send (E11-10). */
+    CRON_SECRET: z.string().min(16).optional(),
   },
 
   client: {
@@ -87,6 +89,7 @@ export const env = createEnv({
     FCM_SERVER_KEY: process.env.FCM_SERVER_KEY,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
+    CRON_SECRET: process.env.CRON_SECRET || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
