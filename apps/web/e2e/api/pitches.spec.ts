@@ -251,6 +251,9 @@ test.describe('status, pricing, amenities (E10-03, E10-05)', () => {
     expect((await put(v.ctx, `/pitches/${id}/pricing`, { ...pricing, hourlyRate: 0 })).status).toBe(
       400
     )
+    // Half-hour limits: from 1h 30 to 2h 30.
+    const halves = { ...pricing, minBookingHours: 1.5, maxBookingHours: 2.5 }
+    expect((await put(v.ctx, `/pitches/${id}/pricing`, halves)).data).toEqual(halves)
     expect((await put(v.ctx, `/pitches/${id}/pricing`, pricing)).data).toEqual(pricing)
 
     expect((await put(v.ctx, `/pitches/${id}/amenities`, { amenities: ['SAUNA'] })).status).toBe(

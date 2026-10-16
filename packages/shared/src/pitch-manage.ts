@@ -30,8 +30,9 @@ export const PITCH_DEFAULT_DIMENSIONS: Record<
 }
 
 export const PRICING_OPTIONS = {
-  MIN_BOOKING_HOURS: [1, 2],
-  MAX_BOOKING_HOURS: [2, 3, 4],
+  /** In hours, by half hours. */
+  MIN_BOOKING_HOURS: [1, 1.5, 2],
+  MAX_BOOKING_HOURS: [2, 2.5, 3, 3.5, 4],
   ADVANCE_BOOKING_DAYS: [30, 60, 90],
 } as const
 
@@ -126,8 +127,8 @@ export const PitchPricingSchema = z
       .number({ invalid_type_error: 'Enter a price' })
       .positive('Enter a price above 0')
       .max(9999, 'At most 9999 RON'),
-    minBookingHours: oneOf(PRICING_OPTIONS.MIN_BOOKING_HOURS, 'Choose 1 or 2 hours'),
-    maxBookingHours: oneOf(PRICING_OPTIONS.MAX_BOOKING_HOURS, 'Choose 2, 3 or 4 hours'),
+    minBookingHours: oneOf(PRICING_OPTIONS.MIN_BOOKING_HOURS, 'Choose 1h, 1h 30 or 2h'),
+    maxBookingHours: oneOf(PRICING_OPTIONS.MAX_BOOKING_HOURS, 'Choose between 2h and 4h'),
     advanceBookingDays: oneOf(PRICING_OPTIONS.ADVANCE_BOOKING_DAYS, 'Choose 30, 60 or 90 days'),
   })
   .refine(d => d.minBookingHours <= d.maxBookingHours, {

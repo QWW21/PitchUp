@@ -46,13 +46,13 @@ export const CreatePitchSchema = z
     coverPhotoIndex: z.number().int().min(0).default(0),
     minBookingHours: z
       .number()
-      .int()
+      .multipleOf(0.5)
       .min(BOOKING.MIN_DURATION_HOURS)
       .max(BOOKING.MAX_DURATION_HOURS)
       .default(BOOKING.MIN_DURATION_HOURS),
     maxBookingHours: z
       .number()
-      .int()
+      .multipleOf(0.5)
       .min(BOOKING.MIN_DURATION_HOURS)
       .max(BOOKING.MAX_DURATION_HOURS)
       .default(BOOKING.MAX_DURATION_HOURS),
@@ -84,12 +84,12 @@ export const UpdatePitchSchema = z
     coverPhotoIndex: z.number().int().min(0),
     minBookingHours: z
       .number()
-      .int()
+      .multipleOf(0.5)
       .min(BOOKING.MIN_DURATION_HOURS)
       .max(BOOKING.MAX_DURATION_HOURS),
     maxBookingHours: z
       .number()
-      .int()
+      .multipleOf(0.5)
       .min(BOOKING.MIN_DURATION_HOURS)
       .max(BOOKING.MAX_DURATION_HOURS),
     advanceBookingDays: z.number().int().min(1).max(365),

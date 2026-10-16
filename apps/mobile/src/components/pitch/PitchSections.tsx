@@ -10,6 +10,7 @@ import {
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
+  formatShortDuration,
 } from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
 
@@ -71,7 +72,9 @@ export function PricingCard({ pitch }: { pitch: PitchDetail }) {
           {pitch.hourlyRate} RON<Text style={styles.per}>/h</Text>
         </Text>
       </View>
-      <Text style={styles.note}>Min. {pitch.minBookingHours}h · Billed per 30 min</Text>
+      <Text style={styles.note}>
+        Min. {formatShortDuration(pitch.minBookingHours * 60)} · Billed per 30 min
+      </Text>
       {pitch.hasShirts ? (
         <View style={[styles.shirts, styles.divider]}>
           <Icon name="tshirt-crew" size={16} color={colors.neutral[500]} />

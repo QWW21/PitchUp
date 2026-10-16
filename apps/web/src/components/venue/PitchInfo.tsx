@@ -21,6 +21,7 @@ import {
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
+  formatShortDuration,
 } from '@pitchup/shared'
 
 const AMENITY_ICONS: Record<AmenityType, LucideIcon> = {
@@ -83,7 +84,8 @@ export function PricingCard({ pitch }: { pitch: PitchDetail }) {
         </div>
       </dl>
       <p className="mt-2 text-xs text-neutral-500">
-        Min. {pitch.minBookingHours}h · Max. {pitch.maxBookingHours}h · Billed per 30 min
+        Min. {formatShortDuration(pitch.minBookingHours * 60)} · Max.{' '}
+        {formatShortDuration(pitch.maxBookingHours * 60)} · Billed per 30 min
       </p>
       {pitch.hasShirts && (
         <p className="mt-2 flex items-start gap-2 border-t border-neutral-200 pt-2 text-xs text-neutral-700">

@@ -76,6 +76,11 @@ describe('editor schemas', () => {
     expect(PitchPricingSchema.safeParse(ok).success).toBe(true)
     expect(PitchPricingSchema.safeParse({ ...ok, hourlyRate: 0 }).success).toBe(false)
     expect(PitchPricingSchema.safeParse({ ...ok, minBookingHours: 3 }).success).toBe(false)
+    // Half hours are fine (1h 30 to 3h 30); other fractions are not.
+    expect(
+      PitchPricingSchema.safeParse({ ...ok, minBookingHours: 1.5, maxBookingHours: 3.5 }).success
+    ).toBe(true)
+    expect(PitchPricingSchema.safeParse({ ...ok, minBookingHours: 1.25 }).success).toBe(false)
     expect(
       PitchPricingSchema.safeParse({ ...ok, minBookingHours: 2, maxBookingHours: 2 }).success
     ).toBe(true)

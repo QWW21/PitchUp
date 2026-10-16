@@ -9,6 +9,7 @@ import {
   PRICING_OPTIONS,
   PitchPricingSchema,
   bookingPrice,
+  formatShortDuration,
   type ManagerPitch,
 } from '@pitchup/shared'
 import { Choice } from './BasicInfoForm'
@@ -57,14 +58,14 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
       <Radios
         legend="Shortest booking"
         name="min"
-        options={PRICING_OPTIONS.MIN_BOOKING_HOURS.map(h => [h, `${h}h`])}
+        options={PRICING_OPTIONS.MIN_BOOKING_HOURS.map(h => [h, formatShortDuration(h * 60)])}
         value={v.minBookingHours}
         onChange={minBookingHours => set({ minBookingHours })}
       />
       <Radios
         legend="Longest booking"
         name="max"
-        options={PRICING_OPTIONS.MAX_BOOKING_HOURS.map(h => [h, `${h}h`])}
+        options={PRICING_OPTIONS.MAX_BOOKING_HOURS.map(h => [h, formatShortDuration(h * 60)])}
         value={v.maxBookingHours}
         onChange={maxBookingHours => set({ maxBookingHours })}
       />
@@ -79,7 +80,7 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
       <p className="rounded-md bg-neutral-50 p-3 text-sm text-neutral-700" aria-live="polite">
         {rate > 0 ? (
           <>
-            A player booking <strong>{preview.minutes / 60}h</strong> pays{' '}
+            A player booking <strong>{formatShortDuration(preview.minutes)}</strong> pays{' '}
             <strong>{preview.total} RON</strong>. You receive {preview.venuePayout} RON after
             PitchUp&rsquo;s 8% commission.
           </>

@@ -20,6 +20,7 @@ import {
   addDays,
   bookingPrice,
   bookingReference,
+  formatShortDuration,
   normalizeWeek,
   paymentMethodsFor,
   paymentSplit,
@@ -101,7 +102,7 @@ export async function createBooking(
   const minutes = endMin - startMin
   if (minutes < pitch.minBookingHours * 60 || minutes > pitch.maxBookingHours * 60) {
     throw validationError(
-      `This pitch is booked for ${pitch.minBookingHours}–${pitch.maxBookingHours} hours at a time`,
+      `This pitch is booked for ${formatShortDuration(pitch.minBookingHours * 60)} to ${formatShortDuration(pitch.maxBookingHours * 60)} at a time`,
       { field: 'endTime' }
     )
   }

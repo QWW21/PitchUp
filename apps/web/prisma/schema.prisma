@@ -257,8 +257,9 @@ model Pitch {
   lengthMeters       Float?
   isActive           Boolean     @default(true)
   coverPhotoIndex    Int         @default(0)
-  minBookingHours    Int         @default(1)
-  maxBookingHours    Int         @default(4)
+  /// Hours, in halves: 1, 1.5, 2… (a booking is any half hour between the two).
+  minBookingHours    Float       @default(1)
+  maxBookingHours    Float       @default(4)
   advanceBookingDays Int         @default(60)
   /// One price per hour at any time of day. No peak pricing.
   hourlyRate         Decimal     @db.Decimal(10, 2)

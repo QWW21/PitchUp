@@ -716,10 +716,10 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 
 ### E10 — Pitches & Pricing
 
-- **Pricing follows C-2**: one hourly rate. The shortest booking is 1 or
-  2 hours and the longest 2, 3 or 4 (whole hours, as the booking model
-  stores them); the ticket's 1.5 hours and "no limit" are not offered (4
-  hours is the app-wide maximum).
+- **Pricing follows C-2**: one hourly rate. The shortest booking is 1h,
+  1h 30 or 2h and the longest 2h to 4h in half hours (the owner asked for
+  half hours; `minBookingHours`/`maxBookingHours` are now decimals). "No
+  limit" is not offered: 4 hours is the app-wide maximum.
 - **Shirts follow C-1**: a "Lend shirts" switch and sets per colour, no
   price. Fewer sets than upcoming bookings were promised is **409**
   `SHIRTS_PROMISED` (not 412) with the booking ids; `force: true` saves
