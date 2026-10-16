@@ -241,7 +241,13 @@ test.describe('reports (E07-04)', () => {
     })
     expect(
       await db.notification.count({
-        where: { type: 'REVIEW_REPORTED', data: { equals: { reviewId: id, category: 'FAKE' } } },
+        where: {
+          type: 'REVIEW_REPORTED',
+          AND: [
+            { data: { path: ['reviewId'], equals: id } },
+            { data: { path: ['category'], equals: 'FAKE' } },
+          ],
+        },
       })
     ).toBeGreaterThan(0)
     expect(only((await pitchReviews('newest')).reviews, [id])).toEqual([id])

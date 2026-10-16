@@ -16,7 +16,6 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   BarChart3,
-  Bell,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -29,9 +28,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import type { NotificationPage } from '@pitchup/shared'
-import { send } from '@/lib/http'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface Item {
   label: string
@@ -171,7 +168,7 @@ export function ManagerShell({
             <p className="truncate text-xs text-neutral-500">{companyName}</p>
           </div>
           <div className="ml-auto flex items-center gap-1">
-            <Notifications />
+            <NotificationBell />
             <AccountMenu userName={userName} signOutAction={signOutAction} />
           </div>
         </header>
@@ -312,85 +309,6 @@ function Sidebar({
 }
 
 /** The bell: the unread count, and the latest notifications in a dropdown. */
-function Notifications() {
-  const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const q = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => send<NotificationPage>('/api/v1/notifications?limit=6', 'GET'),
-  })
-  const unread = q.data?.unread ?? 0
-
-  useEffect(() => {
-    if (!open) return
-    const onClick = (e: MouseEvent) => !ref.current?.contains(e.target as Node) && setOpen(false)
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false)
-    document.addEventListener('mousedown', onClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [open])
-
-  const readAll = async () => {
-    await send('/api/v1/notifications/read-all', 'PATCH')
-    void queryClient.invalidateQueries({ queryKey: ['notifications'] })
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
-        className="relative flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100"
-      >
-        <Bell className="h-5 w-5" aria-hidden="true" />
-        {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-600 px-1 text-[10px] font-bold text-white">
-            {unread > 9 ? '9+' : unread}
-          </span>
-        )}
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-80 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-lg">
-          <div className="flex items-center justify-between border-b border-neutral-100 px-4 py-2">
-            <p className="text-sm font-semibold text-neutral-900">Notifications</p>
-            {unread > 0 && (
-              <button
-                type="button"
-                onClick={() => void readAll()}
-                className="text-xs font-medium text-primary-700 hover:underline"
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
-          {q.data?.items.length ? (
-            <ul className="max-h-80 overflow-y-auto">
-              {q.data.items.map(n => (
-                <li
-                  key={n.id}
-                  className={`border-b border-neutral-100 px-4 py-2 last:border-b-0 ${n.isRead ? '' : 'bg-primary-50'}`}
-                >
-                  <p className={`text-sm text-neutral-900 ${n.isRead ? '' : 'font-semibold'}`}>
-                    {n.title}
-                  </p>
-                  <p className="line-clamp-2 text-xs text-neutral-600">{n.body}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="px-4 py-6 text-center text-sm text-neutral-500">All caught up</p>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
 
 function AccountMenu({
   userName,

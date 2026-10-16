@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client'
 import { REPORT_CATEGORY_LABELS, type ReportReviewInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export async function reportReview(
   reviewId: string,
@@ -34,30 +35,31 @@ export async function reportReview(
   })
   const label = REPORT_CATEGORY_LABELS[input.category]
   try {
-    await prisma.$transaction([
-      prisma.reviewReport.create({
+    await prisma.$transaction(async tx => {
+      await tx.reviewReport.create({
         data: {
           reviewId,
           reporterId,
           category: input.category,
           detail: input.detail ?? null,
         },
-      }),
-      prisma.review.update({
+      })
+      await tx.review.update({
         where: { id: reviewId },
         // The first reason is kept; later reports add to the count.
         data: { isFlagged: true, flagReason: review.flagReason ?? input.category },
-      }),
-      prisma.notification.createMany({
-        data: admins.map(a => ({
+      })
+      for (const a of admins) {
+        await notify(tx, {
           userId: a.id,
-          type: 'REVIEW_REPORTED' as const,
+          type: 'REVIEW_REPORTED',
           title: 'Review reported',
           body: `A review was reported: ${label}.`,
-          data: { reviewId, category: input.category },
-        })),
-      }),
-    ])
+          data: { reviewId, category: input.category, link: '/admin/companies' },
+        })
+      }
+    })
+    deliverSoon(admins.map(a => a.id))
   } catch (caught) {
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
       throw new ApiException('CONFLICT', 'You have already reported this review', {

@@ -169,6 +169,11 @@ export function ProfileScreen({ navigation }: Props) {
             label="Notifications"
             onPress={() => navigation.navigate('Notifications')}
           />
+          <Item
+            icon="bell-cog-outline"
+            label="Notification settings"
+            onPress={() => navigation.navigate('NotificationSettings')}
+          />
         </Section>
         {p.role === 'MANAGER' ? (
           <Section title="Your venue">

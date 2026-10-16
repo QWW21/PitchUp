@@ -18,10 +18,14 @@ import {
   TRUST_SCORE_MAX,
   TRUST_SCORE_MIN,
   TRUST_SCORE_MONTHLY_COMPLETION_CAP,
+  deriveTier,
+  tierDescription,
+  trustTier,
   venueClock,
   venueTimeToUtc,
   type TrustScoreReason,
 } from '@pitchup/shared'
+import { notify } from '@/lib/notifications/dispatch'
 
 export interface TrustResult {
   /** False when the monthly cap on completion points stopped it. */
@@ -55,6 +59,8 @@ export async function applyTrustEvent(
     }
   }
 
+  const before = await tx.user.findUnique({ where: { id: userId }, select: { trustScore: true } })
+  if (!before) return { applied: false, score: null }
   const rows = await tx.$queryRaw<{ trustScore: number }[]>`
     UPDATE "User"
     SET "trustScore" = LEAST(${TRUST_SCORE_MAX}, GREATEST(${TRUST_SCORE_MIN}, "trustScore" + ${delta}))
@@ -64,5 +70,17 @@ export async function applyTrustEvent(
   await tx.trustScoreEvent.create({
     data: { userId, delta, reason, relatedBookingId, createdAt: now },
   })
-  return { applied: true, score: rows[0]!.trustScore }
+  const score = rows[0]!.trustScore
+  const [was, is] = [deriveTier(before.trustScore), deriveTier(score)]
+  if (was !== is) {
+    // Delivered by whoever commits this, or by the hourly sweep.
+    await notify(tx, {
+      userId,
+      type: 'TRUST_TIER_CHANGED',
+      title: score > before.trustScore ? `You're now ${is}` : `Your trust tier is now ${is}`,
+      body: `Your trust score is ${score} (was ${before.trustScore}). ${tierDescription(trustTier(score))}`,
+      data: { score: String(score) },
+    })
+  }
+  return { applied: true, score }
 }

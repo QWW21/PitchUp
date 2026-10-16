@@ -8,6 +8,7 @@ import 'server-only'
 import { NO_SHOW_DISPUTE_WINDOW_HOURS, bookingReference } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export async function disputeNoShow(
   bookingId: string,
@@ -43,19 +44,20 @@ export async function disputeNoShow(
     where: { role: 'ADMIN', deletedAt: null },
     select: { id: true },
   })
-  await prisma.$transaction([
-    prisma.noShow.update({
+  await prisma.$transaction(async tx => {
+    await tx.noShow.update({
       where: { bookingId },
       data: { disputeStatus: 'OPEN', disputeText },
-    }),
-    prisma.notification.createMany({
-      data: admins.map(a => ({
+    })
+    for (const a of admins) {
+      await notify(tx, {
         userId: a.id,
-        type: 'DISPUTE_OPENED' as const,
+        type: 'DISPUTE_OPENED',
         title: 'No-show disputed',
         body: `A player disputes the no-show on booking ${bookingReference(bookingId)}.`,
-        data: { bookingId },
-      })),
-    }),
-  ])
+        data: { bookingId, link: '/admin/disputes' },
+      })
+    }
+  })
+  deliverSoon(admins.map(a => a.id))
 }

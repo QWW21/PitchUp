@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { auth, signOut } from '@/auth'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { UserMenu } from './UserMenu'
 
 export async function TopNav() {
@@ -17,11 +18,14 @@ export async function TopNav() {
           PitchUp
         </Link>
         {session?.user ? (
-          <UserMenu
-            name={session.user.name ?? session.user.email ?? 'Account'}
-            isManager={session.user.role !== 'PLAYER'}
-            signOutAction={signOutAction}
-          />
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <UserMenu
+              name={session.user.name ?? session.user.email ?? 'Account'}
+              isManager={session.user.role !== 'PLAYER'}
+              signOutAction={signOutAction}
+            />
+          </div>
         ) : (
           <div className="flex items-center gap-3">
             <Link

@@ -9,6 +9,8 @@ import type {
   SavedCard,
   TrustScoreDetail,
   UpdateProfileInput,
+  NotificationPreferences,
+  NotificationPreferencesInput,
 } from '@pitchup/shared'
 import { apiRequest } from './apiClient'
 
@@ -53,6 +55,15 @@ export const profileApi = {
     apiRequest<{ updated: number }>({ method: 'PATCH', url: '/notifications/read-all' }),
   deleteNotification: (id: string) =>
     apiRequest<null>({ method: 'DELETE', url: `/notifications/${id}` }),
+  // ── Notification settings (E13) ──
+  notificationPreferences: () =>
+    apiRequest<NotificationPreferences>({ method: 'GET', url: '/notifications/preferences' }),
+  updateNotificationPreferences: (patch: NotificationPreferencesInput) =>
+    apiRequest<NotificationPreferences>({
+      method: 'PUT',
+      url: '/notifications/preferences',
+      data: patch,
+    }),
   registerDevice: (token: string, platform: 'ios' | 'android') =>
     apiRequest<{ registered: true }>({
       method: 'POST',

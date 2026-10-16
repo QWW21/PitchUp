@@ -1,9 +1,6 @@
-/** Booking confirmed — sent when a payment succeeds (E05-08). */
+/** Booking confirmed — the email of the BOOKING_CONFIRMED notification (E05-08, E13). */
 import 'server-only'
 import { formatDateLong, formatDuration, type BookingConfirmation } from '@pitchup/shared'
-import { prisma } from '@/lib/prisma'
-import { getEmailProvider } from '@/lib/notifications'
-import { loadConfirmation } from '@/lib/bookings/read'
 import { renderEmailLayout, renderMutedParagraph, renderParagraph } from './layout'
 import type { VerificationEmail } from './verification'
 
@@ -44,19 +41,4 @@ export function renderBookingConfirmedEmail(b: BookingConfirmation): Verificatio
       lines.join('\n') +
       `\n\nCancel at least 24 hours before kick-off for a full refund, or at least 2 hours before for half.`,
   }
-}
-
-export async function sendBookingConfirmedEmail(bookingId: string): Promise<void> {
-  const [booking, player] = await Promise.all([
-    loadConfirmation(bookingId),
-    prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: { player: { select: { email: true } } },
-    }),
-  ])
-  if (!booking || !player) return
-  await getEmailProvider().send({
-    to: player.player.email,
-    ...renderBookingConfirmedEmail(booking),
-  })
 }

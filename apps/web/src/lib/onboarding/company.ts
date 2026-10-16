@@ -19,6 +19,7 @@ import type {
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export const managerCompany = (ownerId: string) => prisma.company.findUnique({ where: { ownerId } })
 
@@ -206,19 +207,20 @@ export async function submitForApproval(companyId: string): Promise<void> {
     where: { role: 'ADMIN', deletedAt: null },
     select: { id: true },
   })
-  await prisma.$transaction([
-    prisma.company.update({
+  await prisma.$transaction(async tx => {
+    await tx.company.update({
       where: { id: companyId },
       data: { status: 'PENDING', submittedAt: new Date(), rejectionReason: null },
-    }),
-    prisma.notification.createMany({
-      data: admins.map(a => ({
+    })
+    for (const a of admins) {
+      await notify(tx, {
         userId: a.id,
-        type: 'COMPANY_SUBMITTED' as const,
+        type: 'COMPANY_SUBMITTED',
         title: 'New venue to review',
         body: `${company.name} finished onboarding and waits for approval.`,
-        data: { companyId },
-      })),
-    }),
-  ])
+        data: { companyId, link: '/admin/companies' },
+      })
+    }
+  })
+  deliverSoon(admins.map(a => a.id))
 }

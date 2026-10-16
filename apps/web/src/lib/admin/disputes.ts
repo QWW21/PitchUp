@@ -25,6 +25,7 @@ import { ApiException, conflict, notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
 import { recordStatus } from '@/lib/bookings/status'
 import { applyTrustEvent } from '@/lib/trust/apply'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export async function listOpenDisputes(): Promise<OpenDispute[]> {
   const rows = await prisma.noShow.findMany({
@@ -69,7 +70,7 @@ export async function resolveDispute(
   input: ResolveDisputeInput,
   now: Date = new Date()
 ): Promise<{ outcome: ResolveDisputeInput['outcome'] }> {
-  await prisma.$transaction(
+  const told = await prisma.$transaction(
     async tx => {
       const found = await tx.noShow.findUnique({
         where: { bookingId },
@@ -138,29 +139,27 @@ export async function resolveDispute(
         }
       }
 
-      await tx.notification.createMany({
-        data: [
-          {
-            userId: b.playerId,
-            type: 'DISPUTE_RESOLVED',
-            title: playerWon ? 'Your dispute was upheld' : 'Your dispute was not upheld',
-            body: playerWon
-              ? `The no-show at ${b.pitch.name} is removed and your trust score is restored. ${input.note}`
-              : `The no-show at ${b.pitch.name} stands. ${input.note}`,
-            data: { bookingId: b.id },
-          },
-          {
-            userId: b.pitch.company.ownerId,
-            type: 'DISPUTE_RESOLVED',
-            title: playerWon ? 'A no-show was overturned' : 'A no-show was confirmed',
-            body: `${b.pitch.name}: ${input.note}`,
-            data: { bookingId: b.id },
-          },
-        ],
+      await notify(tx, {
+        userId: b.playerId,
+        type: 'DISPUTE_RESOLVED',
+        title: playerWon ? 'Your dispute was upheld' : 'Your dispute was not upheld',
+        body: playerWon
+          ? `The no-show at ${b.pitch.name} is removed and your trust score is restored. ${input.note}`
+          : `The no-show at ${b.pitch.name} stands. ${input.note}`,
+        data: { bookingId: b.id },
       })
+      await notify(tx, {
+        userId: b.pitch.company.ownerId,
+        type: 'DISPUTE_RESOLVED',
+        title: playerWon ? 'A no-show was overturned' : 'A no-show was confirmed',
+        body: `${b.pitch.name}: ${input.note}`,
+        data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
+      })
+      return [b.playerId, b.pitch.company.ownerId]
     },
     // A Stripe refund may happen inside the transaction.
     { timeout: 20_000 }
   )
+  deliverSoon(told)
   return { outcome: input.outcome }
 }

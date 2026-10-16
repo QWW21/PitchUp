@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E12 (Penalty & Trust),
-after E09–E11 and the product changes C-6, C-7 and C-8.
+Last updated at the end of the session that implemented E13 (Notifications),
+after E09–E12 and the product changes C-6, C-7 and C-8.
 
 ## Done
 
@@ -230,7 +230,8 @@ config files, which the owner creates. Ready for it: `POST
 /notifications/device-token`, `registerPushToken()` and `openNotification()`
 in `apps/mobile/src/lib/push.ts` (the comment there lists the five lines
 that wire Firebase in), and `notificationTarget()` in `@pitchup/shared`,
-used by both the push handler and the in-app list. Sending pushes is E13.
+used by both the push handler and the in-app list. Sending pushes is built
+(E13); it waits for the same Firebase project.
 
 **E09 — Manager: Onboarding & Dashboard: ten tickets done, plus a minimal admin approval page.**
 
@@ -372,11 +373,53 @@ monthly recovery (+1 in a month with nothing negative). New endpoints:
 
 Schema: `Pitch.minTrustScore`, `NoShow.resolution`.
 
+**E13 — Notifications: eight tickets done, the two mobile ones built.**
+
+| Ticket                             | State                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| E13-01 model + dispatcher          | done, verified — `notify()` writes the inbox row, delivery after it    |
+| E13-02 push (FCM)                  | done, unit-tested — HTTP v1 with a signed JWT; idle without Firebase   |
+| E13-03 email                       | done, verified — templates for the main notices, a generic one else    |
+| E13-04 SMS + 24-hour reminder      | done, verified — hourly job, reminders 23–25 h ahead, once each        |
+| E13-05 booking lifecycle wired     | done, verified — every notice goes through `notify()`                  |
+| E13-06 in-app feed                 | done, verified — unread count, `unreadOnly`, mark one or all read      |
+| E13-07 preferences                 | done, verified — three channels, six groups, partial updates           |
+| E13-08 mobile inbox + badge        | built in E08 — badge now refreshes every minute, awaiting mobile tests |
+| E13-09 mobile preferences screen   | **built** — Profile → Notification settings, awaiting mobile testing   |
+| E13-10 web bell + preferences page | done, verified in a browser — player header and manager shell          |
+
+**How a notice travels:** `notify(tx, payload)` (`src/lib/notifications/dispatch.ts`)
+writes the in-app row inside the caller's transaction, so a notice exists only
+if what it announces happened; a type the user muted writes nothing. After the
+response, `deliverSoon(userIds)` sends email, SMS and push for the new rows
+(Next's `after()`), and the hourly `/cron/notifications` job sends anything
+left over from the last two hours and queues the 24-hour reminders. Each row is
+claimed (`deliveredAt`) before sending, so nothing goes out twice.
+
+New endpoints: `GET /notifications/count`, `GET/PUT /notifications/preferences`,
+`GET /notifications?unreadOnly=true`, `/cron/notifications` (hourly in
+`vercel.json`, the same `CRON_SECRET`).
+
+**Pages:** the bell in the player's header and the manager shell (unread count,
+the latest five, mark all read); `/profile/notifications` (switches that save at
+once, and every notice with Load more). On the phone, Profile → Notification
+settings.
+
+Schema: `NotificationPreference`, `Notification.deliveredAt`,
+`Booking.reminderSentAt`, `TRUST_TIER_CHANGED`.
+
+**Turning the channels on:** email needs `RESEND_API_KEY` (and Resend only
+sends to your own address until a domain is verified); SMS needs the
+`TWILIO_*` variables; push needs `FIREBASE_PROJECT_ID`,
+`FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` from a service account, and
+the mobile app's Firebase wiring (E08-10). Without them each channel logs
+instead of sending, and the inbox works regardless.
+
 ## Next
 
-**E13 — Notifications** (#121–#130): one `sendNotification()` over the
-in-app inbox (exists), email (Resend, exists), SMS (Twilio) and push
-(Firebase, still blocked), the 24-hour reminder job, and preferences.
+**E14 — Analytics** (#131–#140): the manager's revenue, occupancy heatmap,
+per-pitch performance and KPI cards, with CSV export, on web and mobile.
+Pay-at-venue commission (C-8) is recorded and would show here.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -769,6 +812,34 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
 
+### E13 — Notifications
+
+- **The existing `Notification` and `DeviceToken` models are reused**, with
+  `deliveredAt` added, rather than new tables; `FcmToken` would duplicate
+  `DeviceToken`.
+- **Push uses FCM's HTTP v1 API directly**, signing the service account's JWT
+  with Node's `crypto`, instead of adding `firebase-admin`. Dead tokens are
+  removed when FCM says they're unregistered.
+- **No React Email.** The emails use the existing HTML layout; three notices
+  have their own template, the rest a generic one with a button.
+- **An outbox, not sending inside the request.** The row is written in the
+  transaction and delivered after the response; the hourly job is the safety
+  net, and only for rows from the last two hours, so old rows aren't mailed
+  out when the job first runs.
+- **SMS only for urgent kinds** (reminders, a venue cancelling, a no-show), and only
+  when the user switched it on. Every account has a phone (E02), so the "no
+  phone" refusal (400 `PHONE_REQUIRED`) can't happen from the web today.
+- **Muting is by group** (confirmed, reminders, cancellations, no-shows,
+  reviews, trust); account and venue-approval notices can't be muted.
+- **The existing `PATCH` read endpoints are kept**, and validation errors are
+  400 as everywhere else, not 422.
+- **No notice for a failed payment**: the checkout page already says so, and
+  an unpaid booking simply lapses.
+- **A trust tier change is its own notice** (`TRUST_TIER_CHANGED`). When it
+  happens in a background job it is delivered by the next hourly run.
+- **The 2-hour reminder type exists but nothing sends it yet**; only the
+  24-hour reminder is scheduled.
+
 ### E12 — Penalty & Trust
 
 - **Exactly 2 hours before kick-off counts as a late cancellation (−5)**,
@@ -933,7 +1004,8 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   import that lint passed, because the root ESLint config ignores `.next`
   and Next runs its own pass. Worth aligning before CI exists.
 - **Nothing has been delivered to a real inbox or handset.** Templates and
-  the signing algorithm are verified; delivery and rendering are not.
+  the signing algorithm are verified; delivery and rendering are not. Push
+  (E13) has only run against a fake FCM: it needs a Firebase project.
 - **No profanity filter yet** (PRD §11.3's auto-flag). Reports flag reviews
   for admins, but nothing flags them automatically.
 - **Rate limiting is in-memory**, so it resets on restart and is per

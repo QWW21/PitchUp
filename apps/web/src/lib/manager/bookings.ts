@@ -51,6 +51,7 @@ import { recordStatus } from '@/lib/bookings/status'
 import { applyTrustEvent } from '@/lib/trust/apply'
 import { managerCompany } from '@/lib/onboarding/company'
 import { dayIntervals, exceptionDates, loadSchedule, slotsFor } from '@/lib/venues/availability'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 const PLAYED: BookingStatus[] = ['CONFIRMED', 'COMPLETED']
 const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
@@ -403,6 +404,10 @@ async function lockOwn(tx: Prisma.TransactionClient, companyId: string, bookingI
 const notAllowed = (message: string) =>
   new ApiException('CONFLICT', message, { reason: 'NOT_ALLOWED' })
 
+const playerOf = async (bookingId: string) =>
+  (await prisma.booking.findUnique({ where: { id: bookingId }, select: { playerId: true } }))
+    ?.playerId
+
 async function one(companyId: string, bookingId: string, now: Date) {
   const [b, colours] = await Promise.all([
     prisma.booking.findFirstOrThrow({
@@ -462,20 +467,19 @@ export async function confirmAttended(
         },
       })
       if (refundId) {
-        await tx.notification.create({
-          data: {
-            userId: b.playerId,
-            type: 'REFUND_PROCESSED',
-            title: 'Your deposit is on its way back',
-            body: `${b.pitch.name} confirmed you played: ${deposit} RON is refunded to your card.`,
-            data: { bookingId: b.id },
-          },
+        await notify(tx, {
+          userId: b.playerId,
+          type: 'REFUND_PROCESSED',
+          title: 'Your deposit is on its way back',
+          body: `${b.pitch.name} confirmed you played: ${deposit} RON is refunded to your card.`,
+          data: { bookingId: b.id },
         })
       }
     },
     // A Stripe refund happens inside the transaction.
     { timeout: 20_000 }
   )
+  deliverSoon([await playerOf(bookingId)])
   return one(companyId, bookingId, now)
 }
 
@@ -512,17 +516,16 @@ export async function reportNoShow(
       },
     })
     await applyTrustEvent(tx, b.playerId, 'NO_SHOW', b.id, now)
-    await tx.notification.create({
-      data: {
-        userId: b.playerId,
-        type: 'NO_SHOW_REPORTED',
-        title: 'A no-show was reported',
-        body: `${b.pitch.name} reported that you didn't come. You can dispute it within ${NO_SHOW_DISPUTE_WINDOW_HOURS} hours.`,
-        data: { bookingId: b.id },
-      },
+    await notify(tx, {
+      userId: b.playerId,
+      type: 'NO_SHOW_REPORTED',
+      title: 'A no-show was reported',
+      body: `${b.pitch.name} reported that you didn't come. Your trust score went down by 20; you can dispute it within ${NO_SHOW_DISPUTE_WINDOW_HOURS} hours.`,
+      data: { bookingId: b.id },
     })
     return false
   })
+  deliverSoon([await playerOf(bookingId)])
   return { ...(await one(companyId, bookingId, now)), alreadyMarked: already }
 }
 
@@ -545,6 +548,8 @@ export async function completeBooking(
     await recordStatus(tx, b.id, 'COMPLETED')
     await applyTrustEvent(tx, b.playerId, 'BOOKING_COMPLETED', b.id, now)
   })
+  // A tier change may have been noted.
+  deliverSoon([await playerOf(bookingId)])
   return one(companyId, bookingId, now)
 }
 

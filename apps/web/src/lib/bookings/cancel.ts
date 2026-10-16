@@ -18,12 +18,20 @@
  * Not for an unpaid checkout, and not when an account is being deleted.
  */
 import 'server-only'
-import { cancellationRefund, lateCancelReason, type CancelBookingResult } from '@pitchup/shared'
+import {
+  cancellationRefund,
+  formatDateLong,
+  fromMinutes,
+  lateCancelReason,
+  venueClock,
+  type CancelBookingResult,
+} from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
 import { chargedOnline } from './charged'
 import { applyTrustEvent } from '@/lib/trust/apply'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 import { getBookingForViewer } from './read'
 import { recordStatus } from './status'
 
@@ -33,6 +41,7 @@ export async function cancelBooking(
   now: Date = new Date(),
   options: { refundAll?: boolean; reason?: string } = {}
 ): Promise<CancelBookingResult> {
+  const told: string[] = []
   const result = await prisma.$transaction(
     async tx => {
       const b = await tx.booking.findUnique({
@@ -49,6 +58,8 @@ export async function cancelBooking(
           paidAt: true,
           paymentProvider: true,
           stripePaymentIntentId: true,
+          player: { select: { name: true } },
+          pitch: { select: { name: true, company: { select: { ownerId: true, name: true } } } },
         },
       })
       if (!b || b.playerId !== viewer.id) throw notFound('Booking not found')
@@ -114,11 +125,33 @@ export async function cancelBooking(
       if (late && current.status === 'CONFIRMED' && !options.refundAll) {
         await applyTrustEvent(tx, b.playerId, late, b.id, now)
       }
+      // E13-05: both sides hear about a real booking being cancelled; not an
+      // unpaid checkout, nor the cancellations of an account being deleted.
+      if (current.status === 'CONFIRMED' && !options.refundAll) {
+        const at = venueClock(b.startTime)
+        const slot = `${formatDateLong(at.date)} at ${fromMinutes(at.minutes)}`
+        await notify(tx, {
+          userId: b.playerId,
+          type: 'BOOKING_CANCELLED_PLAYER',
+          title: 'Booking cancelled',
+          body: `${b.pitch.name}, ${slot}. ${paid && refund.amount > 0 ? `${refund.amount} RON is refunded to your card.` : 'No refund is due.'}`,
+          data: { bookingId: b.id },
+        })
+        await notify(tx, {
+          userId: b.pitch.company.ownerId,
+          type: 'BOOKING_CANCELLED_PLAYER',
+          title: 'A booking was cancelled',
+          body: `${b.player.name} cancelled ${b.pitch.name}, ${slot}.`,
+          data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
+        })
+        told.push(b.playerId, b.pitch.company.ownerId)
+      }
       return { refundAmount: paid ? refund.amount : 0, refundPercent: paid ? refund.percent : 0 }
     },
     // A Stripe refund happens inside the transaction.
     { timeout: 20_000 }
   )
 
+  deliverSoon(told)
   return { ...result, booking: await getBookingForViewer(bookingId, viewer) }
 }

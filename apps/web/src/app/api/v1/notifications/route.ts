@@ -1,6 +1,7 @@
 /**
- * GET /api/v1/notifications?cursor=&limit= — E08-09. The signed-in user's
- * notifications, newest first, with the unread count for a badge.
+ * GET /api/v1/notifications?cursor=&limit=&unreadOnly= — E08-09, E13-06. The
+ * signed-in user's notifications, newest first, with the unread count for a
+ * badge.
  */
 import type { NextRequest } from 'next/server'
 import { NotificationListQuerySchema } from '@pitchup/shared'
@@ -15,6 +16,13 @@ export const GET = withErrorHandling(
   requireAuth(async (request: NextRequest, session) => {
     const query = validateQuery(request, NotificationListQuerySchema)
     if (query.error) return query.error
-    return ok(await listNotifications(session.user.id, query.data.cursor, query.data.limit))
+    return ok(
+      await listNotifications(
+        session.user.id,
+        query.data.cursor,
+        query.data.limit,
+        query.data.unreadOnly
+      )
+    )
   })
 )

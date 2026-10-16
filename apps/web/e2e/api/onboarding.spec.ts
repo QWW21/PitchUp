@@ -161,7 +161,7 @@ test.describe('the four steps (E09-01 … E09-05)', () => {
     expect(after.submittedAt).not.toBeNull()
     expect(await status()).toMatchObject({ currentStep: null, companyStatus: 'PENDING' })
     const told = await db.notification.count({
-      where: { type: 'COMPANY_SUBMITTED', data: { equals: { companyId: after.id } } },
+      where: { type: 'COMPANY_SUBMITTED', data: { path: ['companyId'], equals: after.id } },
     })
     expect(told).toBeGreaterThan(0)
     // Not public yet.

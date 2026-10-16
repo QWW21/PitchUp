@@ -39,7 +39,7 @@ import { ApiException, conflict, notFound, unauthorized, validationError } from 
 import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
-import { sendBookingConfirmedEmail } from '@/lib/emails/booking-confirmed'
+import { notifyBookingConfirmed } from '@/lib/notifications/booking'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -253,9 +253,9 @@ export async function createBooking(
   }
   if (free) {
     // Best effort, as after a payment: a mail outage must not undo the booking.
-    await sendBookingConfirmedEmail(booking.id).catch(caught =>
+    await notifyBookingConfirmed(booking.id).catch(caught =>
       console.error(
-        `[bookings] Confirmation email for ${booking.id} failed:`,
+        `[bookings] Confirmation notice for ${booking.id} failed:`,
         caught instanceof Error ? caught.message : 'unknown error'
       )
     )

@@ -1301,6 +1301,59 @@ incentive design in reputation systems.
 
 ---
 
+## 25. Telling people things: notifications (E13)
+
+E13 sends every notice through one function and up to four channels: the
+in-app inbox, email, text messages and push.
+
+### Write first, send later (the outbox)
+
+Sending an email inside a database transaction has two failure modes: the
+email goes out and the transaction rolls back (a confirmation for a booking
+that doesn't exist), or the provider is slow and holds the transaction open.
+So `notify()` only **writes a row** in the caller's transaction. Sending
+happens after the response (`after()` in Next.js), and an hourly job picks up
+anything that was missed. This is the **transactional outbox** pattern: the
+database row is the promise, delivery is a separate step that can be retried.
+
+### At most once, by claiming
+
+Two deliverers (the after-response hook and the hourly job) could see the
+same row. Each one first sets `deliveredAt` with `WHERE deliveredAt IS NULL`
+and only sends if it won. The same trick claims a booking's reminder
+(`reminderSentAt`). Updating "only if still unclaimed" is how to make work
+happen once without a queue or a lock.
+
+### Preferences decide what exists
+
+A muted kind of notice isn't hidden, it is never written. Channels (push,
+email, SMS) are checked at delivery time instead, so switching email back on
+doesn't resend old notices. Groups ("Booking reminders") map to several types,
+and the UI and API share the list in `@pitchup/shared`.
+
+### A provider without its SDK
+
+Push uses Firebase Cloud Messaging's HTTP API directly: build a JWT, sign it
+with the service account's RSA key (`node:crypto`), swap it for an access
+token, cache that for an hour. About 100 lines instead of a large SDK, and the
+unit test signs with a throwaway key and checks the signature for real. When
+FCM says a token is unregistered, it is deleted, so dead phones stop costing
+requests.
+
+### Polling is a fine first version
+
+The bell asks for the unread count every 30 seconds. WebSockets or
+server-sent events would be instant, but need a long-lived connection that
+serverless hosting handles badly. A count is one indexed query; polling it is
+cheap and good enough until it isn't.
+
+**What to learn:** the transactional outbox; at-least-once versus at-most-once
+delivery and idempotency; compare-and-set claims; OAuth 2 service accounts and
+JWT signing; polling versus push for live updates; notification fatigue and
+why muting by group beats a switch per type.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -1321,7 +1374,7 @@ Honest inventory, so none of it is mistaken for finished:
 | Manager dashboard    | Everything but Analytics and the rest of Settings (later epics)   |
 | Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11 |
 | Venue approval       | A minimal admin page; the full admin panel is E15                 |
-| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)      |
+| Push notifications   | Sending built (E13); needs a Firebase project and app wiring      |
 | Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist    |
 
 ---

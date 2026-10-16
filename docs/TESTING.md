@@ -28,7 +28,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   venue's, interval overlap, custom sizes, pricing limits, shirt sets); the
   manager's booking rules (E11: the no-show window, slots, list filters);
   the trust engine (E12: deltas, tiers, replaying a history, late-cancel
-  windows, the booking gate); and the Stripe code against
+  windows, the booking gate); where a notification leads and what can be
+  muted (E13); push over FCM with a really signed JWT against a fake Google
+  (E13-02); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
@@ -38,7 +40,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   review), My reviews (optimistic delete) and the review sort pills, the
   profile screens (profile, trust score, edit, password, delete, cards,
   notifications) and push routing, the manager's venue bookings (E11-09:
-  filters, opening one, a no-show asked about first), and
+  filters, opening one, a no-show asked about first), notification
+  settings (E13-09: channels, muting a group, no phone, a failed save), and
   exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
@@ -68,7 +71,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   window, completing, free time, the nightly job and its token), trust (E12: +2
   per game and the monthly cap, late cancellations, the review point, a
   pitch's minimum, Poor and Suspended limits, disputes either way, the
-  monthly recovery and correction), and the E01
+  monthly recovery and correction), notifications (E13: preferences,
+  a paid booking emailed, muted kinds not written, the tier-change notice,
+  the unread count, the hourly job's reminders, text messages and outbox
+  sweep), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -88,7 +94,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   Bookings and Settings pages (C-8), the pitch list and every tab of the
   pitch editor (E10), the bookings list with URL filters and CSV export, the
   booking page and the week calendar (E11), a pitch's trust minimum and
-  the player told why, and deciding a dispute (E12), at 1280px and 375px.
+  the player told why, and deciding a dispute (E12), the notification bell
+  and the notification settings page (E13), at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

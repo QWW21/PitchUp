@@ -14,6 +14,7 @@ import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { applyTrustEvent } from '@/lib/trust/apply'
 import { settlePlayerBookings } from '@/lib/bookings/mine'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 const HOUR = 3_600_000
 
@@ -76,15 +77,14 @@ export async function createReview(
       if (!rewarded) await applyTrustEvent(tx, playerId, 'REVIEW_LEFT', input.bookingId, now)
       return created
     })
-    await prisma.notification.create({
-      data: {
-        userId: booking.pitch.company.ownerId,
-        type: 'REVIEW_LEFT',
-        title: 'New review',
-        body: `${input.rating}★ for ${booking.pitch.name}`,
-        data: { reviewId: review.id, bookingId: input.bookingId },
-      },
+    await notify(prisma, {
+      userId: booking.pitch.company.ownerId,
+      type: 'REVIEW_LEFT',
+      title: 'New review',
+      body: `${input.rating}★ for ${booking.pitch.name}`,
+      data: { reviewId: review.id, bookingId: input.bookingId, link: '/manager/reviews' },
     })
+    deliverSoon([booking.pitch.company.ownerId, playerId])
     return review
   } catch (caught) {
     // Two submits at once: the database's one-review-per-booking rule wins.

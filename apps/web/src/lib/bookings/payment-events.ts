@@ -9,7 +9,7 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { providerFor } from '@/lib/payments'
-import { sendBookingConfirmedEmail } from '@/lib/emails/booking-confirmed'
+import { notifyBookingConfirmed } from '@/lib/notifications/booking'
 import { chargedOnline } from './charged'
 import { liveBookingWhere } from './live'
 import { recordStatus } from './status'
@@ -115,9 +115,9 @@ export async function confirmPaid(
       })
     }
     // Best effort: a mail outage must not undo a paid booking.
-    await sendBookingConfirmedEmail(booking.id).catch(caught =>
+    await notifyBookingConfirmed(booking.id).catch(caught =>
       console.error(
-        `[payments] Confirmation email for ${booking.id} failed:`,
+        `[payments] Confirmation notice for ${booking.id} failed:`,
         caught instanceof Error ? caught.message : 'unknown error'
       )
     )

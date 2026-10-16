@@ -139,6 +139,8 @@ enum NotificationType {
   /// To the manager: their venue was approved, or sent back (E09).
   COMPANY_APPROVED
   COMPANY_REJECTED
+  /// To the player: their trust tier went up or down (E13).
+  TRUST_TIER_CHANGED
   OTP
   PASSWORD_RESET
 }
@@ -199,6 +201,7 @@ model User {
 
   @@index([role])
   @@index([city])
+  notificationPreference NotificationPreference?
 }
 
 model Company {
@@ -377,6 +380,8 @@ model Booking {
   dueAtVenue            Decimal              @default(0) @db.Decimal(10, 2)
   /// The manager confirmed the player came (C-8).
   attendedAt            DateTime?
+  /// The 24-hour reminder went out (E13-04).
+  reminderSentAt        DateTime?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
@@ -506,12 +511,27 @@ model Notification {
   sentPush  Boolean          @default(false)
   sentEmail Boolean          @default(false)
   sentSms   Boolean          @default(false)
+  /// Set when the email, SMS and push for it were attempted (E13): an outbox.
+  deliveredAt DateTime?
   createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, isRead])
+  @@index([deliveredAt, createdAt])
+}
+
+/// How a person wants to be told (E13-07). No row means the defaults.
+model NotificationPreference {
+  id            String             @id @default(cuid())
+  userId        String             @unique
+  pushEnabled   Boolean            @default(true)
+  emailEnabled  Boolean            @default(true)
+  smsEnabled    Boolean            @default(false)
+  disabledTypes NotificationType[] @default([])
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TrustScoreEvent {

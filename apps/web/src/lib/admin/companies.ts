@@ -8,10 +8,8 @@
 import 'server-only'
 import type { PendingCompany } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
-import { env } from '@/lib/env'
 import { ApiException, notFound } from '@/lib/api/errors'
-import { getEmailProvider } from '@/lib/notifications'
-import { renderCompanyApprovedEmail, renderCompanyRejectedEmail } from '@/lib/emails/company'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export async function listPendingCompanies(): Promise<PendingCompany[]> {
   const rows = await prisma.company.findMany({
@@ -53,38 +51,23 @@ async function pending(companyId: string) {
   return company
 }
 
-const appUrl = () => env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-
-async function tell(to: string, email: { subject: string; html: string; text: string }) {
-  // Best-effort: the decision stands even if the email does not go out.
-  try {
-    await getEmailProvider().send({ to, ...email })
-  } catch (caught) {
-    console.error('[admin] Could not email the manager:', caught)
-  }
-}
-
 export async function approveCompany(companyId: string, now: Date = new Date()): Promise<void> {
   const company = await pending(companyId)
-  await prisma.$transaction([
-    prisma.company.update({
+  await prisma.$transaction(async tx => {
+    await tx.company.update({
       where: { id: companyId },
       data: { status: 'ACTIVE', reviewedAt: now, rejectionReason: null },
-    }),
-    prisma.notification.create({
-      data: {
-        userId: company.owner.id,
-        type: 'COMPANY_APPROVED',
-        title: `${company.name} is approved`,
-        body: 'Your venue is live on PitchUp. Add your pitches to start taking bookings.',
-        data: { companyId },
-      },
-    }),
-  ])
-  await tell(
-    company.owner.email,
-    renderCompanyApprovedEmail(company.name, `${appUrl()}/manager/overview`)
-  )
+    })
+    // The approval email is this notification's email (E13).
+    await notify(tx, {
+      userId: company.owner.id,
+      type: 'COMPANY_APPROVED',
+      title: `${company.name} is approved`,
+      body: 'Your venue is live on PitchUp. Add your pitches to start taking bookings.',
+      data: { companyId, companyName: company.name, link: '/manager/overview' },
+    })
+  })
+  deliverSoon([company.owner.id])
 }
 
 export async function rejectCompany(
@@ -93,23 +76,18 @@ export async function rejectCompany(
   now: Date = new Date()
 ): Promise<void> {
   const company = await pending(companyId)
-  await prisma.$transaction([
-    prisma.company.update({
+  await prisma.$transaction(async tx => {
+    await tx.company.update({
       where: { id: companyId },
       data: { status: 'DRAFT', reviewedAt: now, rejectionReason: reason },
-    }),
-    prisma.notification.create({
-      data: {
-        userId: company.owner.id,
-        type: 'COMPANY_REJECTED',
-        title: `${company.name} needs changes`,
-        body: reason,
-        data: { companyId },
-      },
-    }),
-  ])
-  await tell(
-    company.owner.email,
-    renderCompanyRejectedEmail(company.name, reason, `${appUrl()}/onboarding`)
-  )
+    })
+    await notify(tx, {
+      userId: company.owner.id,
+      type: 'COMPANY_REJECTED',
+      title: `${company.name} needs changes`,
+      body: reason,
+      data: { companyId, companyName: company.name, reason, link: '/onboarding' },
+    })
+  })
+  deliverSoon([company.owner.id])
 }
