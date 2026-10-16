@@ -1,21 +1,24 @@
 /**
- * Step 2: the time — E05-03 (UIUX_SPEC §7.2). 40 px per 30 minutes; tap a
- * start, then an end. What a tap does comes from tapSlot in @pitchup/shared,
- * the same rules as the web. Today, the list opens at the current time and
- * an orange line marks "now".
+ * Step 2: the time — C-6 (replacing E05-03's grid). Choose a start time,
+ * grouped into morning, afternoon and evening, then how long. Which starts
+ * and durations are possible comes from @pitchup/shared (startOptions,
+ * durationOptions), the same rules as the web.
  */
-import React, { useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
 import {
   bookingPrice,
-  formatDuration,
+  durationOptions,
+  formatShortDuration,
+  keepDuration,
+  rangeFrom,
   rangeTimes,
-  tapSlot,
-  venueClock,
-  type SlotRange,
+  startOptions,
+  type DayPeriod,
+  type StartOption,
 } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { useBookingStore } from '../../stores/bookingStore'
@@ -26,14 +29,55 @@ import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
 
-const ROW = 40
+const PERIODS: DayPeriod[] = ['Morning', 'Afternoon', 'Evening']
+const STATE_LABEL: Record<StartOption['state'], string> = {
+  available: 'available',
+  booked: 'booked',
+  past: 'already passed',
+  short: 'not enough time',
+}
+
+function Chip({
+  label,
+  accessibilityLabel,
+  on,
+  disabled,
+  onPress,
+  testID,
+}: {
+  label: string
+  accessibilityLabel: string
+  on: boolean
+  disabled: boolean
+  onPress: () => void
+  testID?: string
+}) {
+  return (
+    <Pressable
+      testID={testID}
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected: on, disabled }}
+      style={[styles.chip, on && styles.chipOn, disabled && styles.chipOff]}
+    >
+      <Text style={[styles.chipText, on && styles.chipTextOn, disabled && styles.chipTextOff]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
 
 export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'>) {
   const insets = useSafeAreaInsets()
   const pitch = useBookingStore(s => s.pitch)!
   const date = useBookingStore(s => s.date)!
+  const savedStart = useBookingStore(s => s.startTime)
+  const savedMinutes = useBookingStore(s => s.minutes)
   const setTime = useBookingStore(s => s.setTime)
-  const [range, setRange] = useState<SlotRange | null>(null)
+  const [start, setStart] = useState<number | null>(null)
+  const [minutes, setMinutes] = useState<number | null>(null)
 
   const day = useQuery({
     queryKey: ['booking-slots', pitch.id, date],
@@ -41,13 +85,34 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
     staleTime: 0,
   })
   const slots = day.data?.slots ?? []
-  const isToday = date === venueClock(new Date()).date
-  const nowIndex = isToday ? slots.findIndex(s => s.status !== 'past') : -1
+  const minMinutes = pitch.minBookingHours * 60
+  const maxMinutes = pitch.maxBookingHours * 60
+  const starts = startOptions(slots, minMinutes)
+  const durations = start === null ? [] : durationOptions(slots, start, minMinutes, maxMinutes)
 
-  const chosen = range ? rangeTimes(slots, range) : null
-  const valid = !!chosen && chosen.minutes >= pitch.minBookingHours * 60
+  // Restores a time chosen earlier, if it is still free.
+  useEffect(() => {
+    if (!slots.length || !savedStart || !savedMinutes || start !== null) return
+    const i = slots.findIndex(s => s.time === savedStart)
+    if (i < 0) return
+    const fits = durationOptions(slots, i, minMinutes, maxMinutes).some(
+      d => d.minutes === savedMinutes && d.fits
+    )
+    if (fits) {
+      setStart(i)
+      setMinutes(savedMinutes)
+    }
+  }, [slots, savedStart, savedMinutes, start, minMinutes, maxMinutes])
+
+  const pickStart = (i: number) => {
+    setStart(i)
+    setMinutes(m => keepDuration(durationOptions(slots, i, minMinutes, maxMinutes), m))
+  }
+
+  const chosen =
+    start !== null && minutes !== null ? rangeTimes(slots, rangeFrom(start, minutes)) : null
   const price = chosen ? bookingPrice(pitch.hourlyRate, chosen.minutes) : null
-  const noneFree = day.isSuccess && !slots.some(s => s.status === 'available')
+  const noneFree = day.isSuccess && !starts.some(s => s.state === 'available')
 
   return (
     <View style={styles.root}>
@@ -56,16 +121,6 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
         onBack={() => navigation.goBack()}
         onClose={() => navigation.getParent()?.goBack()}
       />
-      <View style={styles.top}>
-        <Text style={styles.heading}>Pick a time</Text>
-        <View style={styles.pill}>
-          <Text style={styles.pillText} accessibilityLiveRegion="polite">
-            {chosen
-              ? `${chosen.startTime}–${chosen.endTime} · ${formatDuration(chosen.minutes)}`
-              : 'Select a start and end time'}
-          </Text>
-        </View>
-      </View>
 
       {day.isError ? (
         <ErrorState onRetry={() => day.refetch()} />
@@ -78,59 +133,64 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
           onCta={() => navigation.goBack()}
         />
       ) : (
-        <FlatList
-          data={slots}
-          keyExtractor={s => s.time}
-          getItemLayout={(_, index) => ({ length: ROW, offset: ROW * index, index })}
-          initialScrollIndex={nowIndex > 2 ? nowIndex - 2 : 0}
-          renderItem={({ item, index }) => {
-            const inRange = !!range && index >= range.start && index <= range.end
-            const edge = range?.start === index || range?.end === index
-            const free = item.status === 'available'
+        <ScrollView contentContainerStyle={styles.body}>
+          <Text style={styles.heading}>Choose a start time</Text>
+          {PERIODS.map(period => {
+            const group = starts.filter(s => s.period === period)
+            if (!group.length) return null
             return (
-              <View style={styles.row}>
-                <Text style={styles.time}>{item.time}</Text>
-                <Pressable
-                  testID={`slot-${item.time}`}
-                  disabled={!free}
-                  onPress={() =>
-                    setRange(r => tapSlot(slots, r, index, pitch.maxBookingHours * 60))
-                  }
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: inRange, disabled: !free }}
-                  accessibilityLabel={`${item.time}, ${free ? (inRange ? 'selected' : 'available') : item.status === 'past' ? 'already passed' : 'booked'}`}
-                  style={[
-                    styles.cell,
-                    !free && (item.status === 'past' ? styles.past : styles.booked),
-                    inRange && (edge ? styles.edge : styles.middle),
-                    range?.start === index && styles.first,
-                    range?.end === index && styles.last,
-                  ]}
-                >
-                  {item.status === 'booked' ? <Text style={styles.bookedText}>Booked</Text> : null}
-                </Pressable>
-                {index === nowIndex && nowIndex > 0 ? <View style={styles.now} /> : null}
+              <View key={period} style={styles.group}>
+                <Text style={styles.period} accessibilityRole="header">
+                  {period.toUpperCase()}
+                </Text>
+                <View style={styles.chips}>
+                  {group.map(o => (
+                    <Chip
+                      key={o.time}
+                      testID={`start-${o.time}`}
+                      label={o.time}
+                      accessibilityLabel={`${o.time}, ${start === o.index ? 'selected' : STATE_LABEL[o.state]}`}
+                      on={start === o.index}
+                      disabled={o.state !== 'available'}
+                      onPress={() => pickStart(o.index)}
+                    />
+                  ))}
+                </View>
               </View>
             )
-          }}
-        />
+          })}
+
+          <Text style={styles.heading}>How long?</Text>
+          {start === null ? (
+            <Text style={styles.hint}>Choose a start time first.</Text>
+          ) : (
+            <View style={styles.chips}>
+              {durations.map(d => (
+                <Chip
+                  key={d.minutes}
+                  label={formatShortDuration(d.minutes)}
+                  accessibilityLabel={`${formatShortDuration(d.minutes)}${d.fits ? '' : ', doesn’t fit'}`}
+                  on={minutes === d.minutes}
+                  disabled={!d.fits}
+                  onPress={() => setMinutes(d.minutes)}
+                />
+              ))}
+            </View>
+          )}
+        </ScrollView>
       )}
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        {chosen && price ? (
-          <Text style={styles.price}>
-            {formatDuration(chosen.minutes)} × {pitch.hourlyRate} RON/h ={' '}
-            <Text style={styles.bold}>{price.total} RON</Text>
-          </Text>
-        ) : null}
-        {chosen && !valid ? (
-          <Text style={styles.hint}>Choose at least {pitch.minBookingHours} hour(s).</Text>
-        ) : null}
+        <Text style={styles.summary} accessibilityLiveRegion="polite">
+          {chosen && price
+            ? `${chosen.startTime}–${chosen.endTime} · ${formatShortDuration(chosen.minutes)} · ${price.total} RON`
+            : 'Choose a start time and how long'}
+        </Text>
         <Button
           label="Next"
-          disabled={!valid}
+          disabled={!chosen}
           onPress={() => {
-            if (!chosen || !valid) return
+            if (!chosen) return
             setTime(chosen.startTime, chosen.endTime, chosen.minutes)
             navigation.navigate('BookingTeams')
           }}
@@ -142,52 +202,28 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.neutral[0] },
-  top: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm, gap: spacing.sm },
-  heading: { fontSize: 22, fontWeight: '700', color: colors.neutral[900] },
-  pill: {
-    alignSelf: 'center',
-    backgroundColor: colors.neutral[100],
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  body: { padding: spacing.md, gap: spacing.md },
+  heading: { fontSize: 20, fontWeight: '700', color: colors.neutral[900] },
+  group: { gap: spacing.sm },
+  period: { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, color: colors.neutral[500] },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: {
+    minWidth: 72,
+    height: 44,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    backgroundColor: colors.neutral[0],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  pillText: { fontSize: 14, fontWeight: '500', color: colors.neutral[700] },
-  row: {
-    height: ROW,
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral[100],
-  },
-  time: {
-    width: 48,
-    fontSize: 12,
-    color: colors.neutral[500],
-    textAlign: 'center',
-    lineHeight: ROW,
-  },
-  cell: { flex: 1, justifyContent: 'center', paddingHorizontal: spacing.sm },
-  past: { backgroundColor: colors.neutral[50] },
-  booked: { backgroundColor: colors.neutral[100] },
-  bookedText: { fontSize: 12, color: colors.neutral[500], textDecorationLine: 'line-through' },
-  edge: { backgroundColor: colors.primary[600] },
-  middle: {
-    backgroundColor: colors.primary[100],
-    borderLeftWidth: 3,
-    borderLeftColor: colors.primary[600],
-  },
-  first: { borderTopLeftRadius: 8, borderTopRightRadius: 8 },
-  last: { borderBottomLeftRadius: 8, borderBottomRightRadius: 8 },
-  now: {
-    position: 'absolute',
-    top: -1,
-    left: 48,
-    right: 0,
-    borderTopWidth: 1,
-    borderStyle: 'dashed',
-    borderTopColor: colors.accent[500],
-  },
+  chipOn: { backgroundColor: colors.primary[600], borderColor: colors.primary[600] },
+  chipOff: { backgroundColor: colors.neutral[100], borderColor: colors.neutral[100] },
+  chipText: { fontSize: 15, fontWeight: '500', color: colors.neutral[900] },
+  chipTextOn: { color: colors.neutral[0] },
+  chipTextOff: { color: colors.neutral[500], textDecorationLine: 'line-through' },
+  hint: { fontSize: 14, color: colors.neutral[500] },
   footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.sm },
-  price: { fontSize: 15, color: colors.neutral[700] },
-  bold: { fontWeight: '700', color: colors.neutral[900] },
-  hint: { fontSize: 13, color: colors.neutral[700] },
+  summary: { fontSize: 15, fontWeight: '600', color: colors.neutral[900], textAlign: 'center' },
 })

@@ -34,13 +34,13 @@ test.afterAll(async () => {
   await db.booking.deleteMany({ where: { createdAt: { gte: started }, pitchId } })
 })
 
-/** Steps 1–2: a date from the URL, then a range of slots. */
-async function chooseTime(page: Page, date: string, from: string, to: string) {
+/** Steps 1–2: a date from the URL, then a start; one hour unless another length is given. */
+async function chooseTime(page: Page, date: string, from: string, length = '1h') {
   await page.goto(`/book/${pitchId}/date?date=${date}`)
   await page.getByRole('button', { name: /^Next: times on/ }).click()
   await expect(page).toHaveURL(/\/time$/)
   await page.getByRole('button', { name: `${from}, available` }).click()
-  await page.getByRole('button', { name: `${to}, available` }).click()
+  await page.getByRole('button', { name: length, exact: true }).click()
 }
 
 test('a whole booking, from the date to the confirmation', async ({ page }, info) => {
@@ -55,12 +55,18 @@ test('a whole booking, from the date to the confirmation', async ({ page }, info
   await snap(page, info, AREA, '01-date')
   await page.getByRole('button', { name: /^Next: times on/ }).click()
 
-  // Step 2: 18:00 to 19:30 is 18:00–20:00, two hours.
+  // Step 2 (C-6): a start, then a length. The shortest is picked first.
   await expect(page.getByText('Step 2 of 5')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Evening' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Next' })).toBeDisabled()
   await page.getByRole('button', { name: '18:00, available' }).click()
-  await page.getByRole('button', { name: '19:30, available' }).click()
-  await expect(page.getByText('18:00–20:00 · 2h 00min')).toBeVisible()
-  await expect(page.getByText('2h 00min × 120 RON/h = 240 RON')).toBeVisible()
+  await expect(page.getByText('18:00–19:00 · 1h · 120 RON')).toBeVisible()
+  await page.getByRole('button', { name: '2h', exact: true }).click()
+  await expect(page.getByRole('button', { name: '2h', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true'
+  )
+  await expect(page.getByText('18:00–20:00 · 2h · 240 RON')).toBeVisible()
   await snap(page, info, AREA, '02-time', { fullPage: true })
   await page.getByRole('button', { name: 'Next' }).click()
 
@@ -114,7 +120,7 @@ test('a whole booking, from the date to the confirmation', async ({ page }, info
 test('a declined card keeps the player on the summary, and a retry works', async ({
   page,
 }, info) => {
-  await chooseTime(page, day(23), '10:00', '10:30')
+  await chooseTime(page, day(23), '10:00')
   await page.getByRole('button', { name: 'Next' }).click()
   await page.getByRole('button', { name: 'Next' }).click()
   await page.getByRole('button', { name: 'Simulate a declined card' }).click()
@@ -131,7 +137,7 @@ test('a declined card keeps the player on the summary, and a retry works', async
 test('a time someone else books meanwhile is refused with a clear message', async ({
   page,
 }, info) => {
-  await chooseTime(page, day(24), '12:00', '12:30')
+  await chooseTime(page, day(24), '12:00')
   await page.getByRole('button', { name: 'Next' }).click()
   await page.getByRole('button', { name: 'Next' }).click()
 
@@ -157,6 +163,51 @@ test('a time someone else books meanwhile is refused with a clear message', asyn
     'Someone has just booked that time'
   )
   await snap(page, info, AREA, '07-slot-taken')
+})
+
+test('starts and lengths that do not fit are disabled; a new start keeps what fits (C-6)', async ({
+  page,
+}, info) => {
+  // Someone plays 20:00–21:00.
+  const otherEmail = uniqueEmail('rival')
+  await createPlayer(otherEmail)
+  const other = await db.user.findUniqueOrThrow({ where: { email: otherEmail } })
+  await db.booking.create({
+    data: {
+      pitchId,
+      playerId: other.id,
+      startTime: venueTimeToUtc(day(27), 20 * 60),
+      endTime: venueTimeToUtc(day(27), 21 * 60),
+      teamCount: 2,
+      status: 'CONFIRMED',
+      pitchRateSnapshot: 120,
+      platformFee: 9.6,
+      totalAmount: 120,
+    },
+  })
+  await chooseTime(page, day(27), '17:00', '2h 30')
+  await expect(page.getByRole('button', { name: '20:00, booked' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: '19:30, not enough time' })).toBeDisabled()
+  // From 18:30 only an hour and a half is free: the longest that fits.
+  await page.getByRole('button', { name: '18:30, available' }).click()
+  await expect(page.getByText('18:30–20:00 · 1h 30 · 180 RON')).toBeVisible()
+  await expect(page.getByRole('button', { name: '2h, doesn’t fit' })).toBeDisabled()
+  await snap(page, info, AREA, '09-start-and-length', { fullPage: true })
+})
+
+test('a pitch without shirts says so on the teams step (C-7)', async ({ page }, info) => {
+  const g = await venue('gheorgheni')
+  const teren2 = g.pitches.find(p => p.name === 'Teren 2')!
+  await page.goto(`/book/${teren2.id}/date?date=${day(28)}`)
+  await page.getByRole('button', { name: /^Next: times on/ }).click()
+  await page.getByRole('button', { name: '18:00, available' }).click()
+  await page.getByRole('button', { name: 'Next' }).click()
+  await expect(page.getByRole('heading', { name: 'Teams', exact: true })).toBeVisible()
+  await expect(
+    page.getByText('This pitch doesn’t lend shirts. Bring your own bibs or colours.')
+  ).toBeVisible()
+  await expect(page.getByRole('switch', { name: 'Free shirts' })).toHaveCount(0)
+  await snap(page, info, AREA, '10-no-shirts', { fullPage: true })
 })
 
 test('a signed-out player signs in and comes back to step 1', async ({ page }) => {
@@ -208,7 +259,7 @@ test('the calendar works from the keyboard and explains a full day', async ({ pa
 
 test('the summary fits a phone', async ({ page }, info) => {
   await page.setViewportSize(PHONE)
-  await chooseTime(page, day(26), '17:00', '17:30')
+  await chooseTime(page, day(26), '17:00')
   await page.getByRole('button', { name: 'Next' }).click()
   await page.getByRole('button', { name: 'Next' }).click()
   await expect(page.getByRole('button', { name: 'Confirm & pay 120 RON' })).toBeVisible()

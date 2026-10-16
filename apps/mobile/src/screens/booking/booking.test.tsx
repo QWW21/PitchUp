@@ -137,7 +137,7 @@ describe('Step 1: date (E05-02)', () => {
   })
 })
 
-describe('Step 2: time (E05-03)', () => {
+describe('Step 2: start and duration (C-6)', () => {
   const day = (statuses: string): PitchAvailability => ({
     date,
     pitchId: 'p1',
@@ -152,14 +152,18 @@ describe('Step 2: time (E05-03)', () => {
 
   beforeEach(() => useBookingStore.getState().setDate(date))
 
-  it('selects a range, prices it at the hourly rate, and carries it on', async () => {
+  it('a start, then a duration; priced at the hourly rate and carried on', async () => {
     api.day.mockResolvedValue(day('........'))
     const nav = makeNav()
     show(Step2TimeScreen, nav)
-    fireEvent.press(await screen.findByTestId('slot-18:00'))
-    fireEvent.press(screen.getByTestId('slot-19:30'))
-    expect(screen.getByText('18:00–20:00 · 2h 00min')).toBeOnTheScreen()
-    expect(screen.getByText(/2h 00min × 120 RON\/h =/)).toBeOnTheScreen()
+    expect(await screen.findByText('EVENING')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Next')).toBeDisabled()
+    press('18:00, available')
+    // The shortest length is picked first; then two hours.
+    expect(screen.getByText('18:00–19:00 · 1h · 120 RON')).toBeOnTheScreen()
+    press('2h')
+    expect(screen.getByText('18:00–20:00 · 2h · 240 RON')).toBeOnTheScreen()
+    expect(screen.getByLabelText('18:00, selected')).toBeOnTheScreen()
     press('Next')
     expect(useBookingStore.getState()).toMatchObject({
       startTime: '18:00',
@@ -169,14 +173,26 @@ describe('Step 2: time (E05-03)', () => {
     expect(nav.navigate).toHaveBeenCalledWith('BookingTeams')
   })
 
-  it('stops a range before a booked slot and needs at least the minimum', async () => {
+  it('disables starts and durations that do not fit, and keeps what still fits', async () => {
+    // 18:30 booked; free from 19:00 to 22:00.
     api.day.mockResolvedValue(day('.x......'))
     show(Step2TimeScreen, makeNav())
-    fireEvent.press(await screen.findByTestId('slot-18:00'))
-    fireEvent.press(screen.getByTestId('slot-20:00'))
-    expect(screen.getByText('18:00–18:30 · 30min')).toBeOnTheScreen()
-    expect(screen.getByText('Choose at least 1 hour(s).')).toBeOnTheScreen()
-    expect(screen.getByLabelText('Next')).toBeDisabled()
+    expect(await screen.findByLabelText('18:00, not enough time')).toBeDisabled()
+    expect(screen.getByLabelText('18:30, booked')).toBeDisabled()
+    expect(screen.getByLabelText('21:30, not enough time')).toBeDisabled()
+    press('19:00, available')
+    press('3h')
+    press('20:00, available')
+    // Only two hours are left before closing: the longest that fits.
+    expect(screen.getByText('20:00–22:00 · 2h · 240 RON')).toBeOnTheScreen()
+    expect(screen.getByLabelText('2h 30, doesn’t fit')).toBeDisabled()
+  })
+
+  it('opens on the time chosen before', async () => {
+    useBookingStore.getState().setTime('19:00', '20:30', 90)
+    api.day.mockResolvedValue(day('........'))
+    show(Step2TimeScreen, makeNav())
+    expect(await screen.findByText('19:00–20:30 · 1h 30 · 180 RON')).toBeOnTheScreen()
   })
 
   it('says so when nothing is free', async () => {
@@ -200,6 +216,16 @@ describe('Step 3: teams and shirts (E05-04)', () => {
     expect(screen.getByLabelText('Team A: red')).toBeOnTheScreen()
     expect(screen.queryByLabelText('Team A: green')).toBeNull()
     expect(screen.getByText('Team B plays in its own kit.')).toBeOnTheScreen()
+  })
+
+  it('says when the pitch lends no shirts (C-7)', () => {
+    useBookingStore.setState({ pitch: { ...pitch, hasShirts: false, shirtStock: [] } })
+    show(Step3TeamsScreen, makeNav())
+    expect(screen.getByText('Teams')).toBeOnTheScreen()
+    expect(
+      screen.getByText("This pitch doesn't lend shirts. Bring your own bibs or colours.")
+    ).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Free shirts')).toBeNull()
   })
 
   it('three teams need two sets: with three in stock that is fine', () => {

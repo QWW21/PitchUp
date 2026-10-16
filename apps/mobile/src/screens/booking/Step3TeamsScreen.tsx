@@ -50,7 +50,7 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
         onClose={() => navigation.getParent()?.goBack()}
       />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>Teams and shirts</Text>
+        <Text style={styles.heading}>{pitch.hasShirts ? 'Teams and shirts' : 'Teams'}</Text>
 
         <View style={styles.segment} accessibilityRole="radiogroup">
           {([2, 3] as const).map(n => (
@@ -174,7 +174,14 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
               <Text style={styles.muted}>{TEAM_NAMES[s.teamCount - 1]} plays in its own kit.</Text>
             ) : null}
           </View>
-        ) : null}
+        ) : (
+          // C-7: say so, rather than leave a gap that looks like a bug.
+          <View style={styles.card}>
+            <Text style={styles.muted}>
+              This pitch doesn&apos;t lend shirts. Bring your own bibs or colours.
+            </Text>
+          </View>
+        )}
 
         <Text style={styles.label}>Note to the venue (optional)</Text>
         <TextInput

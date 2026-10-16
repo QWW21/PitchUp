@@ -67,7 +67,7 @@ export const PLAYERS_FOR_SIZE: Record<PitchSize, number> = {
   CUSTOM: 6,
 }
 
-// ── Choosing a time range on the slot grid ──────────────────────────────────
+// ── Choosing a time: a start, then a duration (C-6) ─────────────────────────
 
 export interface SlotRange {
   /** Indexes into the day's slots, inclusive. */
@@ -82,37 +82,97 @@ interface Slot {
 
 const SLOT = BOOKING.SLOT_MINUTES
 
-/**
- * What a tap on slot `index` does to the current selection. Same rules on web
- * and mobile (E05-03):
- *
- * - nothing selected → the tapped slot starts a selection;
- * - tapping the start again → clears it;
- * - tapping above the start → starts over from there;
- * - tapping below → extends to it, stopping before the first slot that is
- *   not free (booked, past, or a gap in the opening hours) and at the
- *   longest booking allowed.
- */
-export function tapSlot(
-  slots: Slot[],
-  selection: SlotRange | null,
-  index: number,
-  maxMinutes: number
-): SlotRange | null {
-  if (slots[index]?.status !== 'available') return selection
-  if (!selection) return { start: index, end: index }
-  if (index === selection.start) return null
-  if (index < selection.start) return { start: index, end: index }
+export type DayPeriod = 'Morning' | 'Afternoon' | 'Evening'
 
-  const maxSlots = Math.floor(maxMinutes / SLOT)
-  let end = selection.start
-  for (let i = selection.start + 1; i <= index && i - selection.start < maxSlots; i++) {
-    const contiguous = toMinutes(slots[i]!.time) === toMinutes(slots[i - 1]!.time) + SLOT
-    if (slots[i]!.status !== 'available' || !contiguous) break
-    end = i
-  }
-  return { start: selection.start, end }
+/** Morning before 12:00, afternoon 12:00–17:00, evening from 17:00. */
+export function dayPeriod(time: string): DayPeriod {
+  const m = toMinutes(time)
+  return m < 12 * 60 ? 'Morning' : m < 17 * 60 ? 'Afternoon' : 'Evening'
 }
+
+/**
+ * Minutes free from slot `index`: consecutive available slots with no gap in
+ * the opening hours, capped at `maxMinutes`.
+ */
+function freeMinutesFrom(slots: Slot[], index: number, maxMinutes: number): number {
+  let minutes = 0
+  for (let i = index; i < slots.length && minutes < maxMinutes; i++) {
+    if (slots[i]!.status !== 'available') break
+    if (i > index && toMinutes(slots[i]!.time) !== toMinutes(slots[i - 1]!.time) + SLOT) break
+    minutes += SLOT
+  }
+  return minutes
+}
+
+export interface StartOption {
+  time: string
+  /** Index into the day's slots. */
+  index: number
+  period: DayPeriod
+  /** `short`: free, but the shortest booking doesn't fit before the next booking or closing. */
+  state: 'available' | 'booked' | 'past' | 'short'
+}
+
+/** Every half hour of the day as a possible start. Same rules on web and mobile. */
+export function startOptions(slots: Slot[], minMinutes: number): StartOption[] {
+  return slots.map((slot, index) => ({
+    time: slot.time,
+    index,
+    period: dayPeriod(slot.time),
+    state:
+      slot.status !== 'available'
+        ? slot.status
+        : freeMinutesFrom(slots, index, minMinutes) >= minMinutes
+          ? 'available'
+          : 'short',
+  }))
+}
+
+export interface DurationOption {
+  minutes: number
+  /** Ends before the next booking and closing time. */
+  fits: boolean
+}
+
+/** The pitch's minimum to maximum length in half hours, from the start at `index`. */
+export function durationOptions(
+  slots: Slot[],
+  index: number,
+  minMinutes: number,
+  maxMinutes: number
+): DurationOption[] {
+  const free = freeMinutesFrom(slots, index, maxMinutes)
+  const options: DurationOption[] = []
+  for (let m = minMinutes; m <= maxMinutes; m += SLOT) options.push({ minutes: m, fits: m <= free })
+  return options
+}
+
+/**
+ * The duration to keep after picking a start: the previous one if it still
+ * fits, otherwise the longest that fits up to it; with none before, the
+ * shortest.
+ */
+export function keepDuration(options: DurationOption[], previous: number | null): number | null {
+  const fitting = options.filter(o => o.fits).map(o => o.minutes)
+  if (!fitting.length) return null
+  if (previous === null) return fitting[0]!
+  const upTo = fitting.filter(m => m <= previous)
+  return upTo.length ? upTo[upTo.length - 1]! : fitting[0]!
+}
+
+/** "1h", "1h 30", "30 min": the duration chips. */
+export function formatShortDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (!h) return `${m} min`
+  return m ? `${h}h ${m}` : `${h}h`
+}
+
+/** A start and a duration as a range of slots. */
+export const rangeFrom = (index: number, minutes: number): SlotRange => ({
+  start: index,
+  end: index + minutes / SLOT - 1,
+})
 
 /** The selection as venue wall-clock times, e.g. { startTime: "18:00", endTime: "20:00" }. */
 export function rangeTimes(slots: Slot[], range: SlotRange) {

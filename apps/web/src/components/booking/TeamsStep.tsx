@@ -58,7 +58,7 @@ export function TeamsStep() {
   return (
     <section aria-labelledby="teams-heading" className="space-y-6">
       <h1 id="teams-heading" className="text-xl font-semibold text-neutral-900">
-        Teams and shirts
+        {pitch.hasShirts ? 'Teams and shirts' : 'Teams'}
       </h1>
 
       <fieldset>
@@ -126,6 +126,12 @@ export function TeamsStep() {
         </ul>
       </fieldset>
 
+      {/* C-7: say so, rather than leave a gap that looks like a bug. */}
+      {!pitch.hasShirts && (
+        <p className="rounded-xl bg-white p-4 text-sm text-neutral-700 shadow-sm">
+          This pitch doesn&rsquo;t lend shirts. Bring your own bibs or colours.
+        </p>
+      )}
       {pitch.hasShirts && (
         <section aria-labelledby="shirts-heading" className="rounded-xl bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
