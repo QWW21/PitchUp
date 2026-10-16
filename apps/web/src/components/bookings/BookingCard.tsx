@@ -99,6 +99,12 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
         </div>
       )}
 
+      {b.status === 'CONFIRMED' && b.dueAtVenue > 0 && (
+        <p className="mt-2 text-sm font-medium text-neutral-900">
+          To pay at the venue: {b.dueAtVenue} RON
+        </p>
+      )}
+
       {b.status === 'CANCELLED' && (
         <p className="mt-3 text-sm text-neutral-700">
           <span className="italic">{cancelledByText[b.cancelledBy ?? 'SYSTEM']}</span>

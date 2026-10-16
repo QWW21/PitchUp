@@ -49,6 +49,8 @@ const item = (over: Partial<BookingListItem> = {}): BookingListItem => ({
   company: { id: 'c1', name: 'Arena Gheorgheni', logoUrl: null },
   total: 360,
   refundAmount: null,
+  paymentMethod: 'ONLINE',
+  dueAtVenue: 0,
   cancelledBy: null,
   hasReview: false,
   canReview: false,
@@ -69,6 +71,10 @@ const detail = (over: Partial<BookingDetail> = {}): BookingDetail =>
     total: 360,
     paidAt: hours(-1),
     cancellationReason: null,
+    paymentMethod: 'ONLINE',
+    deposit: null,
+    dueAtVenue: 0,
+    attendedAt: null,
     startsAt: hours(120),
     createdAt: hours(-1),
     pitch: { id: 'p1', name: 'Teren 1', surfaceType: 'ARTIFICIAL_GRASS', size: 'SIX_A_SIDE' },
@@ -120,6 +126,16 @@ describe('My Bookings (E06-06)', () => {
     fireEvent.press(screen.getByText('Past'))
     expect(await screen.findByText('No past bookings yet')).toBeOnTheScreen()
     expect(api.list).toHaveBeenCalledWith('past', null)
+  })
+
+  it('says what is still to pay at the venue (C-8)', async () => {
+    api.list.mockResolvedValue({
+      items: [item({ paymentMethod: 'VENUE_DEPOSIT_TOWARDS', dueAtVenue: 288 })],
+      nextCursor: null,
+      hasMore: false,
+    })
+    show(MyBookingsScreen, makeNav())
+    expect(await screen.findByText('To pay at the venue: 288 RON')).toBeOnTheScreen()
   })
 
   it('opens a booking', async () => {
@@ -178,6 +194,18 @@ describe('Booking detail (E06-07, E06-08)', () => {
     expect(screen.getByText('Paid and confirmed')).toBeOnTheScreen()
     expect(screen.getByText('Booked, awaiting payment')).toBeOnTheScreen()
     expect(screen.getByLabelText('Call Arena Gheorgheni')).toBeOnTheScreen()
+  })
+
+  it('shows the deposit and what is due at the venue (C-8)', async () => {
+    api.get.mockResolvedValue(
+      detail({ paymentMethod: 'VENUE_REFUND_DEPOSIT', deposit: 72, dueAtVenue: 360 })
+    )
+    show(BookingDetailScreen, makeNav(), { id: 'b1' })
+    expect(
+      await screen.findByText('Deposit paid online, refunded after the game')
+    ).toBeOnTheScreen()
+    expect(screen.getByText('72 RON')).toBeOnTheScreen()
+    expect(screen.getByText('To pay at the venue')).toBeOnTheScreen()
   })
 
   it('cancels with the refund the policy gives, then returns to the Cancelled tab', async () => {

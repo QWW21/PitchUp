@@ -26,6 +26,7 @@ import {
   type PaymentProviderName,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { chargedOnline } from './charged'
 import { recordStatus } from './status'
 
 const HOUR = 3_600_000
@@ -106,6 +107,10 @@ const listSelect = {
   endTime: true,
   totalAmount: true,
   refundAmount: true,
+  paymentMethod: true,
+  depositAmount: true,
+  dueAtVenue: true,
+  attendedAt: true,
   cancelledBy: true,
   review: { select: { id: true } },
   pitch: {
@@ -148,6 +153,8 @@ function toListItem(b: ListRow, now: Date): BookingListItem {
     company: b.pitch.company,
     total: Number(b.totalAmount),
     refundAmount: b.refundAmount === null ? null : Number(b.refundAmount),
+    paymentMethod: b.paymentMethod,
+    dueAtVenue: Number(b.dueAtVenue),
     cancelledBy: b.cancelledBy,
     hasReview: !!b.review,
     canReview: reviewOpen(b.status, b.endTime, !!b.review, now),
@@ -278,7 +285,7 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     : []
   const review = b.review && !b.review.deletedAt ? b.review : null
   const cancellable = (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTime > now
-  const refund = cancellationRefund(b.paidAt ? total : 0, b.startTime, now)
+  const refund = cancellationRefund(b.paidAt ? chargedOnline(b) : 0, b.startTime, now)
   const disputeUntil = b.noShow
     ? new Date(b.noShow.createdAt.getTime() + NO_SHOW_DISPUTE_WINDOW_HOURS * HOUR)
     : null
@@ -295,6 +302,10 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     total,
     paidAt: b.paidAt?.toISOString() ?? null,
     cancellationReason: b.cancellationReason,
+    paymentMethod: b.paymentMethod,
+    deposit: b.depositAmount === null ? null : Number(b.depositAmount),
+    dueAtVenue: Number(b.dueAtVenue),
+    attendedAt: b.attendedAt?.toISOString() ?? null,
     pitch: {
       id: b.pitch.id,
       name: b.pitch.name,

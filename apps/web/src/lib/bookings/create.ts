@@ -11,6 +11,9 @@
  *    yet, so there is nothing to lock.
  * 3. The booking is created PENDING, then the payment is started. A payment
  *    service that is down cancels the booking again and nothing is charged.
+ *
+ * Paying at the venue (C-8): only the deposit is charged online. With a 0%
+ * deposit nothing is, and the booking is confirmed at once.
  */
 import 'server-only'
 import {
@@ -18,6 +21,8 @@ import {
   bookingPrice,
   bookingReference,
   normalizeWeek,
+  paymentMethodsFor,
+  paymentSplit,
   shirtSetsFor,
   toMinutes,
   trustTier,
@@ -32,6 +37,7 @@ import { ApiException, conflict, notFound, unauthorized, validationError } from 
 import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
+import { sendBookingConfirmedEmail } from '@/lib/emails/booking-confirmed'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -54,7 +60,15 @@ export async function createBooking(
     prisma.pitch.findUnique({
       where: { id: input.pitchId },
       include: {
-        company: { select: { name: true, status: true, workingHours: true } },
+        company: {
+          select: {
+            name: true,
+            status: true,
+            workingHours: true,
+            paymentMode: true,
+            depositPercent: true,
+          },
+        },
         shirtInventory: true,
       },
     }),
@@ -64,6 +78,19 @@ export async function createBooking(
   if (!pitch.isActive) throw forbidden('This pitch is not taking bookings', 'PITCH_INACTIVE')
   if (!trustTier(user.trustScore).canBook) {
     throw forbidden('Your account cannot make bookings right now', 'TRUST_SCORE_TOO_LOW')
+  }
+  const methods = paymentMethodsFor(
+    pitch.company.paymentMode,
+    pitch.company.depositPercent,
+    user.trustScore
+  )
+  if (!methods.includes(input.paymentMethod)) {
+    throw forbidden(
+      methods.length
+        ? 'That way of paying is not available here'
+        : 'This venue takes payment at the venue, for players with a trust score of 70 or more',
+      'PAYMENT_METHOD_UNAVAILABLE'
+    )
   }
 
   // Duration within this pitch's own limits (the schema checked the global ones).
@@ -121,6 +148,9 @@ export async function createBooking(
   }
 
   const price = bookingPrice(Number(pitch.hourlyRate), minutes)
+  const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
+  // Nothing to charge online: confirmed now, like a paid booking.
+  const free = split.payNow === 0
 
   const { booking, superseded } = await prisma.$transaction(async tx => {
     // Serialises bookings of this pitch until the transaction ends.
@@ -174,15 +204,19 @@ export async function createBooking(
         teamsData: input.teamsData,
         shirtSets: sets,
         ...(input.noteToManager ? { noteToManager: input.noteToManager } : {}),
-        status: 'PENDING',
+        status: free ? 'CONFIRMED' : 'PENDING',
         pitchRateSnapshot: pitch.hourlyRate,
         platformFee: price.platformFee,
         totalAmount: price.total,
-        paymentProvider: provider.name,
+        paymentMethod: split.method,
+        depositAmount: split.deposit,
+        dueAtVenue: split.dueAtVenue,
+        paymentProvider: free ? null : provider.name,
       },
       select: { id: true, createdAt: true },
     })
     await recordStatus(tx, booking.id, 'PENDING')
+    if (free) await recordStatus(tx, booking.id, 'CONFIRMED')
     return { booking, superseded: own }
   })
 
@@ -192,12 +226,31 @@ export async function createBooking(
     }
   }
 
+  const result = {
+    bookingId: booking.id,
+    reference: bookingReference(booking.id),
+    total: price.total,
+    holdExpiresAt: holdExpiresAt(booking.createdAt).toISOString(),
+    payNow: split.payNow,
+    dueAtVenue: split.dueAtVenue,
+  }
+  if (free) {
+    // Best effort, as after a payment: a mail outage must not undo the booking.
+    await sendBookingConfirmedEmail(booking.id).catch(caught =>
+      console.error(
+        `[bookings] Confirmation email for ${booking.id} failed:`,
+        caught instanceof Error ? caught.message : 'unknown error'
+      )
+    )
+    return { ...result, payment: { provider: 'none' } }
+  }
+
   let payment
   try {
     payment = await provider.createPayment({
       bookingId: booking.id,
       userId,
-      amountRon: price.total,
+      amountRon: split.payNow,
       description: `${pitch.name}, ${pitch.company.name} — ${input.date} ${input.startTime}–${input.endTime}`,
       customerId: provider.name === 'stripe' ? await getOrCreateCustomer(userId) : null,
       paymentMethodId: input.paymentMethodId,
@@ -232,10 +285,7 @@ export async function createBooking(
   })
 
   return {
-    bookingId: booking.id,
-    reference: bookingReference(booking.id),
-    total: price.total,
-    holdExpiresAt: holdExpiresAt(booking.createdAt).toISOString(),
+    ...result,
     payment:
       provider.name === 'stripe' && payment.clientSecret
         ? {

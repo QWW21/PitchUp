@@ -43,7 +43,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
     items: [
       { label: 'Overview', icon: Home, href: '/manager/overview' },
       { label: 'Calendar', icon: CalendarDays },
-      { label: 'Bookings', icon: List },
+      { label: 'Bookings', icon: List, href: '/manager/bookings' },
     ],
   },
   {
@@ -54,12 +54,14 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
     ],
   },
   { title: 'Business', items: [{ label: 'Analytics', icon: BarChart3 }] },
-  { title: 'Account', items: [{ label: 'Settings', icon: Settings }] },
+  { title: 'Account', items: [{ label: 'Settings', icon: Settings, href: '/manager/settings' }] },
 ]
 
 const TITLES: Record<string, string> = {
   '/manager/overview': 'Overview',
   '/manager/reviews': 'Reviews',
+  '/manager/bookings': 'Bookings',
+  '/manager/settings': 'Settings',
 }
 
 const COLLAPSED_KEY = 'pitchup:manager-sidebar-collapsed'

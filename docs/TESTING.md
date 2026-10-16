@@ -22,7 +22,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the E01 rules: PRD constants, booking/review/pitch schemas, environment
   validation, the Prisma singleton and Cloudinary upload signing; booking
   rules (price, refund windows, slot selection); the onboarding schemas
-  (company info, location, hours, the admin's reason); and the Stripe code against
+  (company info, location, hours, the admin's reason); start times and
+  durations (C-6); paying at the venue (C-8: who may, the deposit split,
+  the wording); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
@@ -49,7 +51,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   tokens), onboarding (who may onboard, each step's checks, one company per
   manager, payouts before the earlier steps refused, Stripe Connect in test
   mode, submission), venue approval (admin only, approve, send back and
-  submit again) and the manager's numbers for today, and the E01
+  submit again) and the manager's numbers for today, paying at the venue
+  (the setting, the trust gate, deposit-only charges, no-deposit bookings,
+  Confirm attended refunding a deposit once, no-shows and their trust
+  penalty, another venue kept out), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -64,7 +69,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   profile pages (settings, trust score, password, payment methods, account
   deletion), manager onboarding (the four steps and their errors, no
   skipping ahead, under review, admin approval, sent back with a reason),
-  the manager shell and who is kept out of it, at 1280px and 375px.
+  the manager shell and who is kept out of it, start time then duration
+  (C-6), the no-shirts note (C-7), paying at the venue and the manager's
+  Bookings and Settings pages (C-8), at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

@@ -30,6 +30,19 @@ enum CompanyStatus {
   SUSPENDED
 }
 
+/// How a venue is paid — C-8.
+enum VenuePaymentMode {
+  ONLINE
+  ONLINE_OR_VENUE
+  VENUE
+}
+
+enum BookingPaymentMethod {
+  ONLINE
+  VENUE_REFUND_DEPOSIT
+  VENUE_DEPOSIT_TOWARDS
+}
+
 enum BookingStatus {
   PENDING
   CONFIRMED
@@ -189,8 +202,8 @@ model User {
 }
 
 model Company {
-  id                   String        @id @default(cuid())
-  ownerId              String        @unique
+  id                   String           @id @default(cuid())
+  ownerId              String           @unique
   name                 String
   description          String?
   logoUrl              String?
@@ -205,23 +218,26 @@ model Company {
   addressLine2         String?
   city                 String?
   county               String?
-  country              String        @default("RO")
+  country              String           @default("RO")
   postalCode           String?
   lat                  Float?
   lng                  Float?
   workingHours         Json?
   stripeAccountId      String?
   /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
-  stripeChargesEnabled Boolean       @default(false)
-  stripePayoutsEnabled Boolean       @default(false)
-  status               CompanyStatus @default(DRAFT)
+  stripeChargesEnabled Boolean          @default(false)
+  stripePayoutsEnabled Boolean          @default(false)
+  /// C-8: how players pay, and the online deposit (0–50%) when they pay at the venue.
+  paymentMode          VenuePaymentMode @default(ONLINE)
+  depositPercent       Int              @default(20)
+  status               CompanyStatus    @default(DRAFT)
   /// When the manager finished onboarding, and when an admin decided.
   submittedAt          DateTime?
   reviewedAt           DateTime?
   /// Why an admin sent it back; cleared when resubmitted.
   rejectionReason      String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   pitches Pitch[]
@@ -316,7 +332,7 @@ model ShirtInventory {
 }
 
 model Booking {
-  id                    String        @id @default(cuid())
+  id                    String               @id @default(cuid())
   pitchId               String
   playerId              String
   startTime             DateTime
@@ -324,30 +340,38 @@ model Booking {
   teamCount             Int
   teamsData             Json?
   noteToManager         String?
-  status                BookingStatus @default(PENDING)
+  status                BookingStatus        @default(PENDING)
   cancelledBy           CancelledBy?
   cancelledAt           DateTime?
   cancellationReason    String?
-  pitchRateSnapshot     Decimal       @db.Decimal(10, 2)
+  pitchRateSnapshot     Decimal              @db.Decimal(10, 2)
   /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
-  shirtSets             Int           @default(0)
+  shirtSets             Int                  @default(0)
   /// PitchUp's commission, kept from the venue's payout (8%). Not added to
   /// what the player pays.
-  platformFee           Decimal       @db.Decimal(10, 2)
+  platformFee           Decimal              @db.Decimal(10, 2)
   /// What the player pays: the pitch rental, hourly rate × hours.
-  totalAmount           Decimal       @db.Decimal(10, 2)
-  refundAmount          Decimal?      @db.Decimal(10, 2)
+  totalAmount           Decimal              @db.Decimal(10, 2)
+  refundAmount          Decimal?             @db.Decimal(10, 2)
   /// "stripe", or "test" for the built-in test payments used without Stripe keys.
   paymentProvider       String?
   /// The provider's payment id (a Stripe PaymentIntent, or test_pi_… in test mode).
-  stripePaymentIntentId String?       @unique
+  stripePaymentIntentId String?              @unique
   stripeRefundId        String?
   paidAt                DateTime?
   /// The card that paid, for the booking detail (E06-02); null in test mode.
   cardBrand             String?
   cardLast4             String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  /// C-8: online in full, or at the venue with a deposit (refunded, or counted).
+  paymentMethod         BookingPaymentMethod @default(ONLINE)
+  /// Charged online as the deposit; null when paid online in full.
+  depositAmount         Decimal?             @db.Decimal(10, 2)
+  /// Paid to the venue on the day; 0 when paid online.
+  dueAtVenue            Decimal              @default(0) @db.Decimal(10, 2)
+  /// The manager confirmed the player came (C-8).
+  attendedAt            DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   pitch  Pitch @relation(fields: [pitchId], references: [id], onDelete: Restrict)
   player User  @relation(fields: [playerId], references: [id], onDelete: Restrict)

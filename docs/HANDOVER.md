@@ -1,6 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E09 (Manager: Onboarding & Dashboard).
+Last updated at the end of the session that implemented E09 (Manager: Onboarding & Dashboard)
+and the product changes C-6, C-7 and C-8.
 
 ## Done
 
@@ -281,14 +282,8 @@ admin panel is E15.
 
 ## Next
 
-**The product changes filed during E08 testing**, in the owner's order:
-C-7 #201 (the "no shirts" option in the teams step), C-6 #200 (time picker:
-start plus duration, half-hour steps), C-8 #202 (pay at the venue: the
-venue's choice of online, online or at the venue, or at the venue only; a
-deposit of 0–50%, default 20%, for players with trust 70+; commission from
-the deposit; and a minimal manager Bookings page to confirm attendance or
-report a no-show). Then **E10 — Manager: Pitches & Pricing**: the dashboard
-already shows Pitches as "Soon".
+**E10 — Manager: Pitches & Pricing.** The dashboard already shows Pitches as
+"Soon". C-6, C-7 and C-8 are done (see "Product changes after E05 testing").
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -403,6 +398,36 @@ those tickets carries a comment pointing here.
   call or drop in).
 - **C-5 The map opens on the chosen city.** `mapCenter()` centres on the
   player only when they are in the selected city; otherwise on that city.
+
+### Product changes after E05 testing (milestone E17, #200–#202)
+
+- **C-7 A pitch that lends no shirts says so** on the teams step ("This
+  pitch doesn't lend shirts. Bring your own bibs or colours.") and the step
+  is titled "Teams" there. Web and mobile.
+- **C-6 Start time, then a duration.** The time step lists start times in
+  Morning / Afternoon / Evening groups, then "How long?" from the pitch's
+  minimum to maximum in half hours. A start without room for the shortest
+  booking (before the next booking or closing) is disabled and read as "not
+  enough time"; so are lengths that don't fit. A new start keeps the length
+  if it fits, otherwise the longest that does. One shared set of rules
+  (`startOptions`, `durationOptions`, `keepDuration` in `booking.ts`)
+  replaced `tapSlot`.
+- **C-8 Pay at the venue.** `Company.paymentMode` (`ONLINE`, the default;
+  `ONLINE_OR_VENUE`; `VENUE`) and `Company.depositPercent` (0–50, default
+  20), set on `/manager/settings`. Players with trust 70+ may pay at the
+  venue: (a) `VENUE_REFUND_DEPOSIT`, the deposit is refunded when the
+  manager confirms they came and they pay the full price there; or (b)
+  `VENUE_DEPOSIT_TOWARDS`, the deposit counts and they pay the rest there.
+  With a 0% deposit nothing is charged online and the booking is confirmed
+  at once. Below 70 a player pays online; at a venue-only venue they cannot
+  book (the server refuses with `PAYMENT_METHOD_UNAVAILABLE`). The booking
+  records `paymentMethod`, `depositAmount`, `dueAtVenue` and `attendedAt`.
+  Cancelling refunds the deposit by the usual tiers. The minimal
+  `/manager/bookings` page lists upcoming bookings and those started in the
+  last 7 days, with **Confirm attended** (refunds the deposit for (a)) and
+  **Report no-show** (from 30 minutes after kick-off: the venue keeps what
+  was paid online, trust −20, the player is notified and can dispute).
+  Rules shared in `packages/shared/src/payment.ts`. Web and mobile.
 
 **Upgrading a dev database made before C-2.** `pnpm --filter @pitchup/web
 db:push` refuses, because the new required `hourlyRate` column has no value
@@ -650,6 +675,23 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Validation errors are 400**, like the rest of the API.
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
+
+### C-6, C-7, C-8
+
+- **Reporting a no-show was built here, minimally**, because C-8 needs it:
+  status `NO_SHOW`, a `NoShow` row whose `penaltyAmount` is what the venue
+  keeps (the deposit or the online payment), trust −20 with its history
+  event, and a notification. PRD §9.3's flat fee and 20% penalty, and paying
+  the venue out, are still E11/E14.
+- **The commission is recorded, not billed.** `platformFee` is 8% of the
+  price for every booking as before; whether it is kept from the deposit or
+  invoiced to the venue follows from `paymentMethod` and the deposit, and is
+  billed in E14. A deposit below 8% cannot cover it; that remainder is
+  invoiced too.
+- **Settings shows the deposit in steps of 5%** (the API takes any whole
+  number from 0 to 50). The rest of Settings is E12.
+- **Attendance is confirmed from kick-off**, a no-show from 30 minutes after
+  (PRD §9.3); neither has an end date yet.
 
 ## Known gaps
 

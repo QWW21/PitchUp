@@ -21,7 +21,11 @@ export function renderBookingConfirmedEmail(b: BookingConfirmation): Verificatio
     when(b),
     `${b.teamCount} teams`,
     ...(shirts ? [shirts] : []),
-    `Paid: ${b.total} RON`,
+    b.paymentMethod === 'ONLINE'
+      ? `Paid: ${b.total} RON`
+      : b.deposit
+        ? `Deposit paid: ${b.deposit} RON${b.paymentMethod === 'VENUE_REFUND_DEPOSIT' ? ', refunded after the game' : ''}. To pay at the venue: ${b.dueAtVenue} RON.`
+        : `To pay at the venue: ${b.dueAtVenue} RON.`,
   ]
   return {
     subject: `Booking confirmed: ${b.pitch.name}, ${b.date} ${b.startTime}`,

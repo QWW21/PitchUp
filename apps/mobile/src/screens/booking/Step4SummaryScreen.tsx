@@ -5,6 +5,10 @@
  * completes the payment: Stripe's CardField and confirmPayment when Stripe is
  * set up, the built-in test payment otherwise. A declined card keeps the
  * player here; trying again replaces the unpaid booking.
+ *
+ * Paying at the venue (C-8): where the venue allows it and the player's trust
+ * score is 70+, they choose how to pay; only the deposit is charged here,
+ * and with no deposit nothing is.
  */
 import React, { useEffect, useRef, useState } from 'react'
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -14,7 +18,10 @@ import { useQuery } from '@tanstack/react-query'
 import { CardField, useStripe } from '@stripe/stripe-react-native'
 import {
   CANCELLATION_WINDOWS,
+  PAYMENT_METHOD_LABELS,
   bookingPrice,
+  describePayment,
+  paymentSplit,
   formatDateLong,
   formatDuration,
   freeCancellationUntil,
@@ -23,6 +30,7 @@ import {
   venueClock,
   venueTimeToUtc,
   fromMinutes,
+  type BookingPaymentMethod,
 } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
@@ -36,6 +44,7 @@ const REASONS: Record<string, string> = {
   SLOT_CONFLICT: 'Someone has just booked that time. Please pick another.',
   TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
   SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
+  PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
 }
 
 export function describeError(e: unknown): string {
@@ -57,12 +66,24 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
   const s = useBookingStore()
   const pitch = s.pitch!
   const config = useQuery({ queryKey: ['payment-config'], queryFn: bookingApi.paymentConfig })
-  const isStripe = config.data?.provider === 'stripe'
+  const options = useQuery({
+    queryKey: ['payment-options', pitch.id],
+    queryFn: () => bookingApi.paymentOptions(pitch.id),
+  })
+  const [chosen, setChosen] = useState<BookingPaymentMethod | null>(null)
+  const methods = options.data?.methods ?? []
+  const method = chosen && methods.includes(chosen) ? chosen : (methods[0] ?? null)
   const [busy, setBusy] = useState(false)
   const { show, toast } = useToast(insets.bottom + 120)
   const shake = useRef(new Animated.Value(0)).current
 
   const price = bookingPrice(pitch.hourlyRate, s.minutes)
+  const split = method ? paymentSplit(price.total, method, options.data!.depositPercent) : null
+  const isStripe = config.data?.provider === 'stripe' && !!split && split.payNow > 0
+  const isTest = config.data?.provider === 'test' && !!split && split.payNow > 0
+  const payLabel = split
+    ? `Confirm & pay ${split.payNow} RON${split.deposit ? ' deposit' : ''}`
+    : ''
   const sets = shirtSetsFor(s.teamCount, s.wantsShirts)
   const players = s.players.slice(0, s.teamCount).reduce((a, b) => a + b, 0)
   const start = venueTimeToUtc(s.date!, toMinutes(s.startTime!))
@@ -85,10 +106,22 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
   const payTest = async (outcome: 'succeed' | 'decline') => {
     setBusy(true)
     try {
-      const created = await bookingApi.create(bookingBody(s))
+      const created = await bookingApi.create(bookingBody(s, split!.method))
       const result = await bookingApi.confirmTest(created.bookingId, outcome)
       if (result.status === 'CONFIRMED') return finish(created.bookingId)
       fail('Your card was declined. Nothing was charged; try again.')
+    } catch (e) {
+      fail(describeError(e))
+    }
+    setBusy(false)
+  }
+
+  // Nothing to pay online: the booking is confirmed at once.
+  const bookFree = async () => {
+    setBusy(true)
+    try {
+      const created = await bookingApi.create(bookingBody(s, split!.method))
+      return finish(created.bookingId)
     } catch (e) {
       fail(describeError(e))
     }
@@ -149,6 +182,51 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
           <Text style={styles.small}>No booking fee: you pay the pitch price.</Text>
         </View>
 
+        {methods.length > 1 ? (
+          <View style={styles.card} accessibilityRole="radiogroup">
+            <Text style={styles.cardTitle}>How do you want to pay?</Text>
+            {methods.map(m => {
+              const option = paymentSplit(price.total, m, options.data!.depositPercent)
+              const on = m === method
+              const label =
+                option.payNow === 0 && m !== 'ONLINE'
+                  ? 'Pay at the venue'
+                  : PAYMENT_METHOD_LABELS[m]
+              return (
+                <Pressable
+                  key={m}
+                  onPress={() => setChosen(m)}
+                  style={[styles.choice, on && styles.choiceOn]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`${label}. ${describePayment(option)}`}
+                >
+                  <Icon
+                    name={on ? 'radiobox-marked' : 'radiobox-blank'}
+                    size={22}
+                    color={on ? colors.primary[600] : colors.neutral[300]}
+                  />
+                  <View style={styles.flex}>
+                    <Text style={styles.choiceTitle}>{label}</Text>
+                    <Text style={styles.body15}>{describePayment(option)}</Text>
+                  </View>
+                </Pressable>
+              )
+            })}
+          </View>
+        ) : null}
+        {methods.length === 1 && split && split.method !== 'ONLINE' ? (
+          <View style={styles.card}>
+            <Text style={styles.choiceTitle}>{describePayment(split)}</Text>
+          </View>
+        ) : null}
+        {options.isSuccess && !method ? (
+          <Text style={styles.error}>
+            This venue takes payment at the venue only, for players with a trust score of 70 or
+            more.
+          </Text>
+        ) : null}
+
         <View style={styles.policy}>
           <Icon name="information-outline" size={18} color={colors.info[500]} />
           <Text style={styles.policyText}>
@@ -162,7 +240,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
           </Text>
         </View>
 
-        {config.data?.provider === 'test' ? (
+        {isTest ? (
           <View style={styles.testNotice}>
             <Text style={styles.small}>
               <Text style={styles.bold}>Test mode.</Text> Stripe is not set up, so no card is needed
@@ -172,7 +250,8 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
         ) : null}
         {isStripe ? (
           <StripeCard
-            total={price.total}
+            label={payLabel}
+            method={split!.method}
             busy={busy}
             setBusy={setBusy}
             onPaid={finish}
@@ -184,18 +263,24 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
         ) : null}
       </ScrollView>
 
-      {config.data?.provider === 'test' ? (
+      {split && split.payNow === 0 ? (
         <Animated.View
           style={[
             styles.footer,
             { paddingBottom: insets.bottom + spacing.md, transform: [{ translateX: shake }] },
           ]}
         >
-          <PayButton
-            label={`Confirm & pay ${price.total} RON`}
-            busy={busy}
-            onPress={() => payTest('succeed')}
-          />
+          <PayButton label="Confirm booking" busy={busy} onPress={bookFree} />
+        </Animated.View>
+      ) : null}
+      {isTest ? (
+        <Animated.View
+          style={[
+            styles.footer,
+            { paddingBottom: insets.bottom + spacing.md, transform: [{ translateX: shake }] },
+          ]}
+        >
+          <PayButton label={payLabel} busy={busy} onPress={() => payTest('succeed')} />
           <Pressable
             onPress={() => payTest('decline')}
             disabled={busy}
@@ -256,13 +341,15 @@ function PayButton({
 
 /** A new card through Stripe's CardField; Stripe keeps the number away from our servers. */
 function StripeCard({
-  total,
+  label,
+  method,
   busy,
   setBusy,
   onPaid,
   onError,
 }: {
-  total: number
+  label: string
+  method: BookingPaymentMethod
   busy: boolean
   setBusy: (b: boolean) => void
   onPaid: (bookingId: string) => void
@@ -281,7 +368,7 @@ function StripeCard({
   const pay = async () => {
     setBusy(true)
     try {
-      const created = await bookingApi.create(bookingBody(s, saved ?? undefined))
+      const created = await bookingApi.create(bookingBody(s, method, saved ?? undefined))
       if (created.payment.provider !== 'stripe') throw new Error('Unexpected payment mode')
       const { error } = await confirmPayment(
         created.payment.clientSecret,
@@ -340,12 +427,7 @@ function StripeCard({
           style={styles.cardField}
         />
       ) : null}
-      <PayButton
-        label={`Confirm & pay ${total} RON`}
-        busy={busy}
-        disabled={!saved && !complete}
-        onPress={pay}
-      />
+      <PayButton label={label} busy={busy} disabled={!saved && !complete} onPress={pay} />
     </View>
   )
 }
@@ -407,4 +489,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   cardField: { height: 50, marginVertical: spacing.sm },
+  flex: { flex: 1 },
+  choice: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 8,
+    padding: 12,
+  },
+  choiceOn: { borderColor: colors.primary[600], backgroundColor: colors.primary[50] },
+  choiceTitle: { fontSize: 15, fontWeight: '600', color: colors.neutral[900] },
 })

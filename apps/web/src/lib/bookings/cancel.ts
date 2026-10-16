@@ -4,7 +4,8 @@
  * The refund follows PRD §9.2 (cancellationRefund in @pitchup/shared): all
  * of it 24 hours or more before kick-off, half from 2 hours, nothing after.
  * The player paid only the pitch price (E05), so that whole amount is
- * refundable; there is no platform fee to keep back.
+ * refundable; there is no platform fee to keep back. A player paying at the
+ * venue paid only the deposit online (C-8): the same tiers apply to it.
  *
  * The refund is made first, inside the booking's lock: if the payment
  * provider refuses, nothing is cancelled and the player can try again.
@@ -17,6 +18,7 @@ import { cancellationRefund, type CancelBookingResult } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
+import { chargedOnline } from './charged'
 import { getBookingForViewer } from './read'
 import { recordStatus } from './status'
 
@@ -37,6 +39,8 @@ export async function cancelBooking(
           status: true,
           startTime: true,
           totalAmount: true,
+          paymentMethod: true,
+          depositAmount: true,
           paidAt: true,
           paymentProvider: true,
           stripePaymentIntentId: true,
@@ -61,7 +65,7 @@ export async function cancelBooking(
       }
 
       const paid = !!b.paidAt && !!b.stripePaymentIntentId
-      const total = paid ? Number(b.totalAmount) : 0
+      const total = paid ? chargedOnline(b) : 0
       const refund = options.refundAll
         ? { percent: 100, amount: total }
         : cancellationRefund(total, b.startTime, now)

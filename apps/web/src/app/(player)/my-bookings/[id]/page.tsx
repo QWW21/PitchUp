@@ -224,9 +224,24 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             </div>
           )}
           <div className="flex justify-between border-t border-neutral-200 pt-2 text-base font-semibold text-neutral-900">
-            <dt>{b.paidAt ? 'Total paid' : 'Total'}</dt>
+            <dt>{b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}</dt>
             <dd className="font-mono">{b.total} RON</dd>
           </div>
+          {b.paymentMethod !== 'ONLINE' && !!b.deposit && (
+            <div className="flex justify-between text-neutral-700">
+              <dt>
+                Deposit paid online
+                {b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && ', refunded after the game'}
+              </dt>
+              <dd>{b.deposit} RON</dd>
+            </div>
+          )}
+          {b.paymentMethod !== 'ONLINE' && (
+            <div className="flex justify-between font-medium text-neutral-900">
+              <dt>{b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}</dt>
+              <dd>{b.dueAtVenue} RON</dd>
+            </div>
+          )}
           {b.paidAt && (
             <div className="flex justify-between text-neutral-700">
               <dt>Card</dt>

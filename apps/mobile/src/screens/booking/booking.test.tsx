@@ -86,6 +86,7 @@ describe('bookingStore', () => {
     s.setColour(0, 'RED')
     s.setNote('  bring a ball  ')
     expect(bookingBody(useBookingStore.getState())).toEqual({
+      paymentMethod: 'ONLINE',
       pitchId: 'p1',
       date,
       startTime: '18:00',
@@ -250,6 +251,12 @@ describe('Step 4: summary and payment (E05-05)', () => {
     const s = useBookingStore.getState()
     s.setDate(date)
     s.setTime('18:00', '20:00', 120)
+    api.paymentOptions.mockResolvedValue({
+      mode: 'ONLINE',
+      depositPercent: 20,
+      methods: ['ONLINE'],
+      trustTooLow: false,
+    })
   })
 
   it('shows the booking and pays in test mode', async () => {
@@ -258,6 +265,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       reference: '#AAAAAA',
       total: 240,
       holdExpiresAt: new Date().toISOString(),
+      payNow: 240,
+      dueAtVenue: 0,
       payment: { provider: 'test' },
     })
     api.confirmTest.mockResolvedValue({ status: 'CONFIRMED' } as never)
@@ -294,6 +303,62 @@ describe('Step 4: summary and payment (E05-05)', () => {
     expect(await screen.findByText(/Your card was declined/)).toBeOnTheScreen()
   })
 
+  it('pays at the venue: the deposit only, and the choice is sent (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'ONLINE_OR_VENUE',
+      depositPercent: 20,
+      methods: ['ONLINE', 'VENUE_DEPOSIT_TOWARDS', 'VENUE_REFUND_DEPOSIT'],
+      trustTooLow: false,
+    })
+    api.create.mockResolvedValue({ bookingId: 'b3', payment: { provider: 'test' } } as never)
+    api.confirmTest.mockResolvedValue({ status: 'CONFIRMED' } as never)
+    const nav = makeNav()
+    show(Step4SummaryScreen, nav)
+    expect(await screen.findByText('How do you want to pay?')).toBeOnTheScreen()
+    expect(screen.getByText('Confirm & pay 240 RON')).toBeOnTheScreen()
+    press(/^Pay at the venue, the deposit counts/)
+    expect(screen.getByText('Pay 48 RON deposit now · 192 RON at the venue')).toBeOnTheScreen()
+    press(/^Pay in full at the venue/)
+    expect(
+      screen.getByText('48 RON deposit now, refunded after the game · 240 RON at the venue')
+    ).toBeOnTheScreen()
+    fireEvent.press(screen.getByText('Confirm & pay 48 RON deposit'))
+    await waitFor(() => expect(nav.replace).toHaveBeenCalled())
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'VENUE_REFUND_DEPOSIT' })
+    )
+  })
+
+  it('with no deposit nothing is paid online: Confirm booking (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'VENUE',
+      depositPercent: 0,
+      methods: ['VENUE_DEPOSIT_TOWARDS'],
+      trustTooLow: false,
+    })
+    api.create.mockResolvedValue({ bookingId: 'b4', payment: { provider: 'none' } } as never)
+    const nav = makeNav()
+    show(Step4SummaryScreen, nav)
+    expect(await screen.findByText('Nothing to pay now · 240 RON at the venue')).toBeOnTheScreen()
+    fireEvent.press(screen.getByText('Confirm booking'))
+    await waitFor(() =>
+      expect(nav.replace).toHaveBeenCalledWith('BookingConfirmation', { bookingId: 'b4' })
+    )
+    expect(api.confirmTest).not.toHaveBeenCalled()
+  })
+
+  it('a venue that takes payment there only says why a low-trust player cannot book (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'VENUE',
+      depositPercent: 20,
+      methods: [],
+      trustTooLow: true,
+    })
+    show(Step4SummaryScreen, makeNav())
+    expect(await screen.findByText(/trust score of 70 or\s+more/)).toBeOnTheScreen()
+    expect(screen.queryByText(/Confirm/)).toBeNull()
+  })
+
   it('closing past step 1 asks first; Discard leaves', async () => {
     const nav = makeNav()
     show(Step4SummaryScreen, nav)
@@ -319,6 +384,10 @@ describe('Step 5: confirmation (E05-06)', () => {
       total: 240,
       paidAt: new Date().toISOString(),
       cancellationReason: null,
+      paymentMethod: 'ONLINE',
+      deposit: null,
+      dueAtVenue: 0,
+      attendedAt: null,
       pitch: { id: 'p1', name: 'Teren 1' },
       company: { id: 'c1', name: 'Arena Gheorgheni', address: 'Str. X', city: 'Cluj-Napoca' },
     } as never)

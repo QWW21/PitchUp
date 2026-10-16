@@ -1047,27 +1047,92 @@ date ranges.
 
 ---
 
+## 21. Listening to users: three changes after testing (C-6, C-7, C-8)
+
+The owner tested the booking flow and asked for three changes. Each one
+teaches something different about changing a product that already works.
+
+### An empty space reads as a bug (C-7)
+
+A pitch with no shirts simply hid the shirts section. The code was correct,
+but the owner reported it as a bug: a gap looks like something failed to
+load. The fix is one sentence ("This pitch doesn't lend shirts...") where
+the switch would be. **Say why something is missing**; an explicit "no" is
+part of the interface.
+
+### Make the impossible unclickable (C-6)
+
+The old time grid asked for two clicks (start, then end) and the user had
+to work out what a second click would do. The new step asks two questions a
+person already has in mind: when do we start, and for how long? Every
+choice that cannot work is shown but disabled, with the reason read out to
+screen readers ("19:30, not enough time"). This is the general idea of
+**constraining input instead of validating it**: rather than letting the
+player pick 19:30–21:30 and then saying "that overlaps a booking", the
+option is not offered.
+
+The rules (which starts fit, which lengths fit, what to keep when the start
+changes) are one set of pure functions in `@pitchup/shared`, used by web
+and mobile alike and unit-tested for the awkward cases: overnight venues, a
+booking in the middle, closing time, past slots. Pure functions are where
+such rules are cheapest to test.
+
+### Money in two places (C-8)
+
+Paying at the venue means part of the money moves outside the system. The
+design question is: what does PitchUp still know and control?
+
+- **A deposit is a commitment device.** Taking a little money up front makes
+  a no-show cost something, without asking for the full price. The venue
+  picks how much (0–50%); at 0% it accepts the risk, and the trust score
+  (only 70+ may pay at the venue) is the only protection left.
+- **Record the split at booking time.** The booking stores how it is paid,
+  the deposit and what is due at the venue. Changing the venue's settings
+  later must not change what an existing booking owes, the same reason the
+  hourly rate is copied onto the booking (`pitchRateSnapshot`).
+- **The server decides; the client explains.** The app shows the choices
+  the server allows (`GET /pitches/:id/payment-options`), and creating the
+  booking checks the same rule again (`paymentMethodsFor`). A modified
+  client cannot pay at the venue with a low trust score.
+- **Refund what was charged, not what it cost.** Every refund (cancelling,
+  a slot lost while paying, a confirmed attendance) is taken from the amount
+  actually charged by card (`chargedOnline`). Mixing "price" and "amount
+  paid" is a classic money bug.
+- **A human closes the loop.** Only the manager knows whether the player
+  came. Confirm attended and Report no-show are that signal. Both run under
+  the same per-pitch lock as booking, so a double click can't refund twice,
+  and one excludes the other.
+
+**What to learn:** empty states and explaining absence; constraining input
+versus validating it; pure functions for business rules shared across
+platforms; deposits and no-show economics; snapshotting values onto a
+transaction; server-side enforcement of rules shown on the client;
+idempotency and locks around refunds.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
 
-| Item                 | State                                                          |
-| -------------------- | -------------------------------------------------------------- |
-| Rate limiting        | In-memory; resets on restart, per-instance                     |
-| Edge middleware      | Cookie presence only; the page is the real gate                |
-| Integration env vars | Optional until their epic                                      |
-| Cloudinary           | Signing verified against the algorithm; no live upload tested  |
-| Schema changes       | `prisma db push`, not versioned migrations (see §14)           |
-| Social login         | Placeholder until OAuth credentials exist                      |
-| Mobile app           | Built, typechecked and unit-tested; not yet run on a device    |
-| Mobile colours       | Spec palette; not yet checked for WCAG contrast                |
-| Stripe               | Unit-tested with fakes; never run against a real account       |
-| Booking completion   | Settled lazily on read until the E11 scheduled job exists      |
-| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15  |
-| Manager dashboard    | Overview and Reviews; other sections show "Soon" (E10–E12)     |
-| Venue approval       | A minimal admin page; the full admin panel is E15              |
-| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)   |
-| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist |
+| Item                 | State                                                                   |
+| -------------------- | ----------------------------------------------------------------------- |
+| Rate limiting        | In-memory; resets on restart, per-instance                              |
+| Edge middleware      | Cookie presence only; the page is the real gate                         |
+| Integration env vars | Optional until their epic                                               |
+| Cloudinary           | Signing verified against the algorithm; no live upload tested           |
+| Schema changes       | `prisma db push`, not versioned migrations (see §14)                    |
+| Social login         | Placeholder until OAuth credentials exist                               |
+| Mobile app           | Built, typechecked and unit-tested; not yet run on a device             |
+| Mobile colours       | Spec palette; not yet checked for WCAG contrast                         |
+| Stripe               | Unit-tested with fakes; never run against a real account                |
+| Booking completion   | Settled lazily on read until the E11 scheduled job exists               |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15           |
+| Manager dashboard    | Overview, Bookings (minimal), Reviews, Settings (payments); rest "Soon" |
+| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11       |
+| Venue approval       | A minimal admin page; the full admin panel is E15                       |
+| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)            |
+| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist          |
 
 ---
 

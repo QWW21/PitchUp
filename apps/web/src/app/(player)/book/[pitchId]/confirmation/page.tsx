@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { formatDateLong, formatDuration } from '@pitchup/shared'
+import { formatDateLong, formatDuration, paymentStatusLine } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { getBookingForViewer } from '@/lib/bookings/read'
@@ -101,8 +101,8 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             </dd>
           </>
         )}
-        <dt className="sr-only">Paid</dt>
-        <dd className="pt-1 font-medium text-primary-700">Total paid: {booking.total} RON</dd>
+        <dt className="sr-only">Payment</dt>
+        <dd className="pt-1 font-medium text-primary-700">{paymentStatusLine(booking)}</dd>
       </dl>
 
       <ConfirmationActions

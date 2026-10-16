@@ -209,9 +209,27 @@ export function BookingDetailScreen({ navigation, route }: Props) {
           <Line label={`Pitch (${formatDuration(b.minutes)})`} value={`${b.total} RON`} />
           {b.shirtSets > 0 ? <Line label="Shirts" value="Free" /> : null}
           <View style={styles.total}>
-            <Text style={styles.totalText}>{b.paidAt ? 'Total paid' : 'Total'}</Text>
+            <Text style={styles.totalText}>
+              {b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}
+            </Text>
             <Text style={styles.totalText}>{b.total} RON</Text>
           </View>
+          {b.paymentMethod !== 'ONLINE' && b.deposit ? (
+            <Line
+              label={
+                b.paymentMethod === 'VENUE_REFUND_DEPOSIT'
+                  ? 'Deposit paid online, refunded after the game'
+                  : 'Deposit paid online'
+              }
+              value={`${b.deposit} RON`}
+            />
+          ) : null}
+          {b.paymentMethod !== 'ONLINE' ? (
+            <Line
+              label={b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}
+              value={`${b.dueAtVenue} RON`}
+            />
+          ) : null}
           {b.paidAt ? (
             <Line
               label="Card"

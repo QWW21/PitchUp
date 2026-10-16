@@ -10,6 +10,7 @@ import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { providerFor } from '@/lib/payments'
 import { sendBookingConfirmedEmail } from '@/lib/emails/booking-confirmed'
+import { chargedOnline } from './charged'
 import { liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -34,6 +35,8 @@ export async function confirmPaid(
       endTime: true,
       status: true,
       totalAmount: true,
+      paymentMethod: true,
+      depositAmount: true,
       paymentProvider: true,
       stripePaymentIntentId: true,
       stripeRefundId: true,
@@ -95,7 +98,7 @@ export async function confirmPaid(
     const { refundId } = await provider.refund(paymentId)
     await prisma.booking.update({
       where: { id: booking.id },
-      data: { refundAmount: booking.totalAmount, stripeRefundId: refundId },
+      data: { refundAmount: chargedOnline(booking), stripeRefundId: refundId },
     })
     return 'refunded'
   }

@@ -105,6 +105,9 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
         </View>
 
         {upcoming ? <CountdownChip startsAt={b.startsAt} /> : null}
+        {b.status === 'CONFIRMED' && b.dueAtVenue > 0 ? (
+          <Text style={styles.due}>To pay at the venue: {b.dueAtVenue} RON</Text>
+        ) : null}
 
         {b.status === 'CANCELLED' ? (
           <View style={styles.line}>
@@ -188,4 +191,5 @@ const styles = StyleSheet.create({
   secondaryText: { fontSize: 14, fontWeight: '500', color: colors.neutral[900] },
   ghost: { paddingHorizontal: 12, paddingVertical: 8 },
   ghostText: { fontSize: 14, fontWeight: '500', color: colors.primary[600] },
+  due: { fontSize: 14, fontWeight: '600', color: colors.neutral[900] },
 })

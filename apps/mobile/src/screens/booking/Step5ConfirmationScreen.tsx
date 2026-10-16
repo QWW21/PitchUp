@@ -13,7 +13,7 @@ import { ActivityIndicator, Animated, BackHandler, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
-import { formatDateLong, formatDuration } from '@pitchup/shared'
+import { formatDateLong, formatDuration, paymentStatusLine } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
@@ -102,7 +102,7 @@ export function Step5ConfirmationScreen({
                   Free shirts: {b.shirtSets} {b.shirtSets === 1 ? 'set' : 'sets'}
                 </Text>
               ) : null}
-              <Text style={styles.paid}>Total paid: {b.total} RON</Text>
+              <Text style={styles.paid}>{paymentStatusLine(b)}</Text>
             </View>
           </>
         )}
