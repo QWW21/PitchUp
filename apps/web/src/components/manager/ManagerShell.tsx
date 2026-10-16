@@ -49,7 +49,7 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
   {
     title: 'Manage',
     items: [
-      { label: 'Pitches', icon: Trophy },
+      { label: 'Pitches', icon: Trophy, href: '/manager/pitches' },
       { label: 'Reviews', icon: Star, href: '/manager/reviews' },
     ],
   },
@@ -62,7 +62,12 @@ const TITLES: Record<string, string> = {
   '/manager/reviews': 'Reviews',
   '/manager/bookings': 'Bookings',
   '/manager/settings': 'Settings',
+  '/manager/pitches': 'Pitches',
 }
+
+/** The section a path belongs to: /manager/pitches/abc/edit is under Pitches. */
+const sectionOf = (pathname: string) =>
+  Object.keys(TITLES).find(p => pathname === p || pathname.startsWith(`${p}/`))
 
 const COLLAPSED_KEY = 'pitchup:manager-sidebar-collapsed'
 
@@ -157,7 +162,7 @@ export function ManagerShell({
           </button>
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold text-neutral-900">
-              {TITLES[pathname] ?? 'Dashboard'}
+              {TITLES[sectionOf(pathname) ?? ''] ?? 'Dashboard'}
             </p>
             <p className="truncate text-xs text-neutral-500">{companyName}</p>
           </div>
@@ -222,7 +227,7 @@ function Sidebar({
             <ul className="space-y-1">
               {section.items.map(item => {
                 const Icon = item.icon
-                const active = item.href === pathname
+                const active = !!item.href && item.href === sectionOf(pathname)
                 const body = (
                   <>
                     <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />

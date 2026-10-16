@@ -1,0 +1,232 @@
+'use client'
+
+/**
+ * Basic info tab — E10-07 (with C-3): name, surface, size (the recommended
+ * players per team, not a limit), dimensions, description, and whether
+ * players can see and book it.
+ */
+import {
+  PITCH_DEFAULT_DIMENSIONS,
+  PITCH_LIMITS,
+  SIZE_INFO,
+  SIZE_LABELS,
+  SURFACE_LABELS,
+  UpdatePitchBasicInfoSchema,
+  type ManagerPitch,
+  type PitchSize,
+  type SurfaceType,
+} from '@pitchup/shared'
+import { send } from '@/lib/http'
+import { SaveBar } from './SaveBar'
+import { useEditorForm } from './useForm'
+
+const SURFACES = Object.keys(SURFACE_LABELS) as SurfaceType[]
+const SIZES = Object.keys(SIZE_LABELS) as PitchSize[]
+
+export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
+  const f = useEditorForm({
+    name: pitch.name,
+    surfaceType: pitch.surfaceType,
+    size: pitch.size,
+    width: pitch.widthMeters ? String(pitch.widthMeters) : '',
+    length: pitch.lengthMeters ? String(pitch.lengthMeters) : '',
+    description: pitch.description ?? '',
+    isActive: pitch.isActive,
+  })
+  const v = f.values
+  const set = (patch: Partial<typeof v>) => f.setValues(prev => ({ ...prev, ...patch }))
+  const custom = v.size === 'CUSTOM'
+  const noPhotos = pitch.photos.length === 0
+
+  const pickSize = (size: PitchSize) => {
+    const dims = size === 'CUSTOM' ? null : PITCH_DEFAULT_DIMENSIONS[size]
+    set({ size, ...(dims ? { width: String(dims.width), length: String(dims.length) } : {}) })
+  }
+
+  const save = async () => {
+    const parsed = UpdatePitchBasicInfoSchema.safeParse({
+      name: v.name,
+      surfaceType: v.surfaceType,
+      size: v.size,
+      description: v.description,
+      ...(v.width ? { widthMeters: Number(v.width) } : {}),
+      ...(v.length ? { lengthMeters: Number(v.length) } : {}),
+    })
+    if (!parsed.success) return f.setError(parsed.error.issues[0]?.message ?? 'Check the form')
+    if (custom && (!v.width || !v.length)) {
+      return f.setError('A custom size needs its width and length')
+    }
+    if (v.isActive && !pitch.isActive && noPhotos) {
+      return f.setError('Add at least one photo before activating')
+    }
+    // The status has its own endpoint, with its own rules (a photo, a price).
+    if (v.isActive !== pitch.isActive) {
+      try {
+        await send(`/api/v1/pitches/${pitch.id}/status`, 'PATCH', { isActive: v.isActive })
+      } catch (caught) {
+        return f.setError((caught as Error).message)
+      }
+    }
+    await f.save(`/api/v1/pitches/${pitch.id}`, 'PUT', parsed.data)
+  }
+
+  return (
+    <div className="mt-4 space-y-6 rounded-xl bg-white p-5 shadow-sm">
+      <div>
+        <label htmlFor="pitch-name" className="block text-sm font-medium text-neutral-900">
+          Pitch name
+        </label>
+        <input
+          id="pitch-name"
+          value={v.name}
+          maxLength={PITCH_LIMITS.NAME_MAX}
+          onChange={e => set({ name: e.target.value })}
+          className="mt-1 h-11 w-full rounded-md border border-neutral-200 px-3 text-base"
+        />
+        <p className="mt-1 text-right text-xs text-neutral-500">
+          {v.name.length} / {PITCH_LIMITS.NAME_MAX}
+        </p>
+      </div>
+
+      <fieldset>
+        <legend className="text-sm font-medium text-neutral-900">Surface</legend>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {SURFACES.map(s => (
+            <Choice
+              key={s}
+              name="surface"
+              checked={v.surfaceType === s}
+              onChange={() => set({ surfaceType: s })}
+            >
+              {SURFACE_LABELS[s]}
+            </Choice>
+          ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-sm font-medium text-neutral-900">Size</legend>
+        <p className="text-xs text-neutral-500">{SIZE_INFO}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {SIZES.map(s => (
+            <Choice key={s} name="size" checked={v.size === s} onChange={() => pickSize(s)}>
+              {SIZE_LABELS[s]}
+            </Choice>
+          ))}
+        </div>
+      </fieldset>
+
+      <div className="grid grid-cols-2 gap-4">
+        {(
+          [
+            ['width', 'Width (m)'],
+            ['length', 'Length (m)'],
+          ] as const
+        ).map(([key, label]) => (
+          <div key={key}>
+            <label htmlFor={`pitch-${key}`} className="block text-sm font-medium text-neutral-900">
+              {label}
+            </label>
+            <input
+              id={`pitch-${key}`}
+              type="number"
+              inputMode="decimal"
+              min={1}
+              max={200}
+              value={v[key]}
+              readOnly={!custom}
+              onChange={e => set({ [key]: e.target.value })}
+              className={`mt-1 h-11 w-full rounded-md border border-neutral-200 px-3 text-base ${custom ? '' : 'bg-neutral-100 text-neutral-700'}`}
+            />
+          </div>
+        ))}
+        {!custom && (
+          <p className="col-span-2 -mt-2 text-xs text-neutral-500">
+            The usual size for {SIZE_LABELS[v.size]}. Choose Custom to enter your own.
+          </p>
+        )}
+      </div>
+
+      <div>
+        <label htmlFor="pitch-description" className="block text-sm font-medium text-neutral-900">
+          Description <span className="font-normal text-neutral-500">(optional)</span>
+        </label>
+        <textarea
+          id="pitch-description"
+          rows={4}
+          value={v.description}
+          maxLength={PITCH_LIMITS.DESCRIPTION_MAX}
+          onChange={e => set({ description: e.target.value })}
+          className="mt-1 w-full rounded-md border border-neutral-200 p-3 text-base"
+        />
+        <p className="mt-1 text-right text-xs text-neutral-500">
+          {v.description.length} / {PITCH_LIMITS.DESCRIPTION_MAX}
+        </p>
+      </div>
+
+      <div className="flex items-start justify-between gap-4 rounded-lg bg-neutral-50 p-4">
+        <div>
+          <p id="active-label" className="text-sm font-medium text-neutral-900">
+            Active
+          </p>
+          <p className="text-sm text-neutral-500">
+            Players can see and book an active pitch. It needs a photo and a price.
+          </p>
+          {v.isActive && !pitch.isActive && noPhotos && (
+            <p className="mt-1 text-sm font-medium text-error-600">
+              Add at least one photo before activating.
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={v.isActive}
+          aria-labelledby="active-label"
+          onClick={() => set({ isActive: !v.isActive })}
+          className={`relative mt-1 h-6 w-11 shrink-0 rounded-full transition-colors ${v.isActive ? 'bg-primary-600' : 'bg-neutral-300'}`}
+        >
+          <span
+            className={`absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${v.isActive ? 'translate-x-5' : ''}`}
+          />
+        </button>
+      </div>
+
+      <SaveBar
+        label="Save changes"
+        dirty={f.dirty}
+        busy={f.busy}
+        saved={f.saved}
+        error={f.error}
+        onSave={() => void save()}
+        onReset={f.reset}
+      />
+    </div>
+  )
+}
+
+/** A radio that looks like a chip. */
+export function Choice({
+  name,
+  checked,
+  onChange,
+  children,
+}: {
+  name: string
+  checked: boolean
+  onChange: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <label
+      className={`flex h-10 cursor-pointer items-center rounded-md border px-4 text-sm font-medium focus-within:ring-2 focus-within:ring-primary-600 ${
+        checked
+          ? 'border-primary-600 bg-primary-50 text-primary-700'
+          : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
+      }`}
+    >
+      <input type="radio" name={name} className="sr-only" checked={checked} onChange={onChange} />
+      {children}
+    </label>
+  )
+}

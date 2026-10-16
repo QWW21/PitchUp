@@ -11,6 +11,7 @@ export * from './schedule'
 export * from './format'
 export * from './booking'
 export * from './payment'
+export * from './pitch-manage'
 
 export * from './constants/auth'
 export * from './constants/booking'

@@ -264,6 +264,10 @@ model Pitch {
   hourlyRate         Decimal     @db.Decimal(10, 2)
   /// Shirts are always free; the inventory says which colours there are.
   hasShirts          Boolean     @default(false)
+  /// The pitch's own week (E10-10), within the venue's hours; null follows the venue.
+  workingHours       Json?
+  /// Soft delete (E10-05): hidden everywhere, kept for its bookings and reviews.
+  deletedAt          DateTime?
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 

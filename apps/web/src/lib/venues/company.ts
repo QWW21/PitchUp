@@ -16,7 +16,7 @@ export async function getCompanyDetail(
     where: { id, status: 'ACTIVE' },
     include: {
       pitches: {
-        where: { isActive: true },
+        where: { isActive: true, deletedAt: null },
         orderBy: { name: 'asc' },
         include: { photos: { orderBy: { order: 'asc' }, take: 1, select: { url: true } } },
       },

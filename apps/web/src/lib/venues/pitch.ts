@@ -16,7 +16,7 @@ const RECENT_REVIEWS = 3
  */
 export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
   const pitch = await prisma.pitch.findFirst({
-    where: { id, company: { status: 'ACTIVE' } },
+    where: { id, deletedAt: null, company: { status: 'ACTIVE' } },
     include: {
       company: {
         select: { id: true, name: true, logoUrl: true, status: true, workingHours: true },
@@ -72,7 +72,7 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
       logoUrl: pitch.company.logoUrl,
       isVerified: pitch.company.status === 'ACTIVE',
     },
-    workingHours: normalizeWeek(pitch.company.workingHours),
+    workingHours: normalizeWeek(pitch.workingHours ?? pitch.company.workingHours),
     isBookable: pitch.isActive,
   }
 }

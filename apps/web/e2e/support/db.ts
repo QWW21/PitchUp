@@ -98,6 +98,35 @@ export async function createManager(email: string, password = 'Testing123'): Pro
 }
 
 /**
+ * A venue manager with an approved company and no pitches (E10): open
+ * 08:00–23:00, closed on Sundays.
+ */
+export async function createVenue(email: string, name: string) {
+  const userId = await createManager(email)
+  const company = await db.company.create({
+    data: {
+      ownerId: userId,
+      name,
+      status: 'ACTIVE',
+      phone: '+40712000444',
+      email,
+      addressLine1: 'Str. Testului 1',
+      city: 'Cluj-Napoca',
+      county: 'Cluj',
+      postalCode: '400001',
+      workingHours: [0, 1, 2, 3, 4, 5, 6].map(day => ({
+        day,
+        openTime: '08:00',
+        closeTime: '23:00',
+        isClosed: day === 0,
+      })),
+    },
+    select: { id: true },
+  })
+  return { userId, companyId: company.id }
+}
+
+/**
  * A booking written directly, `startsIn` hours from now and two hours long,
  * for states the API cannot produce on demand (finished, a no-show, soon).
  * Paid with a test payment unless it is PENDING or `paid: false`.

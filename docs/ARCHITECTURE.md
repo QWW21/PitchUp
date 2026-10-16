@@ -1111,28 +1111,94 @@ idempotency and locks around refunds.
 
 ---
 
+## 22. Managing what you sell: pitches (E10)
+
+E10 gives managers the editor for their pitches: details, photos,
+amenities, price, shirts, hours and blocked days.
+
+### Ownership through the parent
+
+A pitch has no owner field; its company does. Every pitch endpoint finds
+the pitch _within the manager's company_ (`ownedPitch(companyId, id)`), so
+another venue's pitch is simply not found. Checking ownership through the
+parent record keeps one source of truth: if a company changed hands, every
+pitch would follow without touching them. Answering 404 rather than 403
+also avoids telling a stranger that the id exists.
+
+### Soft delete
+
+Deleting a pitch sets `deletedAt` instead of removing the row. Bookings
+and reviews point at it; a hard delete would either fail (foreign keys) or
+take a venue's history with it. The cost of a soft delete is that every
+read has to remember `deletedAt: null`. That is why the player-facing reads
+share a few functions (pitch detail, availability, company page) rather
+than each writing its own query. Deleting is also refused while bookings
+are still to be played: there must be nobody left holding a booking for a
+pitch that no longer exists.
+
+### Ordered lists: positions, gaps and races
+
+Photos have an `order`. Three things make that harder than it looks:
+
+- **Reordering sends the whole list** of ids in the new order, applied in
+  one transaction, so a failure leaves the old order intact. If the list
+  the client sends doesn't match what is stored (a photo was deleted in
+  another tab), the server refuses with `OUT_OF_SYNC` rather than guessing.
+- **Deleting closes the gap**, so orders stay 0…n-1 and "the first photo is
+  the cover" stays true.
+- **Ten uploads finishing at once** would all count nine photos and all
+  take order 9. A short lock per pitch (`pg_advisory_xact_lock`) makes them
+  queue, the same technique as booking a slot (§16). The test fires ten
+  uploads in parallel to prove it.
+
+### Rules that depend on other rules
+
+A pitch's hours must sit inside its venue's. The rule is checked when the
+manager saves (with a clear message per day), but the venue's hours can
+change later. So availability does not trust the saved pitch hours alone:
+it **intersects** them with the venue's (`intersectIntervals`). Validating
+on write and still enforcing on read is cheap insurance when one record's
+validity depends on another that can change.
+
+### Forms that know they are dirty
+
+Each tab compares its current values with what was loaded or last saved
+(`useEditorForm`). That one comparison drives the "Unsaved changes" text,
+the dot on the tab and whether Save is enabled. Deriving it, rather than
+setting a flag on every change, means undoing an edit by hand clears it
+too.
+
+**What to learn:** authorisation through parent records; 403 vs 404 for
+resources you don't own; soft delete and its read-side cost; ordering with
+position columns, atomic reorders and optimistic concurrency checks;
+serialising concurrent writers with advisory locks; validating on write
+and enforcing on read; derived "dirty" state in forms; native drag and
+drop with a keyboard alternative.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
 
-| Item                 | State                                                                   |
-| -------------------- | ----------------------------------------------------------------------- |
-| Rate limiting        | In-memory; resets on restart, per-instance                              |
-| Edge middleware      | Cookie presence only; the page is the real gate                         |
-| Integration env vars | Optional until their epic                                               |
-| Cloudinary           | Signing verified against the algorithm; no live upload tested           |
-| Schema changes       | `prisma db push`, not versioned migrations (see §14)                    |
-| Social login         | Placeholder until OAuth credentials exist                               |
-| Mobile app           | Built, typechecked and unit-tested; not yet run on a device             |
-| Mobile colours       | Spec palette; not yet checked for WCAG contrast                         |
-| Stripe               | Unit-tested with fakes; never run against a real account                |
-| Booking completion   | Settled lazily on read until the E11 scheduled job exists               |
-| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15           |
-| Manager dashboard    | Overview, Bookings (minimal), Reviews, Settings (payments); rest "Soon" |
-| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11       |
-| Venue approval       | A minimal admin page; the full admin panel is E15                       |
-| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)            |
-| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist          |
+| Item                 | State                                                                                              |
+| -------------------- | -------------------------------------------------------------------------------------------------- |
+| Rate limiting        | In-memory; resets on restart, per-instance                                                         |
+| Edge middleware      | Cookie presence only; the page is the real gate                                                    |
+| Integration env vars | Optional until their epic                                                                          |
+| Cloudinary           | Signing verified against the algorithm; no live upload tested                                      |
+| Schema changes       | `prisma db push`, not versioned migrations (see §14)                                               |
+| Social login         | Placeholder until OAuth credentials exist                                                          |
+| Mobile app           | Built, typechecked and unit-tested; not yet run on a device                                        |
+| Mobile colours       | Spec palette; not yet checked for WCAG contrast                                                    |
+| Stripe               | Unit-tested with fakes; never run against a real account                                           |
+| Booking completion   | Settled lazily on read until the E11 scheduled job exists                                          |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15                                      |
+| Manager dashboard    | Overview, Bookings (minimal), Pitches, Reviews, Settings (payments); Calendar and Analytics "Soon" |
+| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11                                  |
+| Venue approval       | A minimal admin page; the full admin panel is E15                                                  |
+| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)                                       |
+| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist                                     |
 
 ---
 

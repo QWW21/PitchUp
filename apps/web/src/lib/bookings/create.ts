@@ -74,7 +74,9 @@ export async function createBooking(
     }),
   ])
   if (!user || user.deletedAt) throw unauthorized()
-  if (!pitch || pitch.company.status !== 'ACTIVE') throw notFound('Pitch not found')
+  if (!pitch || pitch.deletedAt || pitch.company.status !== 'ACTIVE') {
+    throw notFound('Pitch not found')
+  }
   if (!pitch.isActive) throw forbidden('This pitch is not taking bookings', 'PITCH_INACTIVE')
   if (!trustTier(user.trustScore).canBook) {
     throw forbidden('Your account cannot make bookings right now', 'TRUST_SCORE_TOO_LOW')
@@ -115,6 +117,7 @@ export async function createBooking(
     isActive: pitch.isActive,
     advanceBookingDays: pitch.advanceBookingDays,
     week: normalizeWeek(pitch.company.workingHours),
+    pitchWeek: pitch.workingHours ? normalizeWeek(pitch.workingHours) : null,
   }
   const intervals = dayIntervals(
     schedule,

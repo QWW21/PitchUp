@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E09 (Manager: Onboarding & Dashboard)
-and the product changes C-6, C-7 and C-8.
+Last updated at the end of the session that implemented E10 (Manager: Pitches & Pricing),
+after E09 and the product changes C-6, C-7 and C-8.
 
 ## Done
 
@@ -280,10 +280,48 @@ admin panel is E15.
   for the pin to follow the address. A server-side `GOOGLE_MAPS_API_KEY`
   (optional) geocodes when the manager saves without a pin.
 
+**E10 — Manager: Pitches & Pricing: ten tickets done (web and API).**
+
+| Ticket                           | State                                                            |
+| -------------------------------- | ---------------------------------------------------------------- |
+| E10-01 create / edit basic info  | done, verified — starts inactive; usual dimensions filled in     |
+| E10-02 photos                    | done, verified — 10 max, reorder together, gaps closed on delete |
+| E10-03 amenities + pricing       | done, verified — one hourly rate (C-2), booking limits           |
+| E10-04 shirts + hours + blocked  | done, verified — sets per colour (C-1); hours inside the venue's |
+| E10-05 status, delete, list      | done, verified — on needs a photo and a price; soft delete       |
+| E10-06 pitch list page           | done, verified in a browser — sort, switch, delete, empty state  |
+| E10-07 basic info, photos, amen. | done, verified in a browser — upload needs Cloudinary keys       |
+| E10-08 pricing tab               | done, verified in a browser — live price preview                 |
+| E10-09 shirts tab                | done, verified in a browser                                      |
+| E10-10 availability tab          | done, verified in a browser — venue-closed days locked           |
+
+New endpoints: `POST /pitches`, `PUT`/`DELETE /pitches/:id`,
+`PATCH /pitches/:id/status`, `POST /pitches/:id/photos`,
+`PUT /pitches/:id/photos/reorder`, `DELETE /pitches/:id/photos/:photoId`,
+`PUT /pitches/:id/amenities`, `PUT /pitches/:id/pricing`,
+`PUT /pitches/:id/shirts`, `PUT /pitches/:id/availability` (the GET stays
+the public slots), `POST /pitches/:id/exceptions`,
+`DELETE /pitches/:id/exceptions/:exceptionId`, `GET /manager/pitches` and
+`GET /manager/pitches/:id`. The upload signer accepts `PITCH` for the
+pitch's own manager.
+
+Schema: `Pitch.workingHours` (the pitch's own week; null follows the venue)
+and `Pitch.deletedAt`. Availability uses the pitch's hours cut to the
+venue's, so a venue that later shortens its hours can't leave a pitch open
+outside them. Deleted pitches are gone from every player-facing read.
+
+**Pages:** `/manager/pitches` and `/manager/pitches/:id/edit/{basic-info,
+photos,amenities,pricing,shirts,availability}`. Pitches in the sidebar is
+live.
+
+**To add real photos** the Cloudinary keys must be in `apps/web/.env`
+(they are on your machine); without them the Photos tab says so and the
+rest works.
+
 ## Next
 
-**E10 — Manager: Pitches & Pricing.** The dashboard already shows Pitches as
-"Soon". C-6, C-7 and C-8 are done (see "Product changes after E05 testing").
+**E11 — Manager: Calendar & Bookings.** The minimal Bookings page from C-8
+(confirm attended, report no-show) is the starting point.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -675,6 +713,32 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Validation errors are 400**, like the rest of the API.
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
+
+### E10 — Pitches & Pricing
+
+- **Pricing follows C-2**: one hourly rate. The shortest booking is 1 or
+  2 hours and the longest 2, 3 or 4 (whole hours, as the booking model
+  stores them); the ticket's 1.5 hours and "no limit" are not offered (4
+  hours is the app-wide maximum).
+- **Shirts follow C-1**: a "Lend shirts" switch and sets per colour, no
+  price. Fewer sets than upcoming bookings were promised is **409**
+  `SHIRTS_PROMISED` (not 412) with the booking ids; `force: true` saves
+  anyway, and the tab offers that.
+- **A pitch needs a price as well as a photo to be switched on** (the
+  ticket allowed 0 RON; that would break payments). A new pitch is created
+  at 0 RON, inactive.
+- **Another venue's pitch is a 404**, not the ticket's 403, like bookings.
+- **Photos reorder by drag and drop (native HTML) or with "Move
+  earlier/later" buttons** for keyboards; no `@dnd-kit` dependency.
+  Uploads show a status per file rather than a progress bar (`fetch` has no
+  upload progress).
+- **Blocked dates can't be added over bookings** (409 with the booking
+  ids); there is no `force`, because managers can't cancel bookings until
+  E11.
+- **Pitches of a venue awaiting approval** can be created through the API
+  (the ticket's pre-setup); the dashboard itself opens after approval, and
+  pitches do not switch on by themselves.
+- **The unsaved-changes dot** shows on the open tab only.
 
 ### C-6, C-7, C-8
 

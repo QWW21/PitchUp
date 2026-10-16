@@ -1,11 +1,18 @@
 /**
  * GET /api/v1/pitches/:id/availability?date=YYYY-MM-DD — E04-03. Public.
  * 30-minute slots in venue time: available, booked, or past (earlier today).
+ *
+ * PUT — E10-04: the pitch's own week, inside the venue's hours (400
+ * OUTSIDE_VENUE_HOURS with the days that don't fit). The venue's manager only.
  */
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { err, ok, withErrorHandling } from '@/lib/api/response'
+import { PitchHoursSchema } from '@pitchup/shared'
+import { validateBody } from '@/lib/api/validate'
 import { getAvailability } from '@/lib/venues/availability'
+import { setHours } from '@/lib/manager/pitches'
+import { pitchRoute } from '@/lib/manager/pitch-route'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,3 +40,9 @@ export const GET = withErrorHandling(
     return response
   }
 )
+
+export const PUT = pitchRoute(async (request, company, { id }) => {
+  const body = await validateBody(request, PitchHoursSchema)
+  if (body.error) return body.error
+  return ok(await setHours(company.id, id!, body.data))
+})

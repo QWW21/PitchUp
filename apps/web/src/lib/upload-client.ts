@@ -8,6 +8,15 @@ export async function uploadToCloudinary(
   ownerId: string,
   file: File
 ): Promise<string> {
+  return (await uploadImageFile(context, ownerId, file)).url
+}
+
+/** The same, also returning Cloudinary's public id (pitch photos keep it, E10-02). */
+export async function uploadImageFile(
+  context: 'REVIEW' | 'USER' | 'COMPANY' | 'PITCH',
+  ownerId: string,
+  file: File
+): Promise<{ url: string; publicId: string }> {
   const signRes = await fetch('/api/v1/upload/sign', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -27,5 +36,5 @@ export async function uploadToCloudinary(
   })
   const body = await up.json().catch(() => null)
   if (!up.ok || !body?.secure_url) throw new Error('Photo upload failed')
-  return body.secure_url as string
+  return { url: body.secure_url as string, publicId: body.public_id as string }
 }
