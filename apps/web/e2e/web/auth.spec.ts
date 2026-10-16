@@ -68,6 +68,30 @@ test.describe('login', () => {
     await snap(page, info, AREA, '04-player-lands-on-discover')
   })
 
+  test('"Sign in" in the top bar takes a manager to the dashboard, a player to Discover', async ({
+    page,
+  }) => {
+    // The top bar used to send everyone back to /discover, managers included.
+    await page.goto('/discover?city=Cluj-Napoca')
+    await page.getByRole('link', { name: 'Sign in' }).click()
+    await loginWithForm(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    // A manager browsing Discover can get back to the dashboard from the menu.
+    await page.goto('/discover?city=Cluj-Napoca')
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await page.getByRole('menuitem', { name: 'Dashboard' }).click()
+    await expect(page).toHaveURL(/\/dashboard$/)
+
+    await page.context().clearCookies()
+    await page.goto('/discover?city=Cluj-Napoca')
+    await page.getByRole('link', { name: 'Sign in' }).click()
+    await loginWithForm(page, 'player@demo.ro', 'Player1234!')
+    await expect(page).toHaveURL(/\/discover/)
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await expect(page.getByRole('menuitem', { name: 'Dashboard' })).toHaveCount(0)
+  })
+
   test('callbackUrl returns to the page that asked', async ({ page }) => {
     await page.goto('/login?callbackUrl=%2Fdiscover%3Fcity%3DIa%C8%99i')
     await loginWithForm(page, 'manager@demo.ro', 'Manager1234!')

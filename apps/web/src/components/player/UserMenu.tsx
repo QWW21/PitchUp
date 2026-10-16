@@ -6,10 +6,12 @@ import { ChevronDown } from 'lucide-react'
 
 interface UserMenuProps {
   name: string
+  /** Managers and admins also get a way back to their dashboard. */
+  isManager?: boolean
   signOutAction: () => Promise<void>
 }
 
-export function UserMenu({ name, signOutAction }: UserMenuProps) {
+export function UserMenu({ name, isManager = false, signOutAction }: UserMenuProps) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -56,6 +58,15 @@ export function UserMenu({ name, signOutAction }: UserMenuProps) {
           className="absolute right-0 mt-2 w-48 overflow-hidden rounded-lg border border-neutral-200 bg-white py-1 shadow-lg"
         >
           <p className="truncate px-4 py-2 text-xs text-neutral-500">{name}</p>
+          {isManager && (
+            <Link
+              role="menuitem"
+              href="/dashboard"
+              className="block px-4 py-2 text-sm font-medium hover:bg-neutral-50"
+            >
+              Dashboard
+            </Link>
+          )}
           <Link
             role="menuitem"
             href="/profile"
