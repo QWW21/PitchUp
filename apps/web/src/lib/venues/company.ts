@@ -32,12 +32,13 @@ export async function getCompanyDetail(
     description: company.description,
     logoUrl: company.logoUrl,
     websiteUrl: company.websiteUrl,
-    // The column is required, but an empty value is "no phone", not a number to dial.
-    phone: company.phone.trim() || null,
-    email: company.email,
-    addressLine1: company.addressLine1,
+    // An empty value is "no phone", not a number to dial.
+    phone: company.phone?.trim() || null,
+    // Public pages show ACTIVE venues only, which onboarding filled in.
+    email: company.email ?? '',
+    addressLine1: company.addressLine1 ?? '',
     addressLine2: company.addressLine2,
-    city: company.city,
+    city: company.city ?? '',
     country: company.country,
     postalCode: company.postalCode,
     lat: company.lat,

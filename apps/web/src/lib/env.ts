@@ -34,6 +34,9 @@ export const env = createEnv({
     // E01-10 — image uploads
     CLOUDINARY_API_KEY: optionalUntilIntegrated(z.string().min(1)),
     CLOUDINARY_API_SECRET: optionalUntilIntegrated(z.string().min(1)),
+    // Server-side geocoding for venue addresses (E09-02). Optional: the
+    // onboarding map geocodes in the browser with the public key.
+    GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
 
     // E02-09 — transactional email
     RESEND_API_KEY: optionalUntilIntegrated(z.string().startsWith('re_')),
@@ -75,6 +78,7 @@ export const env = createEnv({
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+    GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,

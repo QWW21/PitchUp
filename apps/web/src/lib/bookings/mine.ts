@@ -304,8 +304,9 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     company: {
       id: b.pitch.company.id,
       name: b.pitch.company.name,
-      address: b.pitch.company.addressLine1,
-      city: b.pitch.company.city,
+      // Bookable venues are ACTIVE, so these are filled (E09 onboarding).
+      address: b.pitch.company.addressLine1 ?? '',
+      city: b.pitch.company.city ?? '',
       logoUrl: b.pitch.company.logoUrl,
       phone: b.pitch.company.phone,
     },

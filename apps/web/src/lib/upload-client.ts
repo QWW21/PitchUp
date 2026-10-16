@@ -1,10 +1,10 @@
 /**
  * Uploading an image from the browser: ask our API for a signature, then
- * send the file straight to Cloudinary. Review photos (E06) and profile
- * photos (E08) both use it. Returns the image's https URL.
+ * send the file straight to Cloudinary. Review photos (E06), profile photos
+ * (E08) and company logos (E09) use it. Returns the image's https URL.
  */
 export async function uploadToCloudinary(
-  context: 'REVIEW' | 'USER',
+  context: 'REVIEW' | 'USER' | 'COMPANY',
   ownerId: string,
   file: File
 ): Promise<string> {

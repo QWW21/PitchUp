@@ -144,8 +144,9 @@ export async function listCompanies(
       id: c.id,
       name: c.name,
       logoUrl: c.logoUrl,
-      city: c.city,
-      address: c.addressLine1,
+      // Discover lists ACTIVE venues only, which always have these.
+      city: c.city ?? '',
+      address: c.addressLine1 ?? '',
       lat: c.lat,
       lng: c.lng,
       avgRating,

@@ -56,8 +56,8 @@ test.describe('login', () => {
   test('a manager signs in to the dashboard', async ({ page }, info) => {
     await page.goto('/login')
     await loginWithForm(page, 'manager@demo.ro', 'Manager1234!')
-    await expect(page).toHaveURL(/\/dashboard$/)
-    await expect(page.getByText('Signed in as manager@demo.ro')).toBeVisible()
+    await expect(page).toHaveURL(/\/manager\/overview$/)
+    await expect(page.getByText('Demo Sports Club').first()).toBeVisible()
     await snap(page, info, AREA, '03-dashboard')
   })
 
@@ -75,13 +75,13 @@ test.describe('login', () => {
     await page.goto('/discover?city=Cluj-Napoca')
     await page.getByRole('link', { name: 'Sign in' }).click()
     await loginWithForm(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/manager\/overview$/)
 
     // A manager browsing Discover can get back to the dashboard from the menu.
     await page.goto('/discover?city=Cluj-Napoca')
     await page.getByRole('button', { name: /Account menu/ }).click()
     await page.getByRole('menuitem', { name: 'Dashboard' }).click()
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/manager\/overview$/)
 
     await page.context().clearCookies()
     await page.goto('/discover?city=Cluj-Napoca')
@@ -101,15 +101,15 @@ test.describe('login', () => {
   test('callbackUrl cannot send the user to another site (#172)', async ({ page }) => {
     await page.goto('/login?callbackUrl=%2F%2Fexample.com')
     await loginWithForm(page, 'manager@demo.ro', 'Manager1234!')
-    await expect(page).toHaveURL(/localhost:\d+\/dashboard$/)
+    await expect(page).toHaveURL(/localhost:\d+\/manager\/overview$/)
   })
 
   test('signed-in visitors skip /login and /', async ({ page }) => {
     await signIn(page, 'manager@demo.ro', 'Manager1234!')
     await page.goto('/login')
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/manager\/overview$/)
     await page.goto('/')
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/manager\/overview$/)
   })
 
   test('the login page fits a phone', async ({ page }, info) => {
@@ -130,10 +130,11 @@ test.describe('sign out and protected pages', () => {
 
   test('sign out from the dashboard', async ({ page }) => {
     await signIn(page, 'manager@demo.ro', 'Manager1234!')
-    await page.goto('/dashboard')
-    await page.getByRole('button', { name: 'Sign out' }).click()
+    await page.goto('/manager/overview')
+    await page.getByRole('button', { name: /Account menu/ }).click()
+    await page.getByRole('menuitem', { name: 'Sign out' }).click()
     await expect(page).toHaveURL(/\/login$/)
-    await page.goto('/dashboard')
+    await page.goto('/manager/overview')
     await expect(page).toHaveURL(/\/login\?callbackUrl/)
   })
 
@@ -196,7 +197,8 @@ test.describe('manager registration', () => {
     await expect(page.locator('input[name="email"]')).toHaveValue(email)
     await fill(page, 'password', 'Testing123')
     await page.getByRole('button', { name: 'Sign in' }).click()
-    await expect(page).toHaveURL(/\/dashboard$/)
+    // A new manager has no venue yet: onboarding starts (E09).
+    await expect(page).toHaveURL(/\/onboarding\/step\/1$/)
   })
 
   test('registration fits a phone', async ({ page }, info) => {
@@ -263,7 +265,7 @@ test.describe('password reset', () => {
     await loginWithForm(page, email, 'Testing123')
     await expect(formAlert(page)).toHaveText('Incorrect email or password.')
     await loginWithForm(page, email, 'Changed123')
-    await expect(page).toHaveURL(/\/dashboard$/)
+    await expect(page).toHaveURL(/\/onboarding\/step\/1$/)
   })
 
   test('a reset signs out a browser that was already signed in (#176)', async ({
@@ -277,7 +279,7 @@ test.describe('password reset', () => {
     await db.user.update({ where: { email }, data: { emailVerified: true } })
     await signIn(page, email, 'Testing123')
     await page.goto('/dashboard')
-    await expect(page.getByText(`Signed in as ${email}`)).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Tell players about your venue' })).toBeVisible()
 
     const token = await createResetToken(email)
     await request.post('/api/v1/auth/reset-password', { data: { token, password: 'Changed123' } })

@@ -204,12 +204,12 @@ test.describe("the manager's reviews page (E07-09)", () => {
 
     await signIn(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
     await page.goto('/dashboard')
-    await expect(page.getByText(/waiting for a reply|Every review has a reply/)).toBeVisible()
+    await expect(page.getByText('Revenue today')).toBeVisible()
     await page
-      .getByRole('navigation', { name: 'Dashboard' })
+      .getByRole('navigation', { name: 'Manager' })
       .getByRole('link', { name: 'Reviews' })
       .click()
-    await expect(page).toHaveURL(/\/dashboard\/reviews$/)
+    await expect(page).toHaveURL(/\/manager\/reviews$/)
 
     await page.getByRole('searchbox', { name: 'Search by player name' }).fill('replytest')
     await expect(page).toHaveURL(/q=replytest/)
@@ -255,7 +255,7 @@ test.describe("the manager's reviews page (E07-09)", () => {
     const author = await newPlayer(null)
     await seedReview(author, { rating: 1, text: 'Lowest of the low for this test.' })
     await signIn(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
-    await page.goto('/dashboard/reviews')
+    await page.goto('/manager/reviews')
     await page
       .getByRole('group', { name: 'Sort' })
       .getByRole('button', { name: 'Lowest rated' })
@@ -279,12 +279,12 @@ test.describe("the manager's reviews page (E07-09)", () => {
 
   test('players are sent to Discover; phones fit', async ({ page }, info) => {
     await newPlayer(page)
-    await page.goto('/dashboard/reviews')
+    await page.goto('/manager/reviews')
     await expect(page).toHaveURL(/\/discover/)
 
     await signIn(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
     await page.setViewportSize(PHONE)
-    await page.goto('/dashboard/reviews')
+    await page.goto('/manager/reviews')
     await expect(page.getByRole('heading', { name: 'Reviews' })).toBeVisible()
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth

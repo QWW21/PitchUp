@@ -21,7 +21,10 @@ enum Role {
   ADMIN
 }
 
+/// DRAFT while the manager onboards (E09), PENDING once submitted for an
+/// admin's approval, ACTIVE when approved. Only ACTIVE venues are public.
 enum CompanyStatus {
+  DRAFT
   PENDING
   ACTIVE
   SUSPENDED
@@ -118,6 +121,11 @@ enum NotificationType {
   MANAGER_REPLIED
   /// To admins: someone reported a review (E07-04).
   REVIEW_REPORTED
+  /// To admins: a venue finished onboarding and waits for approval (E09).
+  COMPANY_SUBMITTED
+  /// To the manager: their venue was approved, or sent back (E09).
+  COMPANY_APPROVED
+  COMPANY_REJECTED
   OTP
   PASSWORD_RESET
 }
@@ -187,11 +195,16 @@ model Company {
   description          String?
   logoUrl              String?
   websiteUrl           String?
-  phone                String
-  email                String
-  addressLine1         String
+  facebookUrl          String?
+  instagramUrl         String?
+  /// Contact and address are filled in steps 2 and 3 of onboarding (E09),
+  /// so a DRAFT company may not have them yet. ACTIVE ones always do.
+  phone                String?
+  email                String?
+  addressLine1         String?
   addressLine2         String?
-  city                 String
+  city                 String?
+  county               String?
   country              String        @default("RO")
   postalCode           String?
   lat                  Float?
@@ -201,7 +214,12 @@ model Company {
   /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
   stripeChargesEnabled Boolean       @default(false)
   stripePayoutsEnabled Boolean       @default(false)
-  status               CompanyStatus @default(PENDING)
+  status               CompanyStatus @default(DRAFT)
+  /// When the manager finished onboarding, and when an admin decided.
+  submittedAt          DateTime?
+  reviewedAt           DateTime?
+  /// Why an admin sent it back; cleared when resubmitted.
+  rejectionReason      String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 

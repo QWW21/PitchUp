@@ -82,6 +82,20 @@ export const POST = withErrorHandling(
       }
     }
 
+    // A company's logo and photos: its own manager only. During onboarding the
+    // logo comes before the company exists, so the manager's own id is
+    // accepted while they have no company yet (E09-06).
+    if (context === 'COMPANY') {
+      const company = await prisma.company.findUnique({
+        where: { ownerId: session.user.id },
+        select: { id: true },
+      })
+      const allowed = company ? ownerId === company.id : ownerId === session.user.id
+      if (session.user.role !== 'MANAGER' || !allowed) {
+        return err('FORBIDDEN', 'Cannot upload for this company', 403)
+      }
+    }
+
     try {
       const folder = buildFolder(context as UploadContext, ownerId)
       return ok(createUploadSignature(folder, publicId))

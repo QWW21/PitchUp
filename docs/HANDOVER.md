@@ -1,6 +1,6 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E08 (Player: Profile & Account).
+Last updated at the end of the session that implemented E09 (Manager: Onboarding & Dashboard).
 
 ## Done
 
@@ -186,10 +186,9 @@ Schema: `ReviewReport` (one per person per review) with its
 The reply stays on the review row (`managerReply`, `managerRepliedAt`),
 which makes "one reply per review" automatic. Applied with `prisma db push`.
 
-**The manager area starts here.** `/dashboard` now has a layout (header,
-Overview and Reviews links, sign out) that redirects players to Discover;
-E09 grows it into the full dashboard. Players reach My reviews from the
-account menu (web) and from My Bookings (mobile). E08 added the profile.
+**The manager area started here** with a Reviews page; E09 moved it to
+`/manager/reviews` inside the manager shell. Players reach My reviews from
+the account menu (web) and from My Bookings (mobile). E08 added the profile.
 
 **E08 — Player: Profile & Account: nine tickets implemented, push blocked on Firebase.**
 
@@ -232,15 +231,64 @@ in `apps/mobile/src/lib/push.ts` (the comment there lists the five lines
 that wire Firebase in), and `notificationTarget()` in `@pitchup/shared`,
 used by both the push handler and the in-app list. Sending pushes is E13.
 
+**E09 — Manager: Onboarding & Dashboard: ten tickets done, plus a minimal admin approval page.**
+
+| Ticket                       | State                                                                    |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| E09-01 `POST/PUT /company`   | done, verified — one company per manager, created as DRAFT               |
+| E09-02 location + geocoding  | done, verified — pin from the browser; server geocodes only with a key   |
+| E09-03 contact and hours     | done, verified — same hours format as Discover; overnight allowed        |
+| E09-04 Stripe Connect        | done, verified in test mode — Express account, link, return check        |
+| E09-05 status + guard        | done, verified — step derived from the data; no skipping ahead           |
+| E09-06 step 1 page           | done, verified in a browser — counters, optional logo upload             |
+| E09-07 step 2 page           | done, verified in a browser — draggable pin when a Maps key is set       |
+| E09-08 step 3 page           | done, verified in a browser — Closed switch, copy Monday's hours         |
+| E09-09 step 4 + under review | done, verified in a browser                                              |
+| E09-10 dashboard shell       | done, verified in a browser — sidebar, bell, account menu, today's stats |
+
+New endpoints: `POST/PUT /onboarding/company`, `PUT /onboarding/location`,
+`PUT /onboarding/contact-hours`, `POST /onboarding/stripe-connect`,
+`GET /onboarding/stripe-connect/return`, `GET /onboarding/status`,
+`GET /manager/stats/today`, `GET /admin/companies`,
+`POST /admin/companies/:id/approve` and `/reject`.
+
+Schema: `CompanyStatus` gained `DRAFT` (the new default); Company gained
+`facebookUrl`, `instagramUrl`, `county`, `submittedAt`, `reviewedAt` and
+`rejectionReason`; phone, email, address and city are now optional (a
+draft has none yet); three notification types for submitted, approved and
+sent back. Applied with `prisma db push`.
+
+**Pages:** `/onboarding/step/1..4`, `/onboarding/pending`,
+`/manager/overview`, `/manager/reviews`, `/manager/suspended`,
+`/admin/companies`. `/dashboard` now only redirects by role (manager to the
+overview or onboarding, player to Discover, admin to approvals), so old
+links keep working.
+
+**Approval (decided with the owner):** a minimal `/admin/companies` page
+lists submitted venues with Approve and "Send back…" (a reason the manager
+sees on every onboarding step). Both email the manager and add a
+notification. Admins get a notification when a venue is submitted. The full
+admin panel is E15.
+
+**To try it with real services** (optional; everything works without them):
+
+- Stripe Connect: in the Stripe sandbox, open Connect and finish its setup
+  once. With the test keys in `apps/web/.env`, step 4 opens Stripe's hosted
+  form; use the test values Stripe shows there.
+- Maps: the browser key needs the **Geocoding API** enabled in Google Cloud
+  for the pin to follow the address. A server-side `GOOGLE_MAPS_API_KEY`
+  (optional) geocodes when the manager saves without a pin.
+
 ## Next
 
-**E09 — Manager: Onboarding & Dashboard** (#81–#90): company creation in
-four steps (info and logo, location with geocoding, contact and hours,
-Stripe Connect), the onboarding status guard, and the dashboard layout.
-Already in place: `/dashboard` has a layout (E07) to grow into the sidebar
-of E09-10; `/dashboard/reviews` exists; company and pitch data and the
-Discover pages read `Company.status`, so a new company stays hidden until
-it is ACTIVE. Stripe Connect needs a Stripe account, like payments.
+**The product changes filed during E08 testing**, in the owner's order:
+C-7 #201 (the "no shirts" option in the teams step), C-6 #200 (time picker:
+start plus duration, half-hour steps), C-8 #202 (pay at the venue: the
+venue's choice of online, online or at the venue, or at the venue only; a
+deposit of 0–50%, default 20%, for players with trust 70+; commission from
+the deposit; and a minimal manager Bookings page to confirm attendance or
+report a no-show). Then **E10 — Manager: Pitches & Pricing**: the dashboard
+already shows Pitches as "Soon".
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -579,6 +627,29 @@ E04:
   yet** (`apps/mobile/src/lib/links.ts`).
 - **The mobile city choice is a list on Edit profile**, not the Discover city
   sheet, which is tied to Discover's own city.
+
+### E09 — Onboarding & Dashboard
+
+- **Manager pages are `/manager/*`**, not `/dashboard/*` (the owner's call);
+  `/dashboard` redirects by role.
+- **The access guard is in the layouts and API routes, not the edge
+  middleware**, which cannot read the database. The middleware only checks
+  for a session cookie on `/manager` and `/onboarding`.
+- **Hours keep the existing format** (`[{day, openTime, closeTime,
+isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
+  rather than the ticket's new shape. A closing time before the opening time
+  means closing after midnight.
+- **The logo is optional**; uploads need Cloudinary, and a venue may not
+  have a logo yet.
+- **Coordinates are optional.** Geocoding happens in the browser; the server
+  geocodes only with its own key. A venue without coordinates is listed but
+  not on the map.
+- **Approval is a minimal admin page** (agreed), not the E15 panel.
+- **Sections not built yet (Calendar, Bookings, Pitches, Analytics,
+  Settings) show as "Soon"** in the sidebar instead of dead links.
+- **Validation errors are 400**, like the rest of the API.
+- **Seeded venues have no Stripe account**; anything not in DRAFT counts as
+  past the payouts step.
 
 ## Known gaps
 

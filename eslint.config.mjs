@@ -11,6 +11,7 @@ export default tseslint.config(
     ignores: [
       '**/node_modules/**',
       '**/.next/**',
+      '**/.next-*/**',
       '**/dist/**',
       '**/build/**',
       '**/.turbo/**',

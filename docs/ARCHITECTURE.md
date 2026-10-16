@@ -973,6 +973,80 @@ dependencies in React Native.
 
 ---
 
+## 20. Letting businesses in: onboarding and approval (E09)
+
+E09 lets a venue manager create their company in four steps, has an admin
+approve it, and gives approved managers a dashboard.
+
+### A state machine, written down
+
+A company is `DRAFT` while the manager fills it in, `PENDING` once submitted,
+`ACTIVE` once an admin approves it, and `SUSPENDED` if it is taken down. An
+admin who sends it back moves it to `DRAFT` again, with a
+`rejectionReason`. Every rule hangs off that one field: Discover shows only
+`ACTIVE` venues, the dashboard needs `ACTIVE`, onboarding pages may be edited
+only in `DRAFT` or `PENDING`, and an approve or reject on anything but
+`PENDING` is refused (409 `NOT_PENDING`). Writing the states and allowed
+moves down first, and checking the current state before every move, is what
+stops two admins approving the same venue or a manager editing a live venue
+through an old onboarding page.
+
+### Wizards: save each step, derive where the user is
+
+Each step saves on "Next", so closing the browser loses nothing. The server
+does not store "current step"; it **derives** it from what is filled in
+(`onboardingStatus`): name present means step 1 is done, an address means
+step 2, and so on. Derived state cannot get out of sync with the data. The
+same function guards the pages, so a manager who types `/onboarding/step/3`
+before finishing step 1 is sent back to step 1.
+
+### Where to put an access check
+
+Next's edge middleware runs before every request but cannot reach the
+database, so it only checks for a session cookie. The real checks ("is this
+a manager, and is their venue approved?") are in the layouts and API routes,
+which can read the database. The middleware is a fast first filter; the
+server code is the gate. The admin page checks the role again in the page
+itself, because layouts and pages render in parallel and a layout's redirect
+does not stop the page's data from loading.
+
+### Payments to someone else: Stripe Connect
+
+The venue, not PitchUp, receives the money. Stripe Connect gives each venue
+its own **connected account**; Stripe hosts the identity and bank checks
+(KYC), and PitchUp only stores the account id. The manager is sent to a
+Stripe page through a one-time **account link**, returns to
+`/api/v1/onboarding/stripe-connect/return`, and the server asks Stripe
+whether the details were submitted before moving the venue to `PENDING`.
+The return URL is never trusted on its own: anyone can open it. Without
+Stripe keys (local and E2E runs) a test account is used, as with test
+payments in §16.
+
+### Geocoding: the browser finds, the person confirms
+
+An address becomes coordinates by **geocoding**. The pin map geocodes in the
+browser while the manager types (debounced, so one request per pause, not
+per key) and lets them drag the pin, because geocoders are often a few
+hundred metres off and only the manager knows where the gate is. The server
+geocodes only as a fallback, and only if it has its own key; coordinates
+stay optional, so a missing key never blocks onboarding.
+
+### Numbers for one day, in the venue's timezone
+
+The overview's numbers (revenue, bookings, occupancy, no-shows) are
+computed with a few aggregate queries over a time range in the venue's
+timezone, not by loading every booking. "Today" is a range in Bucharest
+time turned into UTC (§17's venue clock), and every number is compared with
+the same weekday last week, which is a fairer comparison than yesterday.
+
+**What to learn:** finite state machines for business entities; derived vs
+stored state; defence in depth (edge filter, server gate); marketplace
+payments (Stripe Connect, connected accounts, KYC, account links);
+geocoding and its accuracy; debouncing; aggregate queries and timezone-aware
+date ranges.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -990,7 +1064,8 @@ Honest inventory, so none of it is mistaken for finished:
 | Stripe               | Unit-tested with fakes; never run against a real account       |
 | Booking completion   | Settled lazily on read until the E11 scheduled job exists      |
 | Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15  |
-| Manager dashboard    | A header and the Reviews page; the full dashboard is E09       |
+| Manager dashboard    | Overview and Reviews; other sections show "Soon" (E10–E12)     |
+| Venue approval       | A minimal admin page; the full admin panel is E15              |
 | Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)   |
 | Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist |
 

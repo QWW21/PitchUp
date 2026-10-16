@@ -9,8 +9,16 @@
 import AxeBuilder from '@axe-core/playwright'
 import { expect, test, type Page } from '@playwright/test'
 import { addDays, venueClock } from '@pitchup/shared'
-import { createPlayer, createResetToken, db, seedBooking, uniqueEmail, venue } from '../support/db'
-import { PHONE, resetRateLimits, signIn } from '../support/helpers'
+import {
+  createManager,
+  createPlayer,
+  createResetToken,
+  db,
+  seedBooking,
+  uniqueEmail,
+  venue,
+} from '../support/db'
+import { PHONE, resetRateLimits, signIn, signOut } from '../support/helpers'
 
 const CLUJ = '/discover?city=Cluj-Napoca'
 
@@ -80,10 +88,50 @@ test.describe('auth pages', () => {
 })
 
 test.describe('manager pages', () => {
-  test('/dashboard', async ({ page }) => {
+  test('the overview', async ({ page }) => {
     await signIn(page, 'manager@demo.ro', 'Manager1234!')
-    await page.goto('/dashboard')
+    await page.goto('/manager/overview')
+    await expect(page.getByText('Revenue today')).toBeVisible()
     await audit(page)
+  })
+
+  test('onboarding steps 1–4, under review, and the admin approvals', async ({ page }) => {
+    const email = uniqueEmail('a11y-onb')
+    const id = await createManager(email)
+    await signIn(page, email, 'Testing123')
+    await page.goto('/onboarding/step/1')
+    // The empty form's errors are part of what is checked.
+    await page.getByRole('button', { name: 'Next: location' }).click()
+    await expect(page.getByText('Enter the company name')).toBeVisible()
+    await audit(page)
+    await page.getByLabel('Company name').fill(`A11y Arena ${Date.now().toString(36)}`)
+    await page.getByRole('button', { name: 'Next: location' }).click()
+    await expect(page).toHaveURL(/step\/2$/)
+    await audit(page)
+    await page.getByLabel('Address', { exact: true }).fill('Str. Sportului 1')
+    await page.getByLabel('City').selectOption('Cluj-Napoca')
+    await page.getByLabel('Postal code').fill('400001')
+    await page.getByLabel('County').fill('Cluj')
+    await page.getByRole('button', { name: 'Next: contact & hours' }).click()
+    await expect(page).toHaveURL(/step\/3$/)
+    await audit(page)
+    await page.getByLabel('Phone').fill('+40712000333')
+    await page.getByLabel('Email').fill('hello@a11y-arena.ro')
+    await page.getByRole('button', { name: 'Next: payouts' }).click()
+    await expect(page).toHaveURL(/step\/4$/)
+    await audit(page)
+    await page.getByRole('button', { name: 'Connect with Stripe' }).click()
+    await expect(page).toHaveURL(/pending$/)
+    await audit(page)
+
+    await signOut(page)
+    await signIn(page, 'admin@pitchup.ro', process.env.ADMIN_PASSWORD || 'Admin1234!')
+    await page.goto('/admin/companies')
+    await audit(page)
+    await page.getByRole('button', { name: 'Send back…' }).first().click()
+    await expect(page.getByRole('dialog')).toBeVisible()
+    await audit(page)
+    await db.company.delete({ where: { ownerId: id } })
   })
 })
 
@@ -286,7 +334,7 @@ test.describe('reviews (E07)', () => {
     await audit(page)
 
     await signIn(page, 'venue-gheorgheni@demo.ro', 'Player1234!')
-    await page.goto('/dashboard/reviews')
+    await page.goto('/manager/reviews')
     await expect(page.getByRole('heading', { name: 'Reviews' })).toBeVisible()
     await page.getByRole('button', { name: 'Reply to this review' }).first().click()
     await audit(page)

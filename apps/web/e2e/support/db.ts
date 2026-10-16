@@ -81,6 +81,22 @@ export async function createPlayer(email: string, password = 'Testing123'): Prom
   })
 }
 
+/** A verified venue manager with no company yet: where onboarding starts (E09). */
+export async function createManager(email: string, password = 'Testing123'): Promise<string> {
+  const user = await db.user.create({
+    data: {
+      email,
+      phone: uniquePhone(),
+      passwordHash: await bcrypt.hash(password, 4),
+      name: 'New Manager',
+      role: 'MANAGER',
+      emailVerified: true,
+    },
+    select: { id: true },
+  })
+  return user.id
+}
+
 /**
  * A booking written directly, `startsIn` hours from now and two hours long,
  * for states the API cannot produce on demand (finished, a no-show, soon).
