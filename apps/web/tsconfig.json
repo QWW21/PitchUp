@@ -9,23 +9,17 @@
     "incremental": true,
     "allowJs": true,
     "noEmit": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
+    "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next-e2e/types/**/*.ts",
-    ".next-prod/types/**/*.ts",
-    ".next-turbo/types/**/*.ts",
     ".next/types/**/*.ts",
-    "next-env.d.ts",
+    ".next-e2e/types/**/*.ts",
     ".next-preview/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
