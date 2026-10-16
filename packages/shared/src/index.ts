@@ -15,6 +15,7 @@ export * from './pitch-manage'
 export * from './manager-bookings'
 export * from './trust-engine'
 export * from './venue-settings'
+export * from './analytics'
 
 export * from './constants/auth'
 export * from './constants/booking'

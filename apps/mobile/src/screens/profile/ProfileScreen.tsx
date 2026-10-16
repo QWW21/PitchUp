@@ -182,6 +182,11 @@ export function ProfileScreen({ navigation }: Props) {
               label="Venue bookings"
               onPress={() => navigation.navigate('ManagerBookings')}
             />
+            <Item
+              icon="chart-bar"
+              label="Analytics"
+              onPress={() => navigation.navigate('ManagerAnalytics')}
+            />
           </Section>
         ) : null}
         <Section title="Legal">

@@ -43,7 +43,9 @@ import { NotificationsScreen } from './src/screens/notifications/NotificationsSc
 import { NotificationSettingsScreen } from './src/screens/profile/NotificationSettingsScreen'
 import { ManagerBookingsScreen } from './src/screens/manager/ManagerBookingsScreen'
 import { ManagerBookingDetailScreen } from './src/screens/manager/ManagerBookingDetailScreen'
-import type { BookingTab } from '@pitchup/shared'
+import type { AnalyticsPeriod, BookingTab } from '@pitchup/shared'
+import { ManagerAnalyticsScreen } from './src/screens/manager/ManagerAnalyticsScreen'
+import { ManagerPitchPerformanceScreen } from './src/screens/manager/ManagerPitchPerformanceScreen'
 
 // ---------------------------------------------------------------------------
 // Navigation param types — exported so screen files can import them without
@@ -98,6 +100,9 @@ export type AppStackParamList = {
   /** E11-09. A venue manager's bookings, opened from Profile. */
   ManagerBookings: undefined
   ManagerBookingDetail: { id: string }
+  /** E14-10. The venue's analytics, opened from Profile. */
+  ManagerAnalytics: undefined
+  ManagerPitchPerformance: { period: AnalyticsPeriod }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -146,6 +151,8 @@ function AppNavigator() {
       <AppStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <AppStack.Screen name="ManagerBookings" component={ManagerBookingsScreen} />
       <AppStack.Screen name="ManagerBookingDetail" component={ManagerBookingDetailScreen} />
+      <AppStack.Screen name="ManagerAnalytics" component={ManagerAnalyticsScreen} />
+      <AppStack.Screen name="ManagerPitchPerformance" component={ManagerPitchPerformanceScreen} />
     </AppStack.Navigator>
   )
 }

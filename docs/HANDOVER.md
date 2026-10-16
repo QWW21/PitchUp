@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E13 (Notifications)
-and the product changes C-9 to C-13, after E09–E12 and C-6 to C-8.
+Last updated at the end of the session that implemented E14 (Analytics),
+after E09–E13 and the product changes C-6 to C-13.
 
 ## Done
 
@@ -373,6 +373,32 @@ monthly recovery (+1 in a month with nothing negative). New endpoints:
 
 Schema: `Pitch.minTrustScore`, `NoShow.resolution`.
 
+**E14 — Analytics: nine tickets done, the mobile one built.**
+
+| Ticket                      | State                                                                    |
+| --------------------------- | ------------------------------------------------------------------------ |
+| E14-01 revenue series       | done, verified — day, week or month, every bucket present                |
+| E14-02 occupancy heatmap    | done, verified — booked over open time, venue hours, closed hours `null` |
+| E14-03 per-pitch table      | done, verified — revenue, bookings, occupancy, rates, rating             |
+| E14-04 KPI summary          | done, verified — five figures against the same length before             |
+| E14-05 CSV export           | done, verified — 10,000 rows at most, `X-Truncated`, formulas defused    |
+| E14-06 dashboard + cards    | done, verified in a browser — period and pitch in the URL                |
+| E14-07 revenue chart        | done, verified in a browser — SVG, legend toggles, a table view          |
+| E14-08 heatmap              | done, verified in a browser                                              |
+| E14-09 pitch table + export | done, verified in a browser — sortable, CSV download                     |
+| E14-10 mobile analytics     | **built** — Profile → Analytics, awaiting mobile testing                 |
+
+**What revenue means** (decided 2026-10-17): what the venue earned. The full
+price of games played (COMPLETED, or CONFIRMED once started), whether paid
+online or at the venue; plus what it kept from late cancellations and
+no-shows; less refunds. PitchUp's 8% is taken from that. Everything is in the
+venue's days and hours (Europe/Bucharest), and periods end now.
+
+New endpoints: `GET /manager/analytics/{revenue,occupancy,pitches,summary,export}`,
+all with `period` (7d, 30d, 90d, 12m) and, except pitches, `pitchId`. Page:
+`/manager/analytics` (the sidebar's Analytics is live). Rules in
+`packages/shared/src/analytics.ts`, figures in `apps/web/src/lib/manager/analytics.ts`.
+
 **E13 — Notifications: eight tickets done, the two mobile ones built.**
 
 | Ticket                             | State                                                                  |
@@ -417,9 +443,9 @@ instead of sending, and the inbox works regardless.
 
 ## Next
 
-**E14 — Analytics** (#131–#140): the manager's revenue, occupancy heatmap,
-per-pitch performance and KPI cards, with CSV export, on web and mobile.
-Pay-at-venue commission (C-8) is recorded and would show here.
+**E15 — Admin Panel** (#141–#150): companies, users, disputes and reviews,
+platform stats and config, replacing the minimal admin pages. Decided: admins
+may adjust a player's trust score with a reason; no manager score.
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -848,6 +874,32 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Validation errors are 400**, like the rest of the API.
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
+
+### E14 — Analytics
+
+- **Venue time, not UTC.** The tickets aggregate in UTC with `DATE_TRUNC`;
+  that would put a 22:00 game on the next day for half the year. Figures are
+  worked out in JavaScript in the venue's days and hours instead (one pass
+  over the period's bookings and opening hours).
+- **Occupancy is booked over open time**, from each pitch's real hours and
+  closures, rather than a count over a guessed number of slots. Hours never
+  open are `null` (hatched on the heatmap), so "closed" and "empty" differ;
+  rows show the hours anyone was open, Monday first.
+- **The server fills the gaps** in the revenue series; the tickets left it
+  to the client.
+- **No Recharts** (web) and **no react-native-svg** (mobile): the web chart
+  is a small SVG with a table view, the phone's bars are plain Views, so no
+  new dependency and no new native module.
+- **RON, not pence or £.** Amounts are in RON with bani, as stored.
+- **The dashboard renders on the server** from the URL, like the bookings
+  list, rather than four client queries. No skeletons: a `loading.tsx` made
+  Next 15.5 answer the filters' navigation with an empty response, so the
+  filters show "Updating…" and wait instead.
+- **Rates as % change**, as the tickets have them; a period with nothing
+  before it shows "No earlier data".
+- **The CSV has no trust score** (managers don't see it, PRD §9.1), a BOM
+  for Excel, and cells starting with `= + - @` prefixed so they aren't run
+  as formulas.
 
 ### E13 — Notifications
 

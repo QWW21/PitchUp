@@ -50,7 +50,10 @@ const SECTIONS: { title?: string; items: Item[] }[] = [
       { label: 'Reviews', icon: Star, href: '/manager/reviews' },
     ],
   },
-  { title: 'Business', items: [{ label: 'Analytics', icon: BarChart3 }] },
+  {
+    title: 'Business',
+    items: [{ label: 'Analytics', icon: BarChart3, href: '/manager/analytics' }],
+  },
   { title: 'Account', items: [{ label: 'Settings', icon: Settings, href: '/manager/settings' }] },
 ]
 
@@ -61,6 +64,7 @@ const TITLES: Record<string, string> = {
   '/manager/settings': 'Settings',
   '/manager/pitches': 'Pitches',
   '/manager/bookings/calendar': 'Calendar',
+  '/manager/analytics': 'Analytics',
 }
 
 /** The section a path belongs to: /manager/pitches/abc/edit is under Pitches. */

@@ -30,7 +30,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the trust engine (E12: deltas, tiers, replaying a history, late-cancel
   windows, the booking gate); where a notification leads and what can be
   muted (E13); refund policies and answering a booking request (C-10,
-  C-13); push over FCM with a really signed JWT against a fake Google
+  C-13); analytics (E14: periods, buckets, what a booking earned, CSV
+  escaping); push over FCM with a really signed JWT against a fake Google
   (E13-02); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
@@ -43,7 +44,8 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   notifications) and push routing, the manager's venue bookings (E11-09:
   filters, opening one, a no-show asked about first), notification
   settings (E13-09: channels, muting a group, no phone, a failed save),
-  accepting and declining a booking (C-12, C-13), and
+  accepting and declining a booking (C-12, C-13), venue analytics (E14-10:
+  the cards, period chips, bars, pitch performance), and
   exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
@@ -79,7 +81,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   sweep), the venue's rules (C-9 … C-13: the 12-hour trust window, a
   booking keeping its refund policy, new-booking notices, the manager
   cancelling and declining, requests held, accepted, withdrawn and expired,
-  venue details approved again), and the E01
+  venue details approved again), analytics against known bookings (E14:
+  revenue by bucket and pitch, the heatmap's booked-over-open cells and
+  closed hours, the cards against the previous period, the pitch table,
+  the CSV), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -102,7 +107,9 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the player told why, and deciding a dispute (E12), the notification bell
   and the notification settings page (E13), the Settings tabs, accepting
   and declining a booking and the admin's comparison of venue changes
-  (C-10 … C-13), at 1280px and 375px.
+  (C-10 … C-13), the analytics dashboard (E14: cards, URL filters, chart
+  legend and table, sorting, the CSV download, an empty venue), at 1280px
+  and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

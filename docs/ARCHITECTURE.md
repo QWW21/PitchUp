@@ -1396,6 +1396,48 @@ draft/live separation and review workflows.
 
 ---
 
+## 27. Numbers a manager can trust: analytics (E14)
+
+### Decide what a number means before computing it
+
+"Revenue" sounds obvious until a booking is paid at the venue, cancelled
+late with 25% kept, or ends in a no-show. The owner decided: what the venue
+earned, online or not, less refunds. That rule lives in one pure function
+(`bookingEarned`) used by the chart, the cards, the table and the CSV, so
+they always agree. Most analytics bugs are definitional, not arithmetic.
+
+### Time zones decide which day a sale belongs to
+
+Grouping by `DATE_TRUNC` in UTC puts a 22:00 game in Bucharest on the next
+day for half the year. The dashboard works in the venue's local days and
+hours instead. When the database can't easily do that, doing it in code over
+a modest set of rows is fine; it only needs moving into SQL once a venue has
+far more bookings than a dashboard reads.
+
+### A rate needs the right denominator
+
+Occupancy is booked time over _open_ time, from each pitch's real hours and
+closures. Counting bookings over an assumed number of slots would show a
+pitch closed on Sundays as "0% busy" on Sundays. And a cell that was never
+open is `null`, not 0: "closed" and "empty" are different answers.
+
+### Compare like with like
+
+Each card compares with the same length of time just before. With nothing
+before, the change is unknown (`null`), not +100% or infinity.
+
+### A chart is also a table
+
+The SVG chart has a "Show as a table" view and a text label, and the heatmap
+cells carry their figure for screen readers. A chart without its numbers is
+inaccessible and, often, less useful.
+
+**What to learn:** metric definitions; time zones in reporting; denominators
+and survivorship in rates; period-over-period comparison; CSV injection;
+accessible data visualisation.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:

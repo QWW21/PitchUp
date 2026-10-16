@@ -2,6 +2,10 @@
  * A venue manager's bookings — E11-09. The same API as the web dashboard.
  */
 import type {
+  AnalyticsPeriod,
+  AnalyticsRevenue,
+  AnalyticsSummary,
+  PitchPerformanceRow,
   BookingStatus,
   ManagerBooking,
   ManagerBookingDetail,
@@ -43,6 +47,22 @@ export const managerApi = {
       method: 'POST',
       url: `/manager/bookings/${id}/complete`,
       data: {},
+    }),
+  /** E14-10: the venue's analytics, as on the web dashboard. */
+  analyticsSummary: (period: AnalyticsPeriod) =>
+    apiRequest<AnalyticsSummary>({
+      method: 'GET',
+      url: `/manager/analytics/summary?period=${period}`,
+    }),
+  analyticsRevenue: (period: AnalyticsPeriod) =>
+    apiRequest<AnalyticsRevenue>({
+      method: 'GET',
+      url: `/manager/analytics/revenue?period=${period}`,
+    }),
+  analyticsPitches: (period: AnalyticsPeriod) =>
+    apiRequest<PitchPerformanceRow[]>({
+      method: 'GET',
+      url: `/manager/analytics/pitches?period=${period}`,
     }),
   /** C-13: accept a booking that waits for the venue. */
   accept: (id: string) =>
