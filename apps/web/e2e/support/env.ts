@@ -4,6 +4,8 @@
  */
 export const E2E_PORT = Number(process.env.E2E_PORT ?? 3100)
 export const E2E_BASE_URL = `http://localhost:${E2E_PORT}`
+/** The E2E build's own folder, never the `.next` that `pnpm dev` serves. */
+export const E2E_DIST_DIR = '.next-e2e'
 export const E2E_DATABASE_URL =
   process.env.E2E_DATABASE_URL ??
   'postgresql://postgres:password@localhost:5432/pitchup_test?schema=public'

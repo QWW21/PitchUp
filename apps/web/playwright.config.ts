@@ -10,7 +10,7 @@
  * database, recreated and seeded first by e2e/prepare-db.ts.
  */
 import { defineConfig, devices } from '@playwright/test'
-import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_PORT } from './e2e/support/env'
+import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_DIST_DIR, E2E_PORT } from './e2e/support/env'
 
 const build = process.env.E2E_SKIP_BUILD ? '' : 'pnpm exec next build && '
 
@@ -58,7 +58,7 @@ export default defineConfig({
       ALLOW_TEST_HOOKS: '1',
       // Its own build folder: a build here must never overwrite the `.next`
       // that a running `pnpm dev` serves from (it did, and broke it).
-      NEXT_DIST_DIR: '.next-e2e',
+      NEXT_DIST_DIR: E2E_DIST_DIR,
       // The tests use the built-in fakes (test payments, emails and SMS in the
       // log, no uploads), whatever real keys a developer has in .env. Next
       // keeps variables that are already set, so blanks here win over .env.

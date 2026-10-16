@@ -12,7 +12,7 @@ import { expect, test } from '@playwright/test'
 import bcrypt from 'bcryptjs'
 import { get } from '../support/api'
 import { db } from '../support/db'
-import { E2E_DATABASE_URL } from '../support/env'
+import { E2E_DATABASE_URL, E2E_DIST_DIR } from '../support/env'
 import { resetRateLimits } from '../support/helpers'
 
 const WEB_ROOT = join(__dirname, '..', '..')
@@ -143,7 +143,7 @@ test.describe('client bundle', () => {
   }
 
   test('carries no server secret (E01-05)', () => {
-    const staticDir = join(WEB_ROOT, '.next', 'static')
+    const staticDir = join(WEB_ROOT, E2E_DIST_DIR, 'static')
     expect(existsSync(staticDir), 'run after `next build`').toBe(true)
     const secrets = serverSecrets()
     expect(secrets.length).toBeGreaterThan(2)
