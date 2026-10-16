@@ -1,18 +1,32 @@
 /**
- * Cancellation windows and refund percentages. PRD §9.2.
+ * Cancellation rules. Hours are measured from "now" to the booking's start.
  *
- * Hours are measured from "now" to the booking's start time.
- * A company may configure a stricter policy, never a looser one.
+ * Refunds are each venue's own policy (C-10): a full refund up to
+ * `fullRefundHours` before kick-off, `partialRefundPercent` up to
+ * `partialRefundHours`, nothing after. A booking keeps the policy it was made
+ * under. This is the default a new venue starts with.
+ *
+ * The trust penalty for cancelling late is the same everywhere (C-9), so a
+ * score means the same thing at every venue.
  */
-export const CANCELLATION_WINDOWS = {
-  /** At or beyond this many hours before start: full refund. */
-  FULL_REFUND_HOURS: 24,
-  /** At or beyond this many hours before start (but under FULL): partial refund. */
-  PARTIAL_REFUND_HOURS: 2,
+export interface RefundPolicy {
+  fullRefundHours: number
+  partialRefundHours: number
+  partialRefundPercent: number
+}
+
+export const DEFAULT_REFUND_POLICY: RefundPolicy = {
+  fullRefundHours: 12,
+  partialRefundHours: 2,
+  partialRefundPercent: 75,
+}
+
+/** The limits a venue's policy must stay within. */
+export const REFUND_POLICY_LIMITS = {
+  /** A week: longer would hold a player's money hostage for too long. */
+  MAX_FULL_REFUND_HOURS: 168,
 } as const
 
-export const REFUND_PERCENTAGES = {
-  FULL: 100,
-  PARTIAL: 50,
-  NONE: 0,
-} as const
+/** Under this many hours: −5 (LATE_CANCEL). Under VERY_LATE: −10 instead. */
+export const TRUST_LATE_CANCEL_HOURS = 12
+export const TRUST_VERY_LATE_CANCEL_HOURS = 2

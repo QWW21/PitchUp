@@ -27,9 +27,17 @@ interface Values {
 }
 type Field = 'addressLine1' | 'addressLine2' | 'city' | 'county' | 'postalCode'
 
-export function LocationForm({ existing }: { existing: Values }) {
+/** In Settings (`inSettings`, C-13) it proposes a change for an admin to approve. */
+export function LocationForm({
+  existing,
+  inSettings = false,
+}: {
+  existing: Values
+  inSettings?: boolean
+}) {
   const router = useRouter()
   const [v, setV] = useState(existing)
+  const [sent, setSent] = useState(false)
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -56,6 +64,13 @@ export function LocationForm({ existing }: { existing: Values }) {
     setErrors({})
     setBusy(true)
     try {
+      if (inSettings) {
+        await send('/api/v1/manager/venue/location', 'PUT', parsed.data)
+        setSent(true)
+        setBusy(false)
+        router.refresh()
+        return
+      }
       await send('/api/v1/onboarding/location', 'PUT', parsed.data)
       router.push('/onboarding/step/3')
     } catch (caught) {
@@ -136,20 +151,27 @@ export function LocationForm({ existing }: { existing: Values }) {
       />
 
       {error && <Alert>{error}</Alert>}
+      {sent && (
+        <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
+          Sent to PitchUp for approval. Your page shows the current details until then.
+        </p>
+      )}
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => router.push('/onboarding/step/1')}
-          className="h-12 rounded-md border border-neutral-200 px-5 font-semibold text-neutral-900 hover:bg-neutral-50"
-        >
-          Back
-        </button>
+        {!inSettings && (
+          <button
+            type="button"
+            onClick={() => router.push('/onboarding/step/1')}
+            className="h-12 rounded-md border border-neutral-200 px-5 font-semibold text-neutral-900 hover:bg-neutral-50"
+          >
+            Back
+          </button>
+        )}
         <button
           type="submit"
           disabled={busy}
           className="h-12 flex-1 rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          {busy ? 'Saving…' : 'Next: contact & hours'}
+          {busy ? 'Saving…' : inSettings ? 'Send for approval' : 'Next: contact & hours'}
         </button>
       </div>
     </form>

@@ -31,6 +31,9 @@ const row = (over: Partial<ManagerBooking> = {}): ManagerBooking => ({
   canConfirmAttended: false,
   canReportNoShow: false,
   canComplete: false,
+  canAccept: false,
+  approvalDeadline: null,
+  canCancel: false,
   ...over,
 })
 
@@ -132,5 +135,43 @@ describe('Venue booking detail (E11-09)', () => {
     const buttons = alert.mock.calls[0]![2] as { text: string; onPress?: () => void }[]
     buttons.find(b => b.text === 'Confirm')!.onPress!()
     await waitFor(() => expect(api.noShow).toHaveBeenCalledWith('b1'))
+  })
+})
+
+describe('Answering a booking (C-12, C-13)', () => {
+  const waiting = () =>
+    detail({
+      status: 'AWAITING_APPROVAL',
+      canAccept: true,
+      canCancel: true,
+      approvalDeadline: '2026-11-03T10:00:00Z',
+    })
+
+  it('accepts a booking that waits for the venue', async () => {
+    api.booking.mockResolvedValue(waiting())
+    api.accept.mockResolvedValue(row())
+    show(ManagerBookingDetailScreen, { id: 'b1' })
+    expect(await screen.findByText('Needs your answer')).toBeOnTheScreen()
+    fireEvent.press(screen.getByText('Accept booking'))
+    await waitFor(() => expect(api.accept).toHaveBeenCalledWith('b1'))
+  })
+
+  it('declines only with a reason for the player', async () => {
+    api.booking.mockResolvedValue(waiting())
+    api.cancel.mockResolvedValue(row({ status: 'CANCELLED' }))
+    show(ManagerBookingDetailScreen, { id: 'b1' })
+    fireEvent.press(await screen.findByText('Decline'))
+    fireEvent.press(screen.getByText('Decline and refund'))
+    expect(api.cancel).not.toHaveBeenCalled()
+    fireEvent.changeText(screen.getByLabelText('Reason for the player'), 'The pitch is flooded')
+    fireEvent.press(screen.getByText('Decline and refund'))
+    await waitFor(() => expect(api.cancel).toHaveBeenCalledWith('b1', 'The pitch is flooded'))
+  })
+
+  it('cancels a confirmed booking the same way', async () => {
+    api.booking.mockResolvedValue(detail({ canCancel: true }))
+    show(ManagerBookingDetailScreen, { id: 'b1' })
+    fireEvent.press(await screen.findByText('Cancel booking'))
+    expect(screen.getByText('Cancel this booking?')).toBeOnTheScreen()
   })
 })

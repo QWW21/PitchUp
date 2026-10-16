@@ -210,8 +210,8 @@ test.describe('the detail (E06-02)', () => {
 
 test.describe('cancelling (E06-03)', () => {
   for (const [label, hours, percent, amount] of [
-    ['more than 24 hours ahead: all of it back', 48, 100, 360],
-    ['between 2 and 24 hours: half back', 5, 50, 180],
+    ['12 hours or more ahead: all of it back (C-10)', 13, 100, 360],
+    ['between 2 and 12 hours: 75% back', 5, 75, 270],
     ['under 2 hours: nothing back', 1, 0, 0],
   ] as const) {
     test(label, async () => {

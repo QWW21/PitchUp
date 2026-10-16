@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E13 (Notifications),
-after E09–E12 and the product changes C-6, C-7 and C-8.
+Last updated at the end of the session that implemented E13 (Notifications)
+and the product changes C-9 to C-13, after E09–E12 and C-6 to C-8.
 
 ## Done
 
@@ -578,6 +578,43 @@ UPDATE "Pitch" SET "hourlyRate" = "offPeakRate";
 ALTER TABLE "Pitch" ALTER COLUMN "hourlyRate" SET NOT NULL;
 ```
 
+### Product changes after E13 testing (milestone E17, C-9 … C-13)
+
+- **C-9 Late cancellation costs trust from 12 hours**, not 24: −5 under 12
+  hours before kick-off, −10 under 2. The same at every venue.
+- **C-10 Each venue's refund policy.** Default: everything back from 12
+  hours before kick-off, 75% from 2 hours, nothing after. A manager sets the
+  hours and the percentage in Settings; a booking keeps a copy of the policy
+  it was made under (`Booking.refundPolicy`; none means the default).
+  Shown on the pitch page, at checkout and on the booking.
+- **C-11 The manager hears of every booking** (`BOOKING_RECEIVED`), in-app,
+  by email, and by push once Firebase is set up. Muteable ("New bookings",
+  shown to managers only).
+- **C-12 The manager can cancel or decline** a booking, with a reason the
+  player reads: everything paid online back, no trust lost.
+- **C-13 Settings and approving by hand.** Settings has three tabs:
+  Bookings and payments (approve automatically, the default, or each by
+  hand; the refund policy; how players pay), Venue details (the onboarding
+  forms) and Your account (links to the manager's own profile pages).
+  - Approving by hand: a paid booking is `AWAITING_APPROVAL`, holding the
+    slot; Accept confirms it, Decline refunds it. Unanswered, the hourly job
+    declines and refunds it 24 hours after payment or 2 hours before
+    kick-off, whichever is first (by kick-off for bookings made later). The
+    player may withdraw a waiting request with everything back.
+  - Venue details are approved again: a change is a proposal
+    (`Company.pendingChanges`) that an admin approves or turns down on
+    `/admin/companies`; the live page keeps the approved details meanwhile.
+    The manager can withdraw it.
+
+New endpoints: `POST /manager/bookings/:id/accept`, `POST
+/manager/bookings/:id/cancel`, `GET/PUT /manager/settings/bookings`, `GET/DELETE
+/manager/venue`, `PUT /manager/venue/{info,location,contact-hours}`, `GET
+/admin/venue-changes`, `POST /admin/venue-changes/:companyId/{approve,reject}`.
+Schema: `BookingStatus.AWAITING_APPROVAL`, three notification types,
+`Company.autoApproveBookings`, `refundFullHours`, `refundPartialHours`,
+`refundPartialPercent`, `pendingChanges`, `changesSubmittedAt`,
+`changesRejectionReason`, `Booking.refundPolicy`, `Booking.approvalDeadline`.
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.
@@ -1019,8 +1056,13 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   existing rows. Before any deployment holds real bookings, switch to
   `prisma migrate` so each change is a reviewed SQL file (ARCHITECTURE §14).
 - `PROFILE_VERIFIED`, a manager trust score, and `ADMIN_ADJUSTMENT` appear
-  in later tickets but are not in the PRD or the schema. Flagged in place
-  on E12 and E15; each needs a call before that epic starts.
+  in later tickets but are not in the PRD or the schema. **Decided for E15
+  (2026-10-17):** admins may adjust a player's score with a reason
+  (`ADMIN_ADJUSTMENT`, in the history like any event); no manager score for
+  now, admins see the venue's facts instead. `PROFILE_VERIFIED` stays
+  dropped (E12).
+- **E14 revenue (decided 2026-10-17):** the full value of played bookings,
+  online and paid at the venue, with the split shown, less refunds.
 - **Players who sign in on the web go to `/discover`**, not `/dashboard`.
   E02-13 sends every login to `/dashboard`, which is the manager area and has
   nothing for a player. The dashboard now redirects players; managers and

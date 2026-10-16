@@ -17,7 +17,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
 import { CardField, useStripe } from '@stripe/stripe-react-native'
 import {
-  CANCELLATION_WINDOWS,
   PAYMENT_METHOD_LABELS,
   bookingPrice,
   describePayment,
@@ -25,6 +24,9 @@ import {
   formatDateLong,
   formatDuration,
   freeCancellationUntil,
+  partialRefundUntil,
+  describeRefundPolicy,
+  DEFAULT_REFUND_POLICY,
   shirtSetsFor,
   toMinutes,
   venueClock,
@@ -89,10 +91,10 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
   const sets = shirtSetsFor(s.teamCount, s.wantsShirts)
   const players = s.players.slice(0, s.teamCount).reduce((a, b) => a + b, 0)
   const start = venueTimeToUtc(s.date!, toMinutes(s.startTime!))
-  const freeUntil = freeCancellationUntil(start)
-  const halfUntil = new Date(
-    start.getTime() - CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS * 3_600_000
-  )
+  // C-10: the venue's own policy, which the booking keeps.
+  const policy = options.data?.refundPolicy ?? DEFAULT_REFUND_POLICY
+  const freeUntil = freeCancellationUntil(start, policy)
+  const partUntil = partialRefundUntil(start, policy)
 
   const fail = (message: string) => {
     show(message)
@@ -234,11 +236,13 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
           <Text style={styles.policyText}>
             {freeUntil.getTime() > Date.now()
               ? `Free cancellation until ${venueLabel(freeUntil)}.`
-              : halfUntil.getTime() > Date.now()
-                ? `Cancelling now refunds 50%, until ${venueLabel(halfUntil)}.`
+              : partUntil.getTime() > Date.now() && policy.partialRefundPercent > 0
+                ? `Cancelling now refunds ${policy.partialRefundPercent}%, until ${venueLabel(partUntil)}.`
                 : 'This booking starts soon: cancelling it will not be refunded.'}{' '}
-            50% back until {CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS} hours before kick-off,
-            nothing after that.
+            {describeRefundPolicy(policy)}
+            {options.data?.autoApproveBookings === false
+              ? ' This venue confirms each booking: you pay now, and get it all back if they decline.'
+              : ''}
           </Text>
         </View>
 

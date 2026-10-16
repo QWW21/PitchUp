@@ -12,6 +12,8 @@
  *   The venue keeps whatever was paid online, and the player loses 20 trust
  *   points. The player may dispute it (E06-04). Reporting twice is a no-op.
  * - Mark complete (E11-05): a confirmed booking that has ended.
+ * - Accept or decline a request, or cancel a booking (C-12, C-13): see
+ *   lib/bookings/approval.ts.
  *
  * The actions run inside the pitch's lock, like booking and cancelling, so a
  * double click cannot refund twice or report and confirm the same booking.
@@ -49,6 +51,7 @@ import { chargedOnline } from '@/lib/bookings/charged'
 import { liveBookingWhere } from '@/lib/bookings/live'
 import { recordStatus } from '@/lib/bookings/status'
 import { applyTrustEvent } from '@/lib/trust/apply'
+import { acceptBooking, cancelForVenue } from '@/lib/bookings/approval'
 import { managerCompany } from '@/lib/onboarding/company'
 import { dayIntervals, exceptionDates, loadSchedule, slotsFor } from '@/lib/venues/availability'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
@@ -88,6 +91,7 @@ const rowSelect = {
   depositAmount: true,
   dueAtVenue: true,
   attendedAt: true,
+  approvalDeadline: true,
   noShow: { select: { id: true } },
   pitch: { select: { id: true, name: true } },
   player: { select: { name: true } },
@@ -102,6 +106,12 @@ const mayReportNoShow = (b: Row, now: Date) =>
   PLAYED.includes(b.status) && isWithinNoShowWindow(b.startTime, now) && !b.attendedAt && !b.noShow
 
 const mayComplete = (b: Row, now: Date) => b.status === 'CONFIRMED' && b.endTime <= now
+
+const mayAccept = (b: Row, now: Date) =>
+  b.status === 'AWAITING_APPROVAL' && (!b.approvalDeadline || b.approvalDeadline > now)
+
+const mayCancel = (b: Row, now: Date) =>
+  mayAccept(b, now) || (b.status === 'CONFIRMED' && b.startTime > now)
 
 function venueTimes(start: Date, end: Date) {
   const s = venueClock(start)
@@ -129,6 +139,10 @@ function toRow(b: Row, colours: Map<string, string>, now: Date): ManagerBooking 
     canConfirmAttended: mayConfirm(b, now),
     canReportNoShow: mayReportNoShow(b, now),
     canComplete: mayComplete(b, now),
+    canAccept: mayAccept(b, now),
+    approvalDeadline:
+      b.status === 'AWAITING_APPROVAL' ? (b.approvalDeadline?.toISOString() ?? null) : null,
+    canCancel: mayCancel(b, now),
   }
 }
 
@@ -370,7 +384,11 @@ function timeline(b: {
   }
   add('PENDING', b.createdAt)
   // Paid, or played: a cancelled checkout that was never paid was never confirmed.
-  if (b.paidAt || PLAYED.includes(b.status) || b.status === 'NO_SHOW') {
+  // Paid at a venue that confirms by hand: confirmed later, if at all (C-13).
+  if (
+    (b.paidAt || PLAYED.includes(b.status) || b.status === 'NO_SHOW') &&
+    !known.has('AWAITING_APPROVAL')
+  ) {
     add('CONFIRMED', b.paidAt ?? b.createdAt)
   }
   if (recorded.length) return [...steps, ...recorded]
@@ -550,6 +568,27 @@ export async function completeBooking(
   })
   // A tier change may have been noted.
   deliverSoon([await playerOf(bookingId)])
+  return one(companyId, bookingId, now)
+}
+
+/** C-13: the manager accepts a booking that waits for them. */
+export async function acceptRequest(
+  companyId: string,
+  bookingId: string,
+  now: Date = new Date()
+): Promise<ManagerBooking> {
+  await acceptBooking(companyId, bookingId, now)
+  return one(companyId, bookingId, now)
+}
+
+/** C-12 / C-13: the manager declines a request or cancels a booking, saying why. */
+export async function cancelByVenue(
+  companyId: string,
+  bookingId: string,
+  reason: string,
+  now: Date = new Date()
+): Promise<ManagerBooking> {
+  await cancelForVenue(bookingId, { by: 'MANAGER', reason, companyId }, now)
   return one(companyId, bookingId, now)
 }
 

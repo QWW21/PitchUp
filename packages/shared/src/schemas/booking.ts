@@ -267,6 +267,10 @@ export interface BookingDetail extends BookingConfirmation {
   statusHistory: { status: BookingStatus; at: string }[]
   /** Null when the booking can no longer be cancelled (started, or already final). */
   cancellation: { refundPercent: number; refundAmount: number } | null
+  /** C-10: the venue's refund policy when this was booked, in a sentence. */
+  refundPolicy: string
+  /** C-13: when a booking waiting for the venue is declined if not answered. */
+  approvalDeadline: string | null
   review: {
     id: string
     rating: number

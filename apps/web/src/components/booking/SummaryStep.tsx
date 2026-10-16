@@ -19,7 +19,6 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
 import { CalendarDays, Clock, Info, MapPin, NotebookPen, Shirt, Users } from 'lucide-react'
 import {
-  CANCELLATION_WINDOWS,
   DAY_LONG,
   PAYMENT_METHOD_LABELS,
   bookingPrice,
@@ -28,6 +27,9 @@ import {
   dayOfWeek,
   formatDuration,
   freeCancellationUntil,
+  partialRefundUntil,
+  describeRefundPolicy,
+  DEFAULT_REFUND_POLICY,
   shirtSetsFor,
   venueTimeToUtc,
   toMinutes,
@@ -142,10 +144,10 @@ export function SummaryStep() {
   const split = method ? paymentSplit(price.total, method, options.data!.depositPercent) : null
   const sets = shirtSetsFor(draft.teamCount, draft.wantsShirts)
   const start = venueTimeToUtc(draft.date, toMinutes(draft.startTime))
-  const freeUntil = freeCancellationUntil(start)
-  const halfUntil = new Date(
-    start.getTime() - CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS * 3_600_000
-  )
+  // C-10: the venue's own policy, which the booking keeps.
+  const policy = options.data?.refundPolicy ?? DEFAULT_REFUND_POLICY
+  const freeUntil = freeCancellationUntil(start, policy)
+  const partUntil = partialRefundUntil(start, policy)
   const now = Date.now()
   const players = draft.players.slice(0, draft.teamCount).reduce((a, b) => a + b, 0)
   const done = (booking: BookingConfirmation | CreateBookingResult) =>
@@ -255,11 +257,12 @@ export function SummaryStep() {
           <span>
             {freeUntil.getTime() > now
               ? `Free cancellation until ${atVenue.format(freeUntil)}.`
-              : halfUntil.getTime() > now
-                ? `Cancelling now refunds 50%, until ${atVenue.format(halfUntil)}.`
+              : partUntil.getTime() > now && policy.partialRefundPercent > 0
+                ? `Cancelling now refunds ${policy.partialRefundPercent}%, until ${atVenue.format(partUntil)}.`
                 : 'This booking starts soon: cancelling it will not be refunded.'}{' '}
-            50% back until {CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS} hours before kick-off,
-            nothing after that.
+            {describeRefundPolicy(policy)}
+            {options.data?.autoApproveBookings === false &&
+              ' This venue confirms each booking: you pay now, and get it all back if they decline.'}
           </span>
         </p>
       </div>
@@ -417,7 +420,9 @@ function TestPayment({
         method: 'POST',
         body: JSON.stringify({ bookingId: created.bookingId, outcome }),
       })
-      if (result.status === 'CONFIRMED') return onDone(result)
+      if (result.status === 'CONFIRMED' || result.status === 'AWAITING_APPROVAL') {
+        return onDone(result)
+      }
       setError('Your card was declined. Nothing was charged; try again.')
     } catch (caught) {
       setError(describe(caught as ApiError))

@@ -13,6 +13,7 @@ export const metadata: Metadata = { title: 'Booking | PitchUp' }
 
 const STATUS_WORDS: Record<string, string> = {
   PENDING: 'Booked, awaiting payment',
+  AWAITING_APPROVAL: 'Paid, waiting for your answer',
   CONFIRMED: 'Confirmed',
   CANCELLED: 'Cancelled',
   COMPLETED: 'Played',

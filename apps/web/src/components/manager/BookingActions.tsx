@@ -3,7 +3,9 @@
 /**
  * What a manager can do to one booking — E11-08 with C-8: Confirm attended
  * (refunds a "deposit back" deposit), Report no-show (asks first), and Mark
- * as complete. Each shows only when it is allowed.
+ * as complete; C-12 and C-13: Accept or Decline a request, and Cancel a
+ * booking before kick-off (both ask why, and refund the player in full).
+ * Each shows only when it is allowed.
  */
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
@@ -14,16 +16,22 @@ import { send } from '@/lib/http'
 export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }) {
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
+  const cancelDialog = useRef<HTMLDialogElement>(null)
+  const [why, setWhy] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [reason, setReason] = useState('')
 
-  const act = async (action: 'attended' | 'no-show' | 'complete', body: object = {}) => {
+  const act = async (
+    action: 'attended' | 'no-show' | 'complete' | 'accept' | 'cancel',
+    body: object = {}
+  ) => {
     setBusy(true)
     setError(null)
     try {
       await send(`/api/v1/manager/bookings/${b.id}/${action}`, 'POST', body)
       dialog.current?.close()
+      cancelDialog.current?.close()
       router.refresh()
     } catch (caught) {
       setError((caught as Error).message)
@@ -31,7 +39,15 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
     setBusy(false)
   }
 
-  const none = !b.canConfirmAttended && !b.canReportNoShow && !b.canComplete
+  const none =
+    !b.canConfirmAttended && !b.canReportNoShow && !b.canComplete && !b.canAccept && !b.canCancel
+  const declining = b.status === 'AWAITING_APPROVAL'
+  const refundText =
+    b.paymentMethod === 'ONLINE'
+      ? `${b.player.name} gets the ${b.total} RON back.`
+      : b.deposit
+        ? `${b.player.name} gets the ${b.deposit} RON deposit back.`
+        : `${b.player.name} paid nothing online.`
   const kept = b.deposit
     ? `You keep the ${b.deposit} RON deposit.`
     : b.paymentMethod === 'ONLINE'
@@ -48,7 +64,40 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             : 'Nothing to do for this booking.'}
         </p>
       )}
+      {b.canAccept && b.approvalDeadline && (
+        <p className="text-sm text-neutral-700">
+          {b.player.name} has paid and waits for your answer. If you don&rsquo;t answer by{' '}
+          {new Date(b.approvalDeadline).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Europe/Bucharest',
+          })}
+          , it is declined and refunded.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
+        {b.canAccept && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void act('accept')}
+            className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
+          >
+            Accept booking
+          </button>
+        )}
+        {b.canCancel && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => cancelDialog.current?.showModal()}
+            className="h-10 rounded-md border border-error-500 px-4 text-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60"
+          >
+            {declining ? 'Decline' : 'Cancel booking'}
+          </button>
+        )}
         {b.canConfirmAttended && (
           <button
             type="button"
@@ -85,6 +134,48 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
           Confirming refunds the player&rsquo;s {b.deposit} RON deposit.
         </p>
       )}
+
+      <dialog
+        ref={cancelDialog}
+        aria-labelledby={`cancel-${b.id}`}
+        className="w-[min(28rem,calc(100%-2rem))] rounded-xl p-6 shadow-xl backdrop:bg-black/40"
+        onClick={e => e.target === cancelDialog.current && cancelDialog.current?.close()}
+      >
+        <h2 id={`cancel-${b.id}`} className="text-lg font-semibold text-neutral-900">
+          {declining ? `Decline ${b.player.name}'s booking?` : `Cancel ${b.player.name}'s booking?`}
+        </h2>
+        <p className="mt-2 text-sm text-neutral-700">
+          {refundText} They lose no trust points, and are told the reason you give.
+        </p>
+        <label htmlFor={`why-${b.id}`} className="mt-4 block text-sm font-medium text-neutral-700">
+          Reason for the player
+        </label>
+        <textarea
+          id={`why-${b.id}`}
+          rows={3}
+          maxLength={300}
+          value={why}
+          onChange={e => setWhy(e.target.value)}
+          className="mt-1 w-full rounded-md border border-neutral-200 p-3 text-sm"
+        />
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => cancelDialog.current?.close()}
+            className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
+          >
+            Keep it
+          </button>
+          <button
+            type="button"
+            disabled={busy || why.trim().length < 5}
+            onClick={() => void act('cancel', { reason: why.trim() })}
+            className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
+          >
+            {busy ? 'Working…' : declining ? 'Decline and refund' : 'Cancel and refund'}
+          </button>
+        </div>
+      </dialog>
 
       <dialog
         ref={dialog}

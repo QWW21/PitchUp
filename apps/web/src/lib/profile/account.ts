@@ -215,7 +215,11 @@ export async function deleteAccount(
   // Cancel first: if a refund fails, the account is untouched and the
   // player can try again (bookings already cancelled stay cancelled).
   const upcoming = await prisma.booking.findMany({
-    where: { playerId: user.id, status: { in: ['PENDING', 'CONFIRMED'] }, startTime: { gt: now } },
+    where: {
+      playerId: user.id,
+      status: { in: ['PENDING', 'AWAITING_APPROVAL', 'CONFIRMED'] },
+      startTime: { gt: now },
+    },
     select: { id: true },
   })
   for (const b of upcoming) {

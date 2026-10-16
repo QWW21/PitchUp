@@ -9,6 +9,7 @@
  * there. With a 0% deposit nothing is paid online.
  */
 import { z } from 'zod'
+import type { RefundPolicy } from './constants/cancellation'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -105,6 +106,10 @@ export interface PaymentOptions {
   methods: BookingPaymentMethod[]
   /** True when the venue takes payment at the venue but this player's trust is too low. */
   trustTooLow: boolean
+  /** C-10: the venue's refund policy, which the booking will keep. */
+  refundPolicy: RefundPolicy
+  /** C-13: false when the venue confirms each booking by hand. */
+  autoApproveBookings: boolean
 }
 
 /** PUT /api/v1/manager/settings/payments */

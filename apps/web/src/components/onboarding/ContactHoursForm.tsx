@@ -18,12 +18,16 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 const ORDER = [1, 2, 3, 4, 5, 6, 0]
 const TIMES = Array.from({ length: 48 }, (_, i) => fromMinutes(i * 30))
 
+/** In Settings (`inSettings`, C-13) it proposes a change for an admin to approve. */
 export function ContactHoursForm({
   existing,
+  inSettings = false,
 }: {
   existing: { phone: string; email: string; hours: OnboardingHours }
+  inSettings?: boolean
 }) {
   const router = useRouter()
+  const [sent, setSent] = useState(false)
   const [phone, setPhone] = useState(existing.phone)
   const [email, setEmail] = useState(existing.email)
   const [hours, setHours] = useState<OnboardingHours>(existing.hours)
@@ -62,6 +66,13 @@ export function ContactHoursForm({
     setErrors({})
     setBusy(true)
     try {
+      if (inSettings) {
+        await send('/api/v1/manager/venue/contact-hours', 'PUT', parsed.data)
+        setSent(true)
+        setBusy(false)
+        router.refresh()
+        return
+      }
       await send('/api/v1/onboarding/contact-hours', 'PUT', parsed.data)
       router.push('/onboarding/step/4')
     } catch (caught) {
@@ -172,20 +183,27 @@ export function ContactHoursForm({
       </fieldset>
 
       {error && <Alert>{error}</Alert>}
+      {sent && (
+        <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
+          Sent to PitchUp for approval. Your page shows the current details until then.
+        </p>
+      )}
       <div className="flex gap-3">
-        <button
-          type="button"
-          onClick={() => router.push('/onboarding/step/2')}
-          className="h-12 rounded-md border border-neutral-200 px-5 font-semibold text-neutral-900 hover:bg-neutral-50"
-        >
-          Back
-        </button>
+        {!inSettings && (
+          <button
+            type="button"
+            onClick={() => router.push('/onboarding/step/2')}
+            className="h-12 rounded-md border border-neutral-200 px-5 font-semibold text-neutral-900 hover:bg-neutral-50"
+          >
+            Back
+          </button>
+        )}
         <button
           type="submit"
           disabled={busy}
           className="h-12 flex-1 rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          {busy ? 'Saving…' : 'Next: payouts'}
+          {busy ? 'Saving…' : inSettings ? 'Send for approval' : 'Next: payouts'}
         </button>
       </div>
     </form>

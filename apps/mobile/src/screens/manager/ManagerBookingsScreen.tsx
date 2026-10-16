@@ -37,6 +37,7 @@ const STATUSES: [BookingStatus | undefined, string][] = [
 
 export const STATUS_TEXT: Record<BookingStatus, [string, string, string]> = {
   PENDING: ['Awaiting payment', 'clock-outline', colors.warning[500]],
+  AWAITING_APPROVAL: ['Needs your answer', 'help-circle-outline', colors.warning[500]],
   CONFIRMED: ['Confirmed', 'check-circle', colors.primary[600]],
   CANCELLED: ['Cancelled', 'close-circle', colors.neutral[500]],
   COMPLETED: ['Completed', 'check-all', colors.info[500]],

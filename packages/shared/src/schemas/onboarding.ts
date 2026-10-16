@@ -156,7 +156,7 @@ export interface ManagerStats {
     endTime: string
     pitch: string
     player: string
-    status: 'PENDING' | 'CONFIRMED'
+    status: 'PENDING' | 'AWAITING_APPROVAL' | 'CONFIRMED'
   }[]
 }
 

@@ -60,7 +60,11 @@ export default async function PitchPage({ params }: Props) {
           score: user.trustScore,
           pitchMinScore: pitch.minTrustScore,
           activeBookings: await prisma.booking.count({
-            where: { playerId: session.user.id, status: 'CONFIRMED', endTime: { gt: new Date() } },
+            where: {
+              playerId: session.user.id,
+              status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+              endTime: { gt: new Date() },
+            },
           }),
         })
       : null
@@ -115,6 +119,8 @@ export default async function PitchPage({ params }: Props) {
             block={block}
             blockNote={blockNote}
             minTier={pitch.minTrustScore > 0 ? deriveTier(pitch.minTrustScore) : null}
+            refundPolicy={pitch.company.refundPolicy}
+            confirmsByHand={!pitch.company.autoApproveBookings}
           />
         </div>
 

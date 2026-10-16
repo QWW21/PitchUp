@@ -191,8 +191,9 @@ test('the manager sets how the venue is paid', async ({ page }, info) => {
   await expect(page.getByText(/you take the risk that players don’t come/)).toBeVisible()
   await snap(page, info, AREA, '06-settings', { fullPage: true })
   await audit(page)
-  await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByRole('status')).toHaveText('Saved.')
+  const form = page.getByRole('form', { name: 'How players pay' })
+  await form.getByRole('button', { name: 'Save' }).click()
+  await expect(form.getByRole('status')).toHaveText('Saved.')
   expect(await db.company.findUniqueOrThrow({ where: { id: companyId } })).toMatchObject({
     paymentMode: 'VENUE',
     depositPercent: 0,

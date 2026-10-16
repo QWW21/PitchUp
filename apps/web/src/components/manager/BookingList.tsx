@@ -21,6 +21,7 @@ import { BookingStatusBadge } from './BookingStatusBadge'
 
 const STATUS_LABELS: Record<string, string> = {
   PENDING: 'Awaiting payment',
+  AWAITING_APPROVAL: 'Needs your answer',
   CONFIRMED: 'Confirmed',
   CANCELLED: 'Cancelled',
   COMPLETED: 'Completed',

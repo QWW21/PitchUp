@@ -45,6 +45,8 @@ enum BookingPaymentMethod {
 
 enum BookingStatus {
   PENDING
+  /// Paid, waiting for a venue that confirms each booking by hand (C-13).
+  AWAITING_APPROVAL
   CONFIRMED
   COMPLETED
   CANCELLED
@@ -120,6 +122,12 @@ enum TrustScoreReason {
 
 enum NotificationType {
   BOOKING_CONFIRMED
+  /// To the player: paid, and the venue will confirm it (C-13).
+  BOOKING_AWAITING_APPROVAL
+  /// To the manager: a new confirmed booking (C-11).
+  BOOKING_RECEIVED
+  /// To the manager: a booking waits for their answer (C-13).
+  BOOKING_REQUESTED
   BOOKING_REMINDER_24H
   BOOKING_REMINDER_2H
   BOOKING_CANCELLED_PLAYER
@@ -186,61 +194,71 @@ model User {
   /// Why the player deleted their account, if they said (E08-03).
   deletionReason    String?
 
-  company             Company?
-  bookings            Booking[]
-  reviews             Review[]
-  reviewReports       ReviewReport[]
-  notifications       Notification[]
-  trustScoreEvents    TrustScoreEvent[]
-  noShowsReported     NoShow[]             @relation("NoShowReportedByManager")
-  noShowsResolved     NoShow[]             @relation("NoShowResolvedByAdmin")
-  verificationCodes   VerificationCode[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  deviceTokens        DeviceToken[]
+  company                Company?
+  bookings               Booking[]
+  reviews                Review[]
+  reviewReports          ReviewReport[]
+  notifications          Notification[]
+  trustScoreEvents       TrustScoreEvent[]
+  noShowsReported        NoShow[]                @relation("NoShowReportedByManager")
+  noShowsResolved        NoShow[]                @relation("NoShowResolvedByAdmin")
+  verificationCodes      VerificationCode[]
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  deviceTokens           DeviceToken[]
+  notificationPreference NotificationPreference?
 
   @@index([role])
   @@index([city])
-  notificationPreference NotificationPreference?
 }
 
 model Company {
-  id                   String           @id @default(cuid())
-  ownerId              String           @unique
-  name                 String
-  description          String?
-  logoUrl              String?
-  websiteUrl           String?
-  facebookUrl          String?
-  instagramUrl         String?
+  id                     String           @id @default(cuid())
+  ownerId                String           @unique
+  name                   String
+  description            String?
+  logoUrl                String?
+  websiteUrl             String?
+  facebookUrl            String?
+  instagramUrl           String?
   /// Contact and address are filled in steps 2 and 3 of onboarding (E09),
   /// so a DRAFT company may not have them yet. ACTIVE ones always do.
-  phone                String?
-  email                String?
-  addressLine1         String?
-  addressLine2         String?
-  city                 String?
-  county               String?
-  country              String           @default("RO")
-  postalCode           String?
-  lat                  Float?
-  lng                  Float?
-  workingHours         Json?
-  stripeAccountId      String?
+  phone                  String?
+  email                  String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  county                 String?
+  country                String           @default("RO")
+  postalCode             String?
+  lat                    Float?
+  lng                    Float?
+  workingHours           Json?
+  stripeAccountId        String?
   /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
-  stripeChargesEnabled Boolean          @default(false)
-  stripePayoutsEnabled Boolean          @default(false)
+  stripeChargesEnabled   Boolean          @default(false)
+  stripePayoutsEnabled   Boolean          @default(false)
   /// C-8: how players pay, and the online deposit (0–50%) when they pay at the venue.
-  paymentMode          VenuePaymentMode @default(ONLINE)
-  depositPercent       Int              @default(20)
-  status               CompanyStatus    @default(DRAFT)
+  paymentMode            VenuePaymentMode @default(ONLINE)
+  depositPercent         Int              @default(20)
+  /// C-13: confirm every booking at once, or each by hand.
+  autoApproveBookings    Boolean          @default(true)
+  /// C-10: the venue's refund policy. Bookings keep a copy of it.
+  refundFullHours        Int              @default(12)
+  refundPartialHours     Int              @default(2)
+  refundPartialPercent   Int              @default(75)
+  /// C-13: details changed after approval, waiting for an admin (VenueProfileChanges).
+  pendingChanges         Json?
+  changesSubmittedAt     DateTime?
+  changesRejectionReason String?
+  status                 CompanyStatus    @default(DRAFT)
   /// When the manager finished onboarding, and when an admin decided.
-  submittedAt          DateTime?
-  reviewedAt           DateTime?
+  submittedAt            DateTime?
+  reviewedAt             DateTime?
   /// Why an admin sent it back; cleared when resubmitted.
-  rejectionReason      String?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  rejectionReason        String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   pitches Pitch[]
@@ -382,6 +400,10 @@ model Booking {
   attendedAt            DateTime?
   /// The 24-hour reminder went out (E13-04).
   reminderSentAt        DateTime?
+  /// C-10: the venue's refund policy when this was booked.
+  refundPolicy          Json?
+  /// C-13: an AWAITING_APPROVAL booking not answered by then is declined.
+  approvalDeadline      DateTime?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
@@ -501,19 +523,19 @@ model ReviewReport {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  body      String
-  data      Json?
-  isRead    Boolean          @default(false)
-  sentPush  Boolean          @default(false)
-  sentEmail Boolean          @default(false)
-  sentSms   Boolean          @default(false)
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  body        String
+  data        Json?
+  isRead      Boolean          @default(false)
+  sentPush    Boolean          @default(false)
+  sentEmail   Boolean          @default(false)
+  sentSms     Boolean          @default(false)
   /// Set when the email, SMS and push for it were attempted (E13): an outbox.
   deliveredAt DateTime?
-  createdAt DateTime         @default(now())
+  createdAt   DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

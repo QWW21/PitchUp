@@ -86,7 +86,16 @@ export interface PitchDetail {
   avgRating: number | null
   reviewCount: number
   recentReviews: ReviewItem[]
-  company: { id: string; name: string; logoUrl: string | null; isVerified: boolean }
+  company: {
+    id: string
+    name: string
+    logoUrl: string | null
+    isVerified: boolean
+    /** C-10: the venue's refund policy, in a sentence. */
+    refundPolicy: string
+    /** C-13: false when the venue confirms each booking by hand. */
+    autoApproveBookings: boolean
+  }
   /** The pitch is bookable during its company's working hours. */
   workingHours: DayHours[]
   /** False when the pitch is inactive or its company is not approved. */

@@ -13,6 +13,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -36,9 +37,12 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
     queryKey: ['manager-booking', id],
     queryFn: () => managerApi.booking(id),
   })
+  const [why, setWhy] = React.useState<string | null>(null)
   const act = useMutation({
-    mutationFn: (action: 'attended' | 'noShow' | 'complete') => managerApi[action](id),
+    mutationFn: (action: 'attended' | 'noShow' | 'complete' | 'accept' | 'cancel') =>
+      action === 'cancel' ? managerApi.cancel(id, (why ?? '').trim()) : managerApi[action](id),
     onSuccess: () => {
+      setWhy(null)
       void queryClient.invalidateQueries({ queryKey: ['manager-booking', id] })
       void queryClient.invalidateQueries({ queryKey: ['manager-bookings'] })
     },
@@ -143,7 +147,61 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           ))}
         </Section>
 
+        {b.canAccept && b.approvalDeadline ? (
+          <Text style={styles.muted}>
+            {b.player.name} has paid and waits for your answer. Without one by{' '}
+            {new Date(b.approvalDeadline).toLocaleString('en-GB')}, it is declined and refunded.
+          </Text>
+        ) : null}
+        {why !== null ? (
+          <View style={styles.reasonBox}>
+            <Text style={styles.strong}>
+              {b.status === 'AWAITING_APPROVAL' ? 'Decline this booking?' : 'Cancel this booking?'}
+            </Text>
+            <Text style={styles.muted}>
+              The player gets everything paid online back, loses no trust points, and reads your
+              reason.
+            </Text>
+            <TextInput
+              value={why}
+              onChangeText={setWhy}
+              placeholder="Reason for the player"
+              accessibilityLabel="Reason for the player"
+              maxLength={300}
+              multiline
+              style={styles.reasonInput}
+            />
+            <View style={styles.actions}>
+              <Action label="Keep it" busy={false} onPress={() => setWhy(null)} />
+              <Action
+                label={
+                  b.status === 'AWAITING_APPROVAL' ? 'Decline and refund' : 'Cancel and refund'
+                }
+                danger
+                busy={act.isPending || why.trim().length < 5}
+                onPress={() => act.mutate('cancel')}
+              />
+            </View>
+          </View>
+        ) : null}
+
         <View style={styles.actions}>
+          {b.canAccept ? (
+            <Action
+              label="Accept booking"
+              primary
+              busy={act.isPending}
+              onPress={() => act.mutate('accept')}
+            />
+          ) : null}
+          {b.canCancel && why === null ? (
+            <Action
+              label={b.status === 'AWAITING_APPROVAL' ? 'Decline' : 'Cancel booking'}
+              danger
+              busy={act.isPending}
+              onPress={() => setWhy('')}
+            />
+          ) : null}
           {b.canConfirmAttended ? (
             <Action
               label="Confirm attended"
@@ -243,6 +301,21 @@ function Action({
 }
 
 const styles = StyleSheet.create({
+  reasonBox: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 12,
+    backgroundColor: colors.neutral[0],
+  },
+  reasonInput: {
+    minHeight: 72,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+    borderRadius: 8,
+    padding: spacing.sm,
+    textAlignVertical: 'top',
+    color: colors.neutral[900],
+  },
   root: { flex: 1, backgroundColor: colors.neutral[50] },
   loading: { marginTop: spacing.xl },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.sm, height: 52 },

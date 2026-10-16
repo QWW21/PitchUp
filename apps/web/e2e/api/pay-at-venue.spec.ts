@@ -128,6 +128,8 @@ test.describe('who may pay at the venue', () => {
       depositPercent: 20,
       methods: ['ONLINE', 'VENUE_DEPOSIT_TOWARDS', 'VENUE_REFUND_DEPOSIT'],
       trustTooLow: false,
+      refundPolicy: { fullRefundHours: 12, partialRefundHours: 2, partialRefundPercent: 75 },
+      autoApproveBookings: true,
     })
     expect((await get(request, `/pitches/${pitchId}/payment-options`)).status).toBe(401)
 

@@ -3,7 +3,7 @@
  * Pure functions: no I/O, no clock unless one is passed in.
  */
 import { BOOKING } from './constants/booking'
-import { CANCELLATION_WINDOWS, REFUND_PERCENTAGES } from './constants/cancellation'
+import { DEFAULT_REFUND_POLICY, type RefundPolicy } from './constants/cancellation'
 import { PLATFORM_FEE_PERCENT } from './constants/penalties'
 import type { PitchSize } from './types'
 import type { SlotStatus } from './schemas/detail'
@@ -42,18 +42,65 @@ export function formatDuration(minutes: number): string {
   return h ? `${h}h ${m}min` : `${minutes}min`
 }
 
-/** Refund for a player who cancels this long before kick-off. PRD §9.2. */
-export function refundPercentFor(hoursBeforeStart: number): number {
-  if (hoursBeforeStart >= CANCELLATION_WINDOWS.FULL_REFUND_HOURS) return REFUND_PERCENTAGES.FULL
-  if (hoursBeforeStart >= CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS) {
-    return REFUND_PERCENTAGES.PARTIAL
-  }
-  return REFUND_PERCENTAGES.NONE
+/** Refund for a player who cancels this long before kick-off, under a venue's policy (C-10). */
+export function refundPercentFor(
+  hoursBeforeStart: number,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): number {
+  if (hoursBeforeStart >= policy.fullRefundHours) return 100
+  if (hoursBeforeStart >= policy.partialRefundHours) return policy.partialRefundPercent
+  return 0
 }
 
 /** The last moment a cancellation is fully refunded. */
-export const freeCancellationUntil = (start: Date): Date =>
-  new Date(start.getTime() - CANCELLATION_WINDOWS.FULL_REFUND_HOURS * 3_600_000)
+export const freeCancellationUntil = (
+  start: Date,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): Date => new Date(start.getTime() - policy.fullRefundHours * 3_600_000)
+
+/** The last moment a cancellation is partly refunded. */
+export const partialRefundUntil = (
+  start: Date,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): Date => new Date(start.getTime() - policy.partialRefundHours * 3_600_000)
+
+/**
+ * A policy as stored (a venue's columns, or a booking's snapshot), or the
+ * default when there is none: bookings made before C-10 have none.
+ */
+export function refundPolicyOf(stored: unknown): RefundPolicy {
+  const p = stored as Partial<RefundPolicy> | null | undefined
+  return p &&
+    typeof p.fullRefundHours === 'number' &&
+    typeof p.partialRefundHours === 'number' &&
+    typeof p.partialRefundPercent === 'number'
+    ? {
+        fullRefundHours: p.fullRefundHours,
+        partialRefundHours: p.partialRefundHours,
+        partialRefundPercent: p.partialRefundPercent,
+      }
+    : DEFAULT_REFUND_POLICY
+}
+
+const hoursText = (h: number) => (h === 1 ? '1 hour' : `${h} hours`)
+
+/**
+ * The policy in one sentence, for the pitch page, the summary and the
+ * settings preview: "Free cancellation up to 12 hours before kick-off; 75%
+ * back up to 2 hours before; nothing after."
+ */
+export function describeRefundPolicy(policy: RefundPolicy = DEFAULT_REFUND_POLICY): string {
+  const {
+    fullRefundHours: full,
+    partialRefundHours: partial,
+    partialRefundPercent: percent,
+  } = policy
+  if (full === 0) return 'Free cancellation until kick-off.'
+  const free = `Free cancellation up to ${hoursText(full)} before kick-off`
+  if (percent === 0 || partial >= full) return `${free}; nothing after.`
+  if (partial === 0) return `${free}; ${percent}% back until kick-off.`
+  return `${free}; ${percent}% back up to ${hoursText(partial)} before; nothing after.`
+}
 
 /** "#AB12CD": a short reference a player can read out over the phone. */
 export const bookingReference = (id: string): string => `#${id.slice(-6).toUpperCase()}`
@@ -211,11 +258,16 @@ export function formatDateLong(date: string): string {
 }
 
 /**
- * What cancelling now would refund: PRD §9.2 applied to what was paid.
- * The player pays only the pitch price (E05), so all of it is refundable.
+ * What cancelling now would refund: the booking's policy applied to what was
+ * paid. The player pays only the pitch price (E05), so all of it is refundable.
  */
-export function cancellationRefund(total: number, start: Date, now: Date = new Date()) {
-  const percent = refundPercentFor((start.getTime() - now.getTime()) / 3_600_000)
+export function cancellationRefund(
+  total: number,
+  start: Date,
+  now: Date = new Date(),
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+) {
+  const percent = refundPercentFor((start.getTime() - now.getTime()) / 3_600_000, policy)
   return { percent, amount: Math.floor(((total * percent) / 100) * 100) / 100 }
 }
 

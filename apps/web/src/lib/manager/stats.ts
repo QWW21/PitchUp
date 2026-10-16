@@ -103,7 +103,7 @@ export async function managerStats(
         endTime: endLabel(end.minutes === 0 ? 1440 : end.minutes),
         pitch: b.pitch.name,
         player: b.player.name,
-        status: b.status as 'PENDING' | 'CONFIRMED',
+        status: b.status as 'PENDING' | 'AWAITING_APPROVAL' | 'CONFIRMED',
       }
     }),
   }

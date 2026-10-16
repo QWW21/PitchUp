@@ -9,7 +9,8 @@
 import 'server-only'
 import { prisma } from '@/lib/prisma'
 import { providerFor } from '@/lib/payments'
-import { notifyBookingConfirmed } from '@/lib/notifications/booking'
+import { notifyBookingPaid } from '@/lib/notifications/booking'
+import { paidState } from './approval'
 import { chargedOnline } from './charged'
 import { liveBookingWhere } from './live'
 import { recordStatus } from './status'
@@ -40,13 +41,20 @@ export async function confirmPaid(
       paymentProvider: true,
       stripePaymentIntentId: true,
       stripeRefundId: true,
+      pitch: { select: { company: { select: { autoApproveBookings: true } } } },
     },
   })
   if (!booking || booking.stripePaymentIntentId !== paymentId) {
     console.error(`[payments] A payment arrived for an unknown booking: ${bookingId}`)
     return 'unknown'
   }
-  if (booking.status === 'CONFIRMED' || booking.stripeRefundId) return 'already'
+  if (
+    booking.status === 'CONFIRMED' ||
+    booking.status === 'AWAITING_APPROVAL' ||
+    booking.stripeRefundId
+  ) {
+    return 'already'
+  }
 
   const outcome = await prisma.$transaction(async tx => {
     // The same per-pitch lock as booking creation: no booking can slip in
@@ -56,7 +64,9 @@ export async function confirmPaid(
       where: { id: booking.id },
       select: { status: true },
     })
-    if (current.status === 'CONFIRMED') return 'already' as const
+    if (current.status === 'CONFIRMED' || current.status === 'AWAITING_APPROVAL') {
+      return 'already' as const
+    }
     if (current.status === 'PENDING') {
       const clash = await tx.booking.count({
         where: {
@@ -68,11 +78,13 @@ export async function confirmPaid(
         },
       })
       if (!clash) {
+        // C-13: confirmed now, or held for a venue that confirms each booking.
+        const next = paidState(booking.pitch.company.autoApproveBookings, now, booking.startTime)
         await tx.booking.update({
           where: { id: booking.id },
-          data: { status: 'CONFIRMED', paidAt: now },
+          data: { status: next.status, paidAt: now, approvalDeadline: next.approvalDeadline },
         })
-        await recordStatus(tx, booking.id, 'CONFIRMED')
+        await recordStatus(tx, booking.id, next.status)
         return 'confirmed' as const
       }
       await tx.booking.update({
@@ -115,7 +127,7 @@ export async function confirmPaid(
       })
     }
     // Best effort: a mail outage must not undo a paid booking.
-    await notifyBookingConfirmed(booking.id).catch(caught =>
+    await notifyBookingPaid(booking.id).catch(caught =>
       console.error(
         `[payments] Confirmation notice for ${booking.id} failed:`,
         caught instanceof Error ? caught.message : 'unknown error'

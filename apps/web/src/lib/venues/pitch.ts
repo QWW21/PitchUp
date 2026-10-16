@@ -2,7 +2,7 @@
  * Pitch detail — E04-02.
  */
 import 'server-only'
-import { normalizeWeek, type PitchDetail } from '@pitchup/shared'
+import { describeRefundPolicy, normalizeWeek, type PitchDetail } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { publicRating } from './ratings'
 import { reviewInclude, toReviewItem } from './reviews'
@@ -19,7 +19,17 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
     where: { id, deletedAt: null, company: { status: 'ACTIVE' } },
     include: {
       company: {
-        select: { id: true, name: true, logoUrl: true, status: true, workingHours: true },
+        select: {
+          id: true,
+          name: true,
+          logoUrl: true,
+          status: true,
+          workingHours: true,
+          autoApproveBookings: true,
+          refundFullHours: true,
+          refundPartialHours: true,
+          refundPartialPercent: true,
+        },
       },
       photos: { orderBy: { order: 'asc' }, select: { id: true, url: true, order: true } },
       amenities: { orderBy: { amenityType: 'asc' } },
@@ -72,6 +82,12 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
       name: pitch.company.name,
       logoUrl: pitch.company.logoUrl,
       isVerified: pitch.company.status === 'ACTIVE',
+      refundPolicy: describeRefundPolicy({
+        fullRefundHours: pitch.company.refundFullHours,
+        partialRefundHours: pitch.company.refundPartialHours,
+        partialRefundPercent: pitch.company.refundPartialPercent,
+      }),
+      autoApproveBookings: pitch.company.autoApproveBookings,
     },
     workingHours: normalizeWeek(pitch.workingHours ?? pitch.company.workingHours),
     isBookable: pitch.isActive,

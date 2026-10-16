@@ -14,7 +14,7 @@ export default async function NotificationsPage() {
   return (
     <>
       <h1 className="text-2xl font-bold text-neutral-900">Notifications</h1>
-      <NotificationSettings initial={prefs} />
+      <NotificationSettings initial={prefs} role={session.user.role} />
       <NotificationHistory />
     </>
   )

@@ -17,6 +17,7 @@ import {
 const STATUS: Record<BookingStatus, { label: string; className: string }> = {
   CONFIRMED: { label: 'Confirmed', className: 'bg-primary-50 text-primary-700' },
   PENDING: { label: 'Awaiting payment', className: 'bg-warning-50 text-amber-800' },
+  AWAITING_APPROVAL: { label: 'Waiting for the venue', className: 'bg-warning-50 text-amber-800' },
   COMPLETED: { label: 'Completed', className: 'bg-primary-50 text-primary-700' },
   NO_SHOW: { label: 'No-show', className: 'bg-error-50 text-error-600' },
   CANCELLED: { label: 'Cancelled', className: 'bg-neutral-100 text-neutral-700' },
@@ -93,7 +94,7 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
         </div>
       </dl>
 
-      {(b.status === 'CONFIRMED' || b.status === 'PENDING') && (
+      {(b.status === 'CONFIRMED' || b.status === 'PENDING' || b.status === 'AWAITING_APPROVAL') && (
         <div className="mt-3">
           <Countdown startsAt={b.startsAt} />
         </div>

@@ -9,7 +9,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import {
-  NOTIFICATION_PREFERENCE_GROUPS,
+  preferenceGroupsFor,
   type NotificationPreferences,
   type NotificationType,
 } from '@pitchup/shared'
@@ -24,7 +24,13 @@ const CHANNELS: { key: Channel; label: string; hint: string }[] = [
   { key: 'smsEnabled', label: 'Text messages', hint: 'Reminders and changes on the day only' },
 ]
 
-export function NotificationSettings({ initial }: { initial: NotificationPreferences }) {
+export function NotificationSettings({
+  initial,
+  role,
+}: {
+  initial: NotificationPreferences
+  role: string
+}) {
   const [prefs, setPrefs] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -107,7 +113,7 @@ export function NotificationSettings({ initial }: { initial: NotificationPrefere
           What we tell you about
         </h2>
         <ul className="mt-3 divide-y divide-neutral-100">
-          {NOTIFICATION_PREFERENCE_GROUPS.map(g => (
+          {preferenceGroupsFor(role).map(g => (
             <li key={g.key} className="flex items-center justify-between gap-4 py-3">
               <span>
                 <span id={`t-${g.key}`} className="block text-sm font-medium text-neutral-900">

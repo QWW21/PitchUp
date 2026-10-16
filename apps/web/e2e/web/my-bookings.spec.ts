@@ -84,7 +84,7 @@ test('an empty list offers a way to find a pitch', async ({ page }, info) => {
   await snap(page, info, AREA, '04-empty')
 })
 
-test('the detail, and cancelling with a 50% refund', async ({ page }, info) => {
+test('the detail, and cancelling with a 75% refund (C-10)', async ({ page }, info) => {
   const b = await seed(5, 'CONFIRMED')
   await page.goto('/my-bookings')
   await page.getByRole('link', { name: 'Teren 2' }).click()
@@ -102,20 +102,20 @@ test('the detail, and cancelling with a 50% refund', async ({ page }, info) => {
 
   await page.getByRole('button', { name: 'Cancel booking' }).click()
   const dialog = page.getByRole('dialog', { name: 'Cancel this booking?' })
-  await expect(dialog).toContainText('180 RON back · 50% refund')
+  await expect(dialog).toContainText('270 RON back · 75% refund')
   await snap(page, info, AREA, '06-cancel-dialog')
   await dialog.getByRole('button', { name: 'Keep my booking' }).click()
   await expect(dialog).toBeHidden()
 
   await page.getByRole('button', { name: 'Cancel booking' }).click()
-  await dialog.getByRole('button', { name: 'Cancel — get 180 RON back' }).click()
-  await expect(page.getByRole('status')).toContainText('180 RON will be refunded')
+  await dialog.getByRole('button', { name: 'Cancel — get 270 RON back' }).click()
+  await expect(page.getByRole('status')).toContainText('270 RON will be refunded')
   await expect(page.getByText('Cancelled').first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Cancel booking' })).toHaveCount(0)
   await snap(page, info, AREA, '07-cancelled-detail', { fullPage: true })
 
   const row = await db.booking.findUniqueOrThrow({ where: { id: b.id } })
-  expect(Number(row.refundAmount)).toBe(180)
+  expect(Number(row.refundAmount)).toBe(270)
 })
 
 test('reviewing a finished game, then editing and deleting the review', async ({ page }, info) => {

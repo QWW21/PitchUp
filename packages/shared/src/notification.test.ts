@@ -6,6 +6,7 @@ import {
   NotificationPreferencesSchema,
   notificationTarget,
   notificationWebPath,
+  preferenceGroupsFor,
 } from './index'
 
 describe('where a notification leads (E13)', () => {
@@ -28,6 +29,19 @@ describe('where a notification leads (E13)', () => {
   it('in the app: a tier change opens the trust score', () => {
     expect(notificationTarget('TRUST_TIER_CHANGED', {})).toEqual({ screen: 'TrustScore' })
   })
+
+  it("a venue's booking notice opens the venue's view of it (C-11)", () => {
+    const data = { bookingId: 'b1', link: '/manager/bookings/b1' }
+    expect(notificationTarget('BOOKING_REQUESTED', data)).toEqual({
+      screen: 'ManagerBookingDetail',
+      params: { id: 'b1' },
+    })
+    expect(notificationWebPath('BOOKING_REQUESTED', data)).toBe('/manager/bookings/b1')
+    expect(notificationTarget('BOOKING_AWAITING_APPROVAL', { bookingId: 'b1' })).toEqual({
+      screen: 'BookingDetail',
+      params: { id: 'b1' },
+    })
+  })
 })
 
 describe('preferences (E13-07)', () => {
@@ -46,6 +60,13 @@ describe('preferences (E13-07)', () => {
     const all = NOTIFICATION_PREFERENCE_GROUPS.flatMap(g => g.types)
     expect(new Set(all).size).toBe(all.length)
     expect(MUTABLE_NOTIFICATION_TYPES).toEqual(all)
+  })
+
+  it('new bookings can be muted by managers only', () => {
+    expect(preferenceGroupsFor('PLAYER').map(g => g.key)).not.toContain('new-bookings')
+    expect(preferenceGroupsFor('MANAGER').map(g => g.key)).toContain('new-bookings')
+    // A request needs an answer, so it can't be muted.
+    expect(MUTABLE_NOTIFICATION_TYPES).not.toContain('BOOKING_REQUESTED')
   })
 
   it('the inbox can list unread ones only', () => {

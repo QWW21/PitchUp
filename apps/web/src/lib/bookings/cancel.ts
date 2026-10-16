@@ -1,8 +1,10 @@
 /**
  * A player cancels their booking — E06-03.
  *
- * The refund follows PRD §9.2 (cancellationRefund in @pitchup/shared): all
- * of it 24 hours or more before kick-off, half from 2 hours, nothing after.
+ * The refund follows the venue's policy when the booking was made (C-10;
+ * cancellationRefund in @pitchup/shared), by default all of it 12 hours or
+ * more before kick-off, 75% from 2 hours, nothing after. A request the venue
+ * hasn't accepted yet (C-13) is withdrawn with everything back.
  * The player paid only the pitch price (E05), so that whole amount is
  * refundable; there is no platform fee to keep back. A player paying at the
  * venue paid only the deposit online (C-8): the same tiers apply to it.
@@ -14,12 +16,13 @@
  * `refundAll`: everything back, whatever the notice.
  *
  * Cancelling a confirmed booking late also costs trust (E12-03, PRD §9.1):
- * −5 within 24 hours of kick-off, −10 within 2 hours, whatever was refunded.
+ * −5 within 12 hours of kick-off, −10 within 2 hours (C-9), whatever was refunded.
  * Not for an unpaid checkout, and not when an account is being deleted.
  */
 import 'server-only'
 import {
   cancellationRefund,
+  refundPolicyOf,
   formatDateLong,
   fromMinutes,
   lateCancelReason,
@@ -58,6 +61,7 @@ export async function cancelBooking(
           paidAt: true,
           paymentProvider: true,
           stripePaymentIntentId: true,
+          refundPolicy: true,
           player: { select: { name: true } },
           pitch: { select: { name: true, company: { select: { ownerId: true, name: true } } } },
         },
@@ -69,7 +73,8 @@ export async function cancelBooking(
         where: { id: b.id },
         select: { status: true },
       })
-      if (current.status !== 'PENDING' && current.status !== 'CONFIRMED') {
+      const request = current.status === 'AWAITING_APPROVAL'
+      if (current.status !== 'PENDING' && current.status !== 'CONFIRMED' && !request) {
         throw new ApiException('VALIDATION_ERROR', 'This booking can no longer be cancelled', {
           reason: 'NOT_CANCELLABLE',
         })
@@ -82,9 +87,10 @@ export async function cancelBooking(
 
       const paid = !!b.paidAt && !!b.stripePaymentIntentId
       const total = paid ? chargedOnline(b) : 0
-      const refund = options.refundAll
-        ? { percent: 100, amount: total }
-        : cancellationRefund(total, b.startTime, now)
+      const refund =
+        options.refundAll || request
+          ? { percent: 100, amount: total }
+          : cancellationRefund(total, b.startTime, now, refundPolicyOf(b.refundPolicy))
       const provider = providerFor(b.paymentProvider)
       let refundId: string | null = null
 
@@ -115,7 +121,9 @@ export async function cancelBooking(
           status: 'CANCELLED',
           cancelledBy: 'PLAYER',
           cancelledAt: now,
-          cancellationReason: options.reason ?? 'Cancelled by the player',
+          cancellationReason:
+            options.reason ?? (request ? 'Withdrawn by the player' : 'Cancelled by the player'),
+          approvalDeadline: null,
           ...(paid ? { refundAmount: refund.amount } : {}),
           ...(refundId ? { stripeRefundId: refundId } : {}),
         },
@@ -127,21 +135,21 @@ export async function cancelBooking(
       }
       // E13-05: both sides hear about a real booking being cancelled; not an
       // unpaid checkout, nor the cancellations of an account being deleted.
-      if (current.status === 'CONFIRMED' && !options.refundAll) {
+      if ((current.status === 'CONFIRMED' || request) && !options.refundAll) {
         const at = venueClock(b.startTime)
         const slot = `${formatDateLong(at.date)} at ${fromMinutes(at.minutes)}`
         await notify(tx, {
           userId: b.playerId,
           type: 'BOOKING_CANCELLED_PLAYER',
-          title: 'Booking cancelled',
+          title: request ? 'Booking request withdrawn' : 'Booking cancelled',
           body: `${b.pitch.name}, ${slot}. ${paid && refund.amount > 0 ? `${refund.amount} RON is refunded to your card.` : 'No refund is due.'}`,
           data: { bookingId: b.id },
         })
         await notify(tx, {
           userId: b.pitch.company.ownerId,
           type: 'BOOKING_CANCELLED_PLAYER',
-          title: 'A booking was cancelled',
-          body: `${b.player.name} cancelled ${b.pitch.name}, ${slot}.`,
+          title: request ? 'A booking request was withdrawn' : 'A booking was cancelled',
+          body: `${b.player.name} ${request ? 'withdrew their request for' : 'cancelled'} ${b.pitch.name}, ${slot}.`,
           data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
         })
         told.push(b.playerId, b.pitch.company.ownerId)

@@ -3,7 +3,7 @@
  * constants/trust.ts (E01, PRD §9.1); these are the decisions built on them,
  * shared by the API (which enforces them) and the apps (which explain them).
  */
-import { CANCELLATION_WINDOWS } from './constants/cancellation'
+import { TRUST_LATE_CANCEL_HOURS, TRUST_VERY_LATE_CANCEL_HOURS } from './constants/cancellation'
 import { TRUST_SCORE_INITIAL, TRUST_SCORE_MAX, TRUST_SCORE_MIN, trustTier } from './constants/trust'
 import type { TrustScoreReason, TrustTierLabel } from './types'
 
@@ -25,8 +25,8 @@ export const replayTrustScore = (deltas: number[], start = TRUST_SCORE_INITIAL):
 export function lateCancelReason(
   hoursBeforeStart: number
 ): Extract<TrustScoreReason, 'LATE_CANCEL' | 'VERY_LATE_CANCEL'> | null {
-  if (hoursBeforeStart < CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS) return 'VERY_LATE_CANCEL'
-  if (hoursBeforeStart < CANCELLATION_WINDOWS.FULL_REFUND_HOURS) return 'LATE_CANCEL'
+  if (hoursBeforeStart < TRUST_VERY_LATE_CANCEL_HOURS) return 'VERY_LATE_CANCEL'
+  if (hoursBeforeStart < TRUST_LATE_CANCEL_HOURS) return 'LATE_CANCEL'
   return null
 }
 

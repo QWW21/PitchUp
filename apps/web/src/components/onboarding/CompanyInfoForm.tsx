@@ -4,6 +4,9 @@
  * Onboarding step 1 — E09-06. Name and description with counters, the logo,
  * and optional website and social links. Checked with the API's own schema;
  * creates the company the first time, updates it after.
+ *
+ * In Settings (`inSettings`, C-13) the same form proposes a change to an
+ * approved venue, which an admin approves before it shows.
  */
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
@@ -48,10 +51,12 @@ export function CompanyInfoForm({
   ownerId,
   existing,
   uploadsEnabled,
+  inSettings = false,
 }: {
   ownerId: string
   existing: Values | null
   uploadsEnabled: boolean
+  inSettings?: boolean
 }) {
   const router = useRouter()
   const [v, setV] = useState<Values>(
@@ -67,6 +72,7 @@ export function CompanyInfoForm({
   const [errors, setErrors] = useState<Partial<Record<Field, string>>>({})
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
   const set = (field: Field) => (e: { target: { value: string } }) =>
     setV(prev => ({ ...prev, [field]: e.target.value }))
 
@@ -86,6 +92,13 @@ export function CompanyInfoForm({
     setErrors({})
     setBusy(true)
     try {
+      if (inSettings) {
+        await send('/api/v1/manager/venue/info', 'PUT', parsed.data)
+        setSent(true)
+        setBusy(false)
+        router.refresh()
+        return
+      }
       await send('/api/v1/onboarding/company', existing ? 'PUT' : 'POST', parsed.data)
       router.push('/onboarding/step/2')
     } catch (caught) {
@@ -158,12 +171,17 @@ export function CompanyInfoForm({
       </fieldset>
 
       {error && <Alert>{error}</Alert>}
+      {sent && (
+        <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
+          Sent to PitchUp for approval. Your page shows the current details until then.
+        </p>
+      )}
       <button
         type="submit"
         disabled={busy}
         className="h-12 w-full rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : 'Next: location'}
+        {busy ? 'Saving…' : inSettings ? 'Send for approval' : 'Next: location'}
       </button>
     </form>
   )

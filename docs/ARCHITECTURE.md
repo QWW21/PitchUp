@@ -1354,6 +1354,48 @@ why muting by group beats a switch per type.
 
 ---
 
+## 26. Rules that belong to the venue (C-9 … C-13)
+
+After E13 testing the owner moved several platform rules into each venue's
+hands. Three ideas carry most of it.
+
+### Snapshot what the customer agreed to
+
+A venue can change its refund policy at any time, but a player booked under
+the old one. So each booking stores a copy of the policy (`refundPolicy`)
+when it is made, and cancellation reads that copy. It is the same reason an
+order stores the price paid rather than looking up today's price: terms are
+fixed at the moment of agreement. Bookings made before the change have no
+copy and fall back to the default.
+
+### A state that holds without committing
+
+Approving by hand adds `AWAITING_APPROVAL` between paid and confirmed. It
+has to behave like a confirmed booking in some ways (it holds the slot, so
+`liveBookingWhere` includes it) and not in others (no reminder, no
+attendance, no trust penalty if withdrawn). Adding a state to a state
+machine means visiting every place that asks "which states count?"; the
+type checker found the label maps, and a search for each status found the
+queries. A deadline (24 hours, or 2 hours before kick-off) keeps a request
+from holding a slot forever, and the hourly job enforces it.
+
+### Propose, don't edit
+
+A venue's public details must be checked again after approval, but the
+venue must not disappear while they are. So an edit is stored beside the
+live record as a proposal (`pendingChanges`), the page keeps showing the
+approved details, and the admin sees a field-by-field comparison. Approving
+copies the proposal over; turning it down deletes it with a reason. This is
+the pattern behind pull requests, Wikipedia's pending changes and most
+content moderation: the live version and the draft are separate rows (or
+fields), and promotion is one explicit step.
+
+**What to learn:** snapshotting terms at the moment of agreement; adding
+states to a state machine safely; deadlines and sweepers for pending work;
+draft/live separation and review workflows.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:

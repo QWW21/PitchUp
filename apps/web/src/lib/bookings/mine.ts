@@ -14,6 +14,8 @@ import {
   REVIEW,
   bookingReference,
   cancellationRefund,
+  describeRefundPolicy,
+  refundPolicyOf,
   endLabel,
   fromMinutes,
   venueClock,
@@ -95,7 +97,7 @@ function tabWhere(playerId: string, tab: BookingTab, now: Date): Prisma.BookingW
         playerId,
         endTime: { gt: now },
         OR: [
-          { status: 'CONFIRMED' },
+          { status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] } },
           {
             status: 'PENDING',
             createdAt: { gt: new Date(now.getTime() - BOOKING.PENDING_HOLD_MINUTES * 60_000) },
@@ -238,6 +240,8 @@ export const detailSelect = {
   stripePaymentIntentId: true,
   cardBrand: true,
   cardLast4: true,
+  refundPolicy: true,
+  approvalDeadline: true,
   statusEvents: { orderBy: { createdAt: 'asc' }, select: { status: true, createdAt: true } },
   review: {
     select: {
@@ -287,7 +291,8 @@ function history(b: DetailRow): BookingDetail['statusHistory'] {
     if (!known.has(status)) steps.push({ status, at: at(status, when) })
   }
   add('PENDING', b.createdAt)
-  if (b.paidAt) add('CONFIRMED', b.paidAt)
+  // Paid at a venue that confirms by hand: confirmed later, if at all (C-13).
+  if (b.paidAt && !known.has('AWAITING_APPROVAL')) add('CONFIRMED', b.paidAt)
   if (recorded.length) return [...steps, ...recorded]
   if (b.status === 'CANCELLED') add('CANCELLED', b.cancelledAt ?? b.updatedAt)
   if (b.status === 'COMPLETED' || b.status === 'NO_SHOW') add(b.status, b.updatedAt)
@@ -301,8 +306,16 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     ? (b.teamsData as { playerCount?: number; colour?: string }[])
     : []
   const review = b.review && !b.review.deletedAt ? b.review : null
-  const cancellable = (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTime > now
-  const refund = cancellationRefund(b.paidAt ? chargedOnline(b) : 0, b.startTime, now)
+  const cancellable =
+    (b.status === 'PENDING' || b.status === 'CONFIRMED' || b.status === 'AWAITING_APPROVAL') &&
+    b.startTime > now
+  const policy = refundPolicyOf(b.refundPolicy)
+  const paid = b.paidAt ? chargedOnline(b) : 0
+  // C-13: withdrawing a request the venue hasn't accepted gives everything back.
+  const refund =
+    b.status === 'AWAITING_APPROVAL'
+      ? { percent: 100, amount: paid }
+      : cancellationRefund(paid, b.startTime, now, policy)
   const disputeUntil = b.noShow
     ? new Date(b.noShow.createdAt.getTime() + NO_SHOW_DISPUTE_WINDOW_HOURS * HOUR)
     : null
@@ -357,6 +370,8 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     cancellation: cancellable
       ? { refundPercent: b.paidAt ? refund.percent : 0, refundAmount: refund.amount }
       : null,
+    refundPolicy: describeRefundPolicy(policy),
+    approvalDeadline: b.approvalDeadline?.toISOString() ?? null,
     review: review
       ? {
           id: review.id,

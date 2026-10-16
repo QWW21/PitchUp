@@ -20,7 +20,17 @@ export const GET = withErrorHandling(
         prisma.pitch.findUnique({
           where: { id },
           select: {
-            company: { select: { status: true, paymentMode: true, depositPercent: true } },
+            company: {
+              select: {
+                status: true,
+                paymentMode: true,
+                depositPercent: true,
+                autoApproveBookings: true,
+                refundFullHours: true,
+                refundPartialHours: true,
+                refundPartialPercent: true,
+              },
+            },
           },
         }),
         prisma.user.findUnique({ where: { id: session.user.id }, select: { trustScore: true } }),
@@ -34,6 +44,12 @@ export const GET = withErrorHandling(
         depositPercent,
         methods,
         trustTooLow: mode !== 'ONLINE' && !methods.some(m => m !== 'ONLINE'),
+        refundPolicy: {
+          fullRefundHours: pitch.company.refundFullHours,
+          partialRefundHours: pitch.company.refundPartialHours,
+          partialRefundPercent: pitch.company.refundPartialPercent,
+        },
+        autoApproveBookings: pitch.company.autoApproveBookings,
       }
       const response = ok(options)
       response.headers.set('Cache-Control', 'no-store')

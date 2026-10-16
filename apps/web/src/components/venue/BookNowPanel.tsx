@@ -4,10 +4,8 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import {
-  CANCELLATION_WINDOWS,
   DAY_LONG,
   DAY_SHORT,
-  REFUND_PERCENTAGES,
   addDays,
   dayOfWeek,
   venueClock,
@@ -61,6 +59,10 @@ interface BookNowPanelProps {
   blockNote?: string | undefined
   /** The tier this pitch asks for, when it asks for one. */
   minTier?: string | null
+  /** C-10: the venue's refund policy, in a sentence. */
+  refundPolicy: string
+  /** C-13: the venue confirms each booking by hand. */
+  confirmsByHand?: boolean
 }
 
 /**
@@ -74,6 +76,8 @@ export function BookNowPanel({
   block,
   blockNote,
   minTier,
+  refundPolicy,
+  confirmsByHand,
 }: BookNowPanelProps) {
   // The venue's today, not the browser's: a visitor abroad still sees Romanian dates.
   const today = venueClock(new Date()).date
@@ -196,11 +200,13 @@ export function BookNowPanel({
           For players with a {minTier} trust score or better.
         </p>
       )}
-      <p className="mt-3 text-xs text-neutral-500">
-        Free cancellation up to {CANCELLATION_WINDOWS.FULL_REFUND_HOURS}h before kick-off;{' '}
-        {REFUND_PERCENTAGES.PARTIAL}% refund up to {CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS}h
-        before.
-      </p>
+      {confirmsByHand && (
+        <p className="mt-3 text-xs text-neutral-700">
+          This venue confirms each booking. You pay when you book, and get it all back if they
+          decline.
+        </p>
+      )}
+      <p className="mt-3 text-xs text-neutral-500">{refundPolicy}</p>
     </aside>
   )
 }

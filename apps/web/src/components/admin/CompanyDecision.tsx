@@ -1,6 +1,9 @@
 'use client'
 
-/** Approve, or send back with a reason (a dialog) — the admin step agreed for E09. */
+/**
+ * Approve, or send back with a reason (a dialog) — the admin step agreed for
+ * E09; with `changes`, the same for an approved venue's new details (C-13).
+ */
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
@@ -9,9 +12,11 @@ import { send } from '@/lib/http'
 export function CompanyDecision({
   companyId,
   companyName,
+  changes = false,
 }: {
   companyId: string
   companyName: string
+  changes?: boolean
 }) {
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
@@ -24,7 +29,7 @@ export function CompanyDecision({
     setError(null)
     try {
       await send(
-        `/api/v1/admin/companies/${companyId}/${action}`,
+        `/api/v1/admin/${changes ? 'venue-changes' : 'companies'}/${companyId}/${action}`,
         'POST',
         action === 'reject' ? { reason } : {}
       )
@@ -50,7 +55,7 @@ export function CompanyDecision({
           disabled={busy}
           className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          Approve
+          {changes ? 'Approve changes' : 'Approve'}
         </button>
         <button
           type="button"
@@ -58,29 +63,34 @@ export function CompanyDecision({
           disabled={busy}
           className="h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
         >
-          Send back…
+          {changes ? 'Turn down…' : 'Send back…'}
         </button>
       </div>
       <dialog
         ref={dialog}
-        aria-labelledby={`reject-${companyId}`}
+        aria-labelledby={`reject-${changes ? 'changes-' : ''}${companyId}`}
         className="w-[min(28rem,calc(100%-2rem))] rounded-xl p-6 shadow-xl backdrop:bg-black/40"
         onClick={e => e.target === dialog.current && dialog.current?.close()}
       >
-        <h2 id={`reject-${companyId}`} className="text-lg font-semibold text-neutral-900">
-          Send {companyName} back
+        <h2
+          id={`reject-${changes ? 'changes-' : ''}${companyId}`}
+          className="text-lg font-semibold text-neutral-900"
+        >
+          {changes ? `Turn down ${companyName}'s changes` : `Send ${companyName} back`}
         </h2>
         <p className="mt-1 text-sm text-neutral-700">
-          The manager sees this reason and can fix the venue and submit again.
+          {changes
+            ? 'The manager sees this reason; the venue keeps its current details.'
+            : 'The manager sees this reason and can fix the venue and submit again.'}
         </p>
         <label
-          htmlFor={`reason-${companyId}`}
+          htmlFor={`reason-${changes ? 'changes-' : ''}${companyId}`}
           className="mt-4 block text-sm font-medium text-neutral-700"
         >
           What needs fixing
         </label>
         <textarea
-          id={`reason-${companyId}`}
+          id={`reason-${changes ? 'changes-' : ''}${companyId}`}
           rows={4}
           maxLength={500}
           value={reason}
@@ -102,7 +112,7 @@ export function CompanyDecision({
             disabled={busy || reason.trim().length < 5}
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? 'Sending…' : 'Send back'}
+            {busy ? 'Sending…' : changes ? 'Turn down' : 'Send back'}
           </button>
         </div>
       </dialog>

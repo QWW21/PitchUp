@@ -57,6 +57,12 @@ const BANNER: Record<BookingStatus, { label: string; bg: string; fg: string; ico
     fg: '#92400E',
     icon: 'clock-outline',
   },
+  AWAITING_APPROVAL: {
+    label: 'Waiting for the venue',
+    bg: colors.warning[50],
+    fg: '#92400E',
+    icon: 'clock-outline',
+  },
   COMPLETED: {
     label: 'Completed',
     bg: colors.primary[50],
@@ -74,6 +80,7 @@ const BANNER: Record<BookingStatus, { label: string; bg: string; fg: string; ico
 
 const WORDS: Record<BookingStatus, string> = {
   PENDING: 'Booked, awaiting payment',
+  AWAITING_APPROVAL: 'Paid, sent to the venue',
   CONFIRMED: 'Paid and confirmed',
   COMPLETED: 'Played',
   CANCELLED: 'Cancelled',

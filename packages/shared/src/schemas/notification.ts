@@ -49,6 +49,7 @@ export const DeviceTokenSchema = z.object({
  */
 export type NotificationTarget =
   | { screen: 'BookingDetail'; params: { id: string } }
+  | { screen: 'ManagerBookingDetail'; params: { id: string } }
   | { screen: 'MyReviews' }
   | { screen: 'MyBookings' }
   | { screen: 'TrustScore' }
@@ -56,6 +57,7 @@ export type NotificationTarget =
 
 const BOOKING_TYPES = new Set<string>([
   'BOOKING_CONFIRMED',
+  'BOOKING_AWAITING_APPROVAL',
   'BOOKING_REMINDER_24H',
   'BOOKING_REMINDER_2H',
   'BOOKING_CANCELLED_PLAYER',
@@ -70,6 +72,10 @@ export function notificationTarget(
   type: string,
   data: Record<string, unknown> | null | undefined
 ): NotificationTarget {
+  // A venue's notice about a booking opens the venue's view of it (C-11).
+  const link = typeof data?.link === 'string' ? data.link : ''
+  const managed = /^\/manager\/bookings\/([^/?#]+)$/.exec(link)
+  if (managed) return { screen: 'ManagerBookingDetail', params: { id: managed[1]! } }
   if (BOOKING_TYPES.has(type)) {
     const bookingId = typeof data?.bookingId === 'string' ? data.bookingId : null
     return bookingId
@@ -91,7 +97,7 @@ export function notificationWebPath(type: string, data: Record<string, unknown>)
   if (type === 'TRUST_TIER_CHANGED') return '/profile/trust-score'
   if (type === 'MANAGER_REPLIED') return '/my-reviews'
   const target = notificationTarget(type, data)
-  if (target && 'params' in target) return `/my-bookings/${target.params.id}`
+  if (target?.screen === 'BookingDetail') return `/my-bookings/${target.params.id}`
   if (target?.screen === 'MyBookings') return '/my-bookings'
   return '/profile/notifications'
 }
@@ -106,8 +112,15 @@ export const NOTIFICATION_PREFERENCE_GROUPS = [
   {
     key: 'confirmed',
     label: 'Booking confirmed',
-    description: 'When a booking is paid and confirmed',
-    types: ['BOOKING_CONFIRMED'],
+    description: 'When a booking is paid and confirmed, or sent to the venue to confirm',
+    types: ['BOOKING_CONFIRMED', 'BOOKING_AWAITING_APPROVAL'],
+  },
+  {
+    key: 'new-bookings',
+    label: 'New bookings',
+    description: 'When a player books one of your pitches',
+    types: ['BOOKING_RECEIVED'],
+    managersOnly: true,
   },
   {
     key: 'reminders',
@@ -144,7 +157,13 @@ export const NOTIFICATION_PREFERENCE_GROUPS = [
   label: string
   description: string
   types: readonly NotificationType[]
+  /** Shown to venue managers only. */
+  managersOnly?: boolean
 }[]
+
+/** The groups a person with this role can switch. */
+export const preferenceGroupsFor = (role: string) =>
+  NOTIFICATION_PREFERENCE_GROUPS.filter(g => !('managersOnly' in g) || role === 'MANAGER')
 
 export const MUTABLE_NOTIFICATION_TYPES = NOTIFICATION_PREFERENCE_GROUPS.flatMap(
   g => g.types

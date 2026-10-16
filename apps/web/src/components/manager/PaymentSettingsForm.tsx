@@ -46,7 +46,11 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
   }
 
   return (
-    <form onSubmit={save} className="max-w-xl space-y-5 rounded-xl bg-white p-5 shadow-sm">
+    <form
+      onSubmit={save}
+      aria-label="How players pay"
+      className="max-w-xl space-y-5 rounded-xl bg-white p-5 shadow-sm"
+    >
       <fieldset>
         <legend className="text-lg font-semibold text-neutral-900">How players pay</legend>
         <div className="mt-3 space-y-2">

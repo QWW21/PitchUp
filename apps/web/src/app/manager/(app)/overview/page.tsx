@@ -98,7 +98,11 @@ export default async function OverviewPage() {
                             : 'bg-warning-50 text-amber-800'
                         }`}
                       >
-                        {b.status === 'CONFIRMED' ? 'Confirmed' : 'Awaiting payment'}
+                        {b.status === 'CONFIRMED'
+                          ? 'Confirmed'
+                          : b.status === 'AWAITING_APPROVAL'
+                            ? 'Needs your answer'
+                            : 'Awaiting payment'}
                       </span>
                     </td>
                     <td className="px-4 font-mono text-xs text-neutral-500">{b.reference}</td>

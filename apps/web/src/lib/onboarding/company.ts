@@ -5,7 +5,8 @@
  * step 1 as DRAFT, filled in by steps 2 and 3, and submitted by step 4
  * (Stripe Connect), which makes it PENDING until an admin approves it.
  * Steps can be redone while DRAFT or PENDING; an approved venue's details
- * are edited in Settings (later epics).
+ * are changed from Settings, and an admin approves them again (C-13,
+ * lib/manager/venue.ts).
  */
 import 'server-only'
 import { Prisma, type Company } from '@prisma/client'
@@ -110,7 +111,7 @@ export async function saveInfo(
  * server key is set. Null when it cannot (no key, no result, an error):
  * the address is still saved.
  */
-async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
+export async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!env.GOOGLE_MAPS_API_KEY) return null
   try {
     const url = `https://maps.googleapis.com/maps/api/geocode/json?region=ro&address=${encodeURIComponent(address)}&key=${env.GOOGLE_MAPS_API_KEY}`

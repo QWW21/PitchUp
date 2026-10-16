@@ -4,6 +4,8 @@ import {
   bookingReference,
   formatDuration,
   freeCancellationUntil,
+  describeRefundPolicy,
+  refundPolicyOf,
   dayPeriod,
   durationOptions,
   formatShortDuration,
@@ -13,6 +15,7 @@ import {
   refundPercentFor,
   startOptions,
 } from './booking'
+import { DEFAULT_REFUND_POLICY } from './constants/cancellation'
 import type { SlotStatus } from './schemas/detail'
 
 describe('bookingPrice', () => {
@@ -43,21 +46,47 @@ describe('formatDuration', () => {
   })
 })
 
-describe('cancellation policy (PRD §9.2)', () => {
+describe('the refund policy (C-10)', () => {
   it.each([
     [48, 100],
-    [24, 100],
-    [23.9, 50],
-    [2, 50],
+    [12, 100],
+    [11.9, 75],
+    [2, 75],
     [1.9, 0],
     [-1, 0],
-  ])('%s h before → %i%%', (hours, percent) => {
+  ])('by default, %s h before → %i%%', (hours, percent) => {
     expect(refundPercentFor(hours)).toBe(percent)
   })
-  it('is free until 24 hours before kick-off', () => {
+  it("follows a venue's own policy", () => {
+    const strict = { fullRefundHours: 48, partialRefundHours: 24, partialRefundPercent: 50 }
+    expect(refundPercentFor(48, strict)).toBe(100)
+    expect(refundPercentFor(30, strict)).toBe(50)
+    expect(refundPercentFor(23, strict)).toBe(0)
+  })
+  it('is free until 12 hours before kick-off by default', () => {
     expect(freeCancellationUntil(new Date('2026-11-02T18:00:00Z')).toISOString()).toBe(
-      '2026-11-01T18:00:00.000Z'
+      '2026-11-02T06:00:00.000Z'
     )
+  })
+  it('says itself in one sentence', () => {
+    expect(describeRefundPolicy()).toBe(
+      'Free cancellation up to 12 hours before kick-off; 75% back up to 2 hours before; nothing after.'
+    )
+    expect(
+      describeRefundPolicy({ fullRefundHours: 24, partialRefundHours: 0, partialRefundPercent: 50 })
+    ).toBe('Free cancellation up to 24 hours before kick-off; 50% back until kick-off.')
+    expect(
+      describeRefundPolicy({ fullRefundHours: 1, partialRefundHours: 0, partialRefundPercent: 0 })
+    ).toBe('Free cancellation up to 1 hour before kick-off; nothing after.')
+    expect(
+      describeRefundPolicy({ fullRefundHours: 0, partialRefundHours: 0, partialRefundPercent: 0 })
+    ).toBe('Free cancellation until kick-off.')
+  })
+  it('reads a stored policy, or falls back to the default', () => {
+    const p = { fullRefundHours: 6, partialRefundHours: 1, partialRefundPercent: 40 }
+    expect(refundPolicyOf(p)).toEqual(p)
+    expect(refundPolicyOf(null)).toEqual(DEFAULT_REFUND_POLICY)
+    expect(refundPolicyOf({ fullRefundHours: 6 })).toEqual(DEFAULT_REFUND_POLICY)
   })
 })
 
@@ -154,9 +183,9 @@ describe('cancellationRefund', () => {
   const at = (hoursBefore: number) => new Date(start.getTime() - hoursBefore * 3_600_000)
   it.each([
     [48, 100, 240],
-    [24, 100, 240],
-    [23.99, 50, 120],
-    [2, 50, 120],
+    [12, 100, 240],
+    [11.99, 75, 180],
+    [2, 75, 180],
     [1.99, 0, 0],
   ])('%s h before → %i%% = %i RON', async (hours, percent, amount) => {
     const { cancellationRefund } = await import('./booking')
@@ -164,7 +193,7 @@ describe('cancellationRefund', () => {
   })
   it('keeps bani', async () => {
     const { cancellationRefund } = await import('./booking')
-    expect(cancellationRefund(135, start, at(5)).amount).toBe(67.5)
+    expect(cancellationRefund(135, start, at(5)).amount).toBe(101.25)
   })
 })
 

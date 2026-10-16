@@ -2,6 +2,7 @@ import type { BookingStatus } from '@pitchup/shared'
 
 const STYLES: Record<BookingStatus, [string, string]> = {
   PENDING: ['Awaiting payment', 'bg-warning-50 text-amber-800'],
+  AWAITING_APPROVAL: ['Needs your answer', 'bg-warning-50 text-amber-800'],
   CONFIRMED: ['Confirmed', 'bg-success-50 text-primary-700'],
   CANCELLED: ['Cancelled', 'bg-neutral-100 text-neutral-700'],
   COMPLETED: ['Completed', 'bg-info-50 text-blue-800'],

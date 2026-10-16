@@ -15,6 +15,7 @@ import { colors, spacing } from '../../theme/tokens'
 const BADGE: Record<BookingStatus, { label: string; bg: string; fg: string }> = {
   CONFIRMED: { label: 'Confirmed', bg: colors.primary[50], fg: colors.primary[700] },
   PENDING: { label: 'Pending', bg: colors.warning[50], fg: '#92400E' },
+  AWAITING_APPROVAL: { label: 'Waiting for venue', bg: colors.warning[50], fg: '#92400E' },
   COMPLETED: { label: 'Completed', bg: colors.primary[50], fg: colors.primary[700] },
   NO_SHOW: { label: 'No-show', bg: colors.error[50], fg: colors.error[600] },
   CANCELLED: { label: 'Cancelled', bg: colors.neutral[100], fg: colors.neutral[700] },

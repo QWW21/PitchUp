@@ -54,11 +54,12 @@ describe('replayTrustScore (E12-05)', () => {
 })
 
 describe('lateCancelReason (E12-03)', () => {
-  it('−10 under 2 hours, −5 under 24, nothing from 24', () => {
+  it('−10 under 2 hours, −5 under 12, nothing from 12 (C-9)', () => {
     expect(lateCancelReason(1.99)).toBe('VERY_LATE_CANCEL')
     expect(lateCancelReason(2)).toBe('LATE_CANCEL')
-    expect(lateCancelReason(23.9)).toBe('LATE_CANCEL')
-    expect(lateCancelReason(24)).toBeNull()
+    expect(lateCancelReason(11.9)).toBe('LATE_CANCEL')
+    expect(lateCancelReason(12)).toBeNull()
+    expect(lateCancelReason(23)).toBeNull()
   })
 })
 

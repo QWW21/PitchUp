@@ -38,7 +38,11 @@ export default async function BookingLayout({ children, params }: Props) {
         score: user.trustScore,
         pitchMinScore: pitch.minTrustScore,
         activeBookings: await prisma.booking.count({
-          where: { playerId: session.user.id, status: 'CONFIRMED', endTime: { gt: new Date() } },
+          where: {
+            playerId: session.user.id,
+            status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+            endTime: { gt: new Date() },
+          },
         }),
       })
     : null

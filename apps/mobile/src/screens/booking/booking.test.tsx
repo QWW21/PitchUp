@@ -7,6 +7,7 @@ import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { addDays, venueClock, type PitchAvailability } from '@pitchup/shared'
+import { DEFAULT_REFUND_POLICY } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
 import { useBookingStore, bookingBody, type BookingPitch } from '../../stores/bookingStore'
@@ -256,6 +257,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       depositPercent: 20,
       methods: ['ONLINE'],
       trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
     })
   })
 
@@ -309,6 +312,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       depositPercent: 20,
       methods: ['ONLINE', 'VENUE_DEPOSIT_TOWARDS', 'VENUE_REFUND_DEPOSIT'],
       trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
     })
     api.create.mockResolvedValue({ bookingId: 'b3', payment: { provider: 'test' } } as never)
     api.confirmTest.mockResolvedValue({ status: 'CONFIRMED' } as never)
@@ -335,6 +340,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       depositPercent: 0,
       methods: ['VENUE_DEPOSIT_TOWARDS'],
       trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
     })
     api.create.mockResolvedValue({ bookingId: 'b4', payment: { provider: 'none' } } as never)
     const nav = makeNav()
@@ -353,6 +360,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       depositPercent: 20,
       methods: [],
       trustTooLow: true,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
     })
     show(Step4SummaryScreen, makeNav())
     expect(await screen.findByText(/trust score of 70 or\s+more/)).toBeOnTheScreen()

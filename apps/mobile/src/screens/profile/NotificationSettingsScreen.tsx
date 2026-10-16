@@ -20,13 +20,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  NOTIFICATION_PREFERENCE_GROUPS,
+  preferenceGroupsFor,
   type NotificationPreferences,
   type NotificationPreferencesInput,
   type NotificationType,
 } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { profileApi } from '../../lib/profileApi'
+import { useAuthStore } from '../../stores/authStore'
 import { ApiError } from '../../lib/apiClient'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
@@ -45,6 +46,7 @@ const CHANNELS: {
 ]
 
 export function NotificationSettingsScreen({ navigation }: Props) {
+  const role = useAuthStore(s => s.user?.role ?? 'PLAYER')
   const queryClient = useQueryClient()
   const prefs = useQuery({ queryKey: KEY, queryFn: () => profileApi.notificationPreferences() })
   const save = useMutation({
@@ -117,7 +119,7 @@ export function NotificationSettingsScreen({ navigation }: Props) {
         </View>
         <Text style={styles.section}>WHAT WE TELL YOU ABOUT</Text>
         <View style={styles.card}>
-          {NOTIFICATION_PREFERENCE_GROUPS.map(g => (
+          {preferenceGroupsFor(role).map(g => (
             <Row
               key={g.key}
               label={g.label}

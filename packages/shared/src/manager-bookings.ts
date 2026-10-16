@@ -12,6 +12,7 @@ import type { BookingStatus } from './types'
 
 export const MANAGER_BOOKING_STATUSES = [
   'PENDING',
+  'AWAITING_APPROVAL',
   'CONFIRMED',
   'CANCELLED',
   'COMPLETED',
@@ -119,6 +120,11 @@ export interface ManagerBooking {
   canConfirmAttended: boolean
   canReportNoShow: boolean
   canComplete: boolean
+  /** C-13: a request waiting for the manager, and until when. */
+  canAccept: boolean
+  approvalDeadline: string | null
+  /** C-12: declining a request, or cancelling a booking before kick-off. */
+  canCancel: boolean
 }
 
 /** GET /api/v1/manager/bookings */

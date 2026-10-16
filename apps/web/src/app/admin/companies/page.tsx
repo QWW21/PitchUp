@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Building2, CheckCircle2 } from 'lucide-react'
 import { auth } from '@/auth'
 import { listPendingCompanies } from '@/lib/admin/companies'
+import { listVenueChanges } from '@/lib/manager/venue'
 import { CompanyDecision } from '@/components/admin/CompanyDecision'
 
 export const metadata: Metadata = { title: 'Venue approvals | PitchUp' }
@@ -19,7 +20,7 @@ export default async function AdminCompaniesPage() {
   // The layout checks too, but layouts and pages render in parallel.
   const session = await auth()
   if (session?.user.role !== 'ADMIN') return null
-  const companies = await listPendingCompanies()
+  const [companies, changes] = await Promise.all([listPendingCompanies(), listVenueChanges()])
 
   return (
     <>
@@ -98,6 +99,68 @@ export default async function AdminCompaniesPage() {
                   )}
                 </dl>
                 <CompanyDecision companyId={c.id} companyName={c.name} />
+              </article>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h2 className="mt-10 text-xl font-bold text-neutral-900">Changes to live venues</h2>
+      <p className="mt-1 text-sm text-neutral-500">
+        {changes.length === 0
+          ? 'No changes to review.'
+          : 'Each venue keeps its current details until you approve.'}
+      </p>
+      {changes.length > 0 && (
+        <ul className="mt-4 space-y-4">
+          {changes.map(c => (
+            <li key={c.companyId}>
+              <article
+                aria-labelledby={`chg-${c.companyId}`}
+                className="rounded-xl bg-white p-5 shadow-sm"
+              >
+                <h3 id={`chg-${c.companyId}`} className="text-lg font-semibold text-neutral-900">
+                  {c.companyName}
+                </h3>
+                <p className="text-xs text-neutral-500">
+                  {c.manager.name} ({c.manager.email}) · sent {when.format(new Date(c.submittedAt))}
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[32rem] text-left text-sm">
+                    <thead className="text-xs text-neutral-500">
+                      <tr>
+                        <th scope="col" className="py-1 pr-3 font-medium">
+                          Field
+                        </th>
+                        <th scope="col" className="py-1 pr-3 font-medium">
+                          Now
+                        </th>
+                        <th scope="col" className="py-1 font-medium">
+                          Proposed
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-neutral-100 align-top">
+                      {c.lines.length === 0 ? (
+                        <tr>
+                          <td colSpan={3} className="py-2 text-neutral-700">
+                            Sent again without changes.
+                          </td>
+                        </tr>
+                      ) : (
+                        c.lines.map(l => (
+                          <tr key={l.field}>
+                            <th scope="row" className="py-2 pr-3 font-medium text-neutral-900">
+                              {l.field}
+                            </th>
+                            <td className="py-2 pr-3 text-neutral-700">{l.before}</td>
+                            <td className="py-2 font-medium text-neutral-900">{l.after}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                <CompanyDecision companyId={c.companyId} companyName={c.companyName} changes />
               </article>
             </li>
           ))}

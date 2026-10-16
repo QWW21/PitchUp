@@ -39,7 +39,8 @@ import { ApiException, conflict, notFound, unauthorized, validationError } from 
 import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
-import { notifyBookingConfirmed } from '@/lib/notifications/booking'
+import { notifyBookingPaid } from '@/lib/notifications/booking'
+import { paidState } from './approval'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -69,6 +70,10 @@ export async function createBooking(
             workingHours: true,
             paymentMode: true,
             depositPercent: true,
+            autoApproveBookings: true,
+            refundFullHours: true,
+            refundPartialHours: true,
+            refundPartialPercent: true,
           },
         },
         shirtInventory: true,
@@ -86,7 +91,11 @@ export async function createBooking(
     score: user.trustScore,
     pitchMinScore: pitch.minTrustScore,
     activeBookings: await prisma.booking.count({
-      where: { playerId: userId, status: 'CONFIRMED', endTime: { gt: now } },
+      where: {
+        playerId: userId,
+        status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+        endTime: { gt: now },
+      },
     }),
   })
   if (gate) {
@@ -166,8 +175,9 @@ export async function createBooking(
 
   const price = bookingPrice(Number(pitch.hourlyRate), minutes)
   const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
-  // Nothing to charge online: confirmed now, like a paid booking.
+  // Nothing to charge online: confirmed now (or sent to the venue), like a paid booking.
   const free = split.payNow === 0
+  const settled = paidState(pitch.company.autoApproveBookings, now, startTime)
 
   const { booking, superseded } = await prisma.$transaction(async tx => {
     // Serialises bookings of this pitch until the transaction ends.
@@ -221,7 +231,14 @@ export async function createBooking(
         teamsData: input.teamsData,
         shirtSets: sets,
         ...(input.noteToManager ? { noteToManager: input.noteToManager } : {}),
-        status: free ? 'CONFIRMED' : 'PENDING',
+        status: free ? settled.status : 'PENDING',
+        ...(free && settled.approvalDeadline ? { approvalDeadline: settled.approvalDeadline } : {}),
+        // C-10: the policy the player agrees to now.
+        refundPolicy: {
+          fullRefundHours: pitch.company.refundFullHours,
+          partialRefundHours: pitch.company.refundPartialHours,
+          partialRefundPercent: pitch.company.refundPartialPercent,
+        },
         pitchRateSnapshot: pitch.hourlyRate,
         platformFee: price.platformFee,
         totalAmount: price.total,
@@ -233,7 +250,7 @@ export async function createBooking(
       select: { id: true, createdAt: true },
     })
     await recordStatus(tx, booking.id, 'PENDING')
-    if (free) await recordStatus(tx, booking.id, 'CONFIRMED')
+    if (free) await recordStatus(tx, booking.id, settled.status)
     return { booking, superseded: own }
   })
 
@@ -253,7 +270,7 @@ export async function createBooking(
   }
   if (free) {
     // Best effort, as after a payment: a mail outage must not undo the booking.
-    await notifyBookingConfirmed(booking.id).catch(caught =>
+    await notifyBookingPaid(booking.id).catch(caught =>
       console.error(
         `[bookings] Confirmation notice for ${booking.id} failed:`,
         caught instanceof Error ? caught.message : 'unknown error'

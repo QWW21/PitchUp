@@ -44,4 +44,18 @@ export const managerApi = {
       url: `/manager/bookings/${id}/complete`,
       data: {},
     }),
+  /** C-13: accept a booking that waits for the venue. */
+  accept: (id: string) =>
+    apiRequest<ManagerBooking>({
+      method: 'POST',
+      url: `/manager/bookings/${id}/accept`,
+      data: {},
+    }),
+  /** C-12 / C-13: decline a request, or cancel a booking; the player is refunded in full. */
+  cancel: (id: string, reason: string) =>
+    apiRequest<ManagerBooking>({
+      method: 'POST',
+      url: `/manager/bookings/${id}/cancel`,
+      data: { reason },
+    }),
 }

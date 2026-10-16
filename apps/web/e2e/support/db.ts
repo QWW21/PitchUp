@@ -135,10 +135,18 @@ export async function seedBooking(opts: {
   pitchId: string
   playerId: string
   startsIn: number
-  status: 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+  status: 'PENDING' | 'AWAITING_APPROVAL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
   paid?: boolean
   createdAgo?: number
   rate?: number
+  /** C-10: the refund policy the booking was made under; none means the default. */
+  refundPolicy?: {
+    fullRefundHours: number
+    partialRefundHours: number
+    partialRefundPercent: number
+  }
+  /** C-13: when a booking waiting for the venue is declined. */
+  approvalDeadline?: Date
 }) {
   const HOUR = 3_600_000
   const start = new Date(Date.now() + opts.startsIn * HOUR)
@@ -167,6 +175,8 @@ export async function seedBooking(opts: {
           }
         : {}),
       createdAt: new Date(Date.now() - (opts.createdAgo ?? 60) * HOUR),
+      ...(opts.refundPolicy ? { refundPolicy: opts.refundPolicy } : {}),
+      ...(opts.approvalDeadline ? { approvalDeadline: opts.approvalDeadline } : {}),
     },
   })
 }
