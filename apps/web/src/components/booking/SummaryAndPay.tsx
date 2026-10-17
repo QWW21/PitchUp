@@ -1,7 +1,9 @@
 'use client'
 
 /**
- * Step 4: summary and payment — E05-10 (UIUX_SPEC §7.4).
+ * Step 4: summary and payment — E05-10 (UIUX_SPEC §7.4). Named SummaryAndPay
+ * since E15: as SummaryStep.tsx, webpack gave it module id 0, which Next leaves
+ * out of the client manifest, and the page failed.
  *
  * Pay creates the booking (PENDING, holding the slot), then completes the
  * payment: with Stripe Elements when Stripe is set up, or with the built-in

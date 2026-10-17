@@ -19,6 +19,7 @@ import {
   csvLine,
   dayOfWeek,
   endLabel,
+  feeRate,
   feesOn,
   fromMinutes,
   normalizeWeek,
@@ -112,6 +113,7 @@ async function figures(
         startTime: true,
         endTime: true,
         totalAmount: true,
+        platformFee: true,
         paymentMethod: true,
         depositAmount: true,
         dueAtVenue: true,
@@ -192,8 +194,11 @@ async function figures(
       paid: !!b.paidAt,
       refunded: b.refundAmount === null ? null : Number(b.refundAmount),
     })
+    // Each booking's own commission (E15: an admin can change it).
+    const { fees } = feesOn(earned.gross, feeRate(Number(b.totalAmount), Number(b.platformFee)))
     const bucket = f.buckets.get(bucketOf(at.date, groupBy))
     if (bucket) {
+      bucket.fees += fees
       bucket.gross += earned.gross
       bucket.online += earned.online
       bucket.atVenue += earned.atVenue
@@ -227,7 +232,8 @@ async function figures(
     p.gross = Math.round(p.gross * 100) / 100
     p.online = Math.round(p.online * 100) / 100
     p.atVenue = Math.round(p.atVenue * 100) / 100
-    Object.assign(p, feesOn(p.gross))
+    p.fees = Math.round(p.fees * 100) / 100
+    p.payout = Math.round((p.gross - p.fees) * 100) / 100
   }
   return f
 }
@@ -412,6 +418,7 @@ export async function analyticsCsv(
       endTime: true,
       teamCount: true,
       totalAmount: true,
+      platformFee: true,
       paymentMethod: true,
       depositAmount: true,
       dueAtVenue: true,
@@ -454,7 +461,10 @@ export async function analyticsCsv(
       paid: !!b.paidAt,
       refunded: b.refundAmount === null ? null : Number(b.refundAmount),
     })
-    const { fees, payout } = feesOn(earned.gross)
+    const { fees, payout } = feesOn(
+      earned.gross,
+      feeRate(Number(b.totalAmount), Number(b.platformFee))
+    )
     return csvLine([
       bookingReference(b.id),
       s.date,

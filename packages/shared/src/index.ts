@@ -16,6 +16,7 @@ export * from './manager-bookings'
 export * from './trust-engine'
 export * from './venue-settings'
 export * from './analytics'
+export * from './admin'
 
 export * from './constants/auth'
 export * from './constants/booking'

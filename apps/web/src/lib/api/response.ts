@@ -4,7 +4,7 @@
  * Every API route returns { data, error } so the client can check one field
  * rather than inferring success from the shape of the payload.
  */
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { ApiException, ERROR_CODES, type ErrorCode } from './errors'
 
 export interface ApiSuccess<T> {
@@ -53,6 +53,25 @@ export function errFromException(exception: ApiException): NextResponse<ApiError
 }
 
 /**
+ * Maintenance mode's 503, or null. A failure to read the setting lets the
+ * request through rather than taking the API down with it.
+ */
+async function maintenanceBlock(arg: unknown): Promise<NextResponse<ApiErrorBody> | null> {
+  const request = arg as NextRequest | undefined
+  if (!request?.nextUrl) return null
+  try {
+    const { maintenanceMessage, requestIsAdmin } = await import('@/lib/maintenance')
+    const message = await maintenanceMessage(request.nextUrl.pathname, () =>
+      requestIsAdmin(request)
+    )
+    return message ? err('SERVICE_UNAVAILABLE', message, 503, { reason: 'MAINTENANCE' }) : null
+  } catch (caught) {
+    console.error('[maintenance] Could not read the setting:', caught)
+    return null
+  }
+}
+
+/**
  * Wraps a route handler so an unexpected throw becomes a 500 in the standard
  * shape instead of Next's HTML error page. Internal messages are never
  * forwarded to the client — they go to the server log.
@@ -62,6 +81,9 @@ export function withErrorHandling<TArgs extends unknown[]>(
 ): (...args: TArgs) => Promise<NextResponse> {
   return async (...args: TArgs) => {
     try {
+      // E15: maintenance mode answers 503 to everyone but admins.
+      const blocked = await maintenanceBlock(args[0])
+      if (blocked) return blocked
       return await handler(...args)
     } catch (caught) {
       if (caught instanceof ApiException) return errFromException(caught)

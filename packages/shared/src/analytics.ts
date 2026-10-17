@@ -142,11 +142,22 @@ export function bookingEarned(b: RevenueBooking): Earned {
   return { gross: 0, online: 0, atVenue: 0, counted: false }
 }
 
-/** PitchUp's commission on what the venue earned, and what the venue keeps. */
-export function feesOn(gross: number): { fees: number; payout: number } {
-  const fees = round2((gross * PLATFORM_FEE_PERCENT) / 100)
+/**
+ * PitchUp's commission on what the venue earned, and what the venue keeps.
+ * `rate` is the booking's own (its fee over its price), since the admin can
+ * change the commission (E15); 8% when unknown.
+ */
+export function feesOn(
+  gross: number,
+  rate: number = PLATFORM_FEE_PERCENT / 100
+): { fees: number; payout: number } {
+  const fees = round2(gross * rate)
   return { fees, payout: round2(gross - fees) }
 }
+
+/** A booking's commission rate, from what it stored. */
+export const feeRate = (total: number, platformFee: number): number =>
+  total > 0 ? platformFee / total : PLATFORM_FEE_PERCENT / 100
 
 /** +12 for 12% more; null when there is nothing to compare with. */
 export const percentChange = (now: number | null, before: number | null): number | null =>

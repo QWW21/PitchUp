@@ -84,7 +84,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   venue details approved again), analytics against known bookings (E14:
   revenue by bucket and pitch, the heatmap's booked-over-open cells and
   closed hours, the cards against the previous period, the pitch table,
-  the CSV), and the E01
+  the CSV), the admin panel (E15: venue filters and statuses, users
+  filtered, suspended (sessions ended, sign-in refused) and adjusted with a
+  reason, players deleted, disputes, reviews deleted with a reason, the
+  figures, the commission on new bookings, maintenance mode), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -108,8 +111,10 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   and the notification settings page (E13), the Settings tabs, accepting
   and declining a booking and the admin's comparison of venue changes
   (C-10 … C-13), the analytics dashboard (E14: cards, URL filters, chart
-  legend and table, sorting, the CSV download, an empty venue), at 1280px
-  and 375px.
+  legend and table, sorting, the CSV download, an empty venue), the admin
+  panel (E15: overview, venues, users, reviews, disputes, settings and
+  maintenance as a visitor sees it) and a smoke test of each role's golden
+  path, at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

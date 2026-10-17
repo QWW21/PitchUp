@@ -29,7 +29,7 @@ export function WithdrawChanges() {
       >
         {busy ? 'Withdrawing…' : 'Withdraw these changes'}
       </button>
-      {error && <p className="mt-2 text-error-700">{error}</p>}
+      {error && <p className="mt-2 text-error-600">{error}</p>}
     </>
   )
 }

@@ -107,6 +107,10 @@ export interface OpenDispute {
   reportedAt: string
   /** What the venue kept: the deposit or the online payment. */
   keptAmount: number
+  /** E15: decided disputes are listed too. */
+  status: 'OPEN' | 'RESOLVED_PLAYER' | 'RESOLVED_MANAGER'
+  resolution: string | null
+  resolvedAt: string | null
 }
 
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>

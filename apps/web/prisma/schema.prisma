@@ -118,6 +118,8 @@ enum TrustScoreReason {
   NO_SHOW
   DISPUTE_WON
   MONTHLY_RECOVERY
+  /// E15: an admin's change by hand, with its reason in `note`.
+  ADMIN_ADJUSTMENT
 }
 
 enum NotificationType {
@@ -149,6 +151,8 @@ enum NotificationType {
   COMPANY_REJECTED
   /// To the player: their trust tier went up or down (E13).
   TRUST_TIER_CHANGED
+  /// From an admin (E15): a review removed, a score adjusted, a venue suspended or reinstated.
+  ADMIN_NOTICE
   OTP
   PASSWORD_RESET
 }
@@ -193,6 +197,9 @@ model User {
   deletedAt         DateTime?
   /// Why the player deleted their account, if they said (E08-03).
   deletionReason    String?
+  /// E15: an admin suspended the account: no sign-in until reinstated.
+  suspendedAt       DateTime?
+  suspensionReason  String?
 
   company                Company?
   bookings               Booking[]
@@ -257,6 +264,8 @@ model Company {
   reviewedAt             DateTime?
   /// Why an admin sent it back; cleared when resubmitted.
   rejectionReason        String?
+  /// E15: why an admin suspended the venue.
+  suspensionReason       String?
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 
@@ -561,6 +570,8 @@ model TrustScoreEvent {
   userId           String
   delta            Int
   reason           TrustScoreReason
+  /// E15: why an admin adjusted the score.
+  note             String?
   relatedBookingId String?
   createdAt        DateTime         @default(now())
 
@@ -641,4 +652,16 @@ model City {
   country String @default("RO")
 
   @@index([country])
+}
+
+/// E15: platform settings an admin can change, one row ("singleton").
+model PlatformConfig {
+  id                 String   @id @default("singleton")
+  /// PitchUp's commission on new bookings, 0–20%.
+  platformFeePercent Int      @default(8)
+  /// When on, everyone but admins sees the maintenance notice.
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String   @default("PitchUp is down for maintenance. We'll be back shortly.")
+  updatedById        String?
+  updatedAt          DateTime @updatedAt
 }

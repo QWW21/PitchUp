@@ -43,9 +43,11 @@ export async function applyTrustEvent(
   userId: string,
   reason: TrustScoreReason,
   relatedBookingId: string | null = null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  /** E15: an admin's adjustment carries its own points and reason. */
+  adjustment: { delta: number; note: string } | null = null
 ): Promise<TrustResult> {
-  const delta = TRUST_SCORE_DELTAS[reason]
+  const delta = adjustment?.delta ?? TRUST_SCORE_DELTAS[reason]
   // One player's trust changes one at a time, so the monthly cap can't be raced past.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'trust:' + userId}))`
 
@@ -68,7 +70,14 @@ export async function applyTrustEvent(
     RETURNING "trustScore"`
   if (!rows.length) return { applied: false, score: null }
   await tx.trustScoreEvent.create({
-    data: { userId, delta, reason, relatedBookingId, createdAt: now },
+    data: {
+      userId,
+      delta,
+      reason,
+      relatedBookingId,
+      createdAt: now,
+      ...(adjustment ? { note: adjustment.note } : {}),
+    },
   })
   const score = rows[0]!.trustScore
   const [was, is] = [deriveTier(before.trustScore), deriveTier(score)]

@@ -27,10 +27,21 @@ import { recordStatus } from '@/lib/bookings/status'
 import { applyTrustEvent } from '@/lib/trust/apply'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
-export async function listOpenDisputes(): Promise<OpenDispute[]> {
+/**
+ * Disputes for the admins: open ones oldest first (the next to decide on
+ * top); decided ones (E15-04) newest first.
+ */
+export async function listDisputes(
+  status: 'open' | 'resolved' | 'all' = 'open'
+): Promise<OpenDispute[]> {
   const rows = await prisma.noShow.findMany({
-    where: { disputeStatus: 'OPEN' },
-    orderBy: { createdAt: 'asc' },
+    where:
+      status === 'open'
+        ? { disputeStatus: 'OPEN' }
+        : status === 'resolved'
+          ? { disputeStatus: { in: ['RESOLVED_PLAYER', 'RESOLVED_MANAGER'] } }
+          : { disputeStatus: { not: 'NONE' } },
+    orderBy: status === 'open' ? { createdAt: 'asc' } : { createdAt: 'desc' },
     take: 100,
     include: {
       booking: {
@@ -60,6 +71,9 @@ export async function listOpenDisputes(): Promise<OpenDispute[]> {
       disputeText: r.disputeText,
       reportedAt: r.createdAt.toISOString(),
       keptAmount: Number(r.penaltyAmount),
+      status: r.disputeStatus as OpenDispute['status'],
+      resolution: r.resolution,
+      resolvedAt: r.resolvedAt?.toISOString() ?? null,
     }
   })
 }

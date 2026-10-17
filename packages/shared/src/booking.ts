@@ -28,10 +28,17 @@ export interface BookingPrice {
   venuePayout: number
 }
 
-/** Price of a booking. One rate at any time of day (C-2); shirts are free (C-1). */
-export function bookingPrice(hourlyRate: number, minutes: number): BookingPrice {
+/**
+ * Price of a booking. One rate at any time of day (C-2); shirts are free
+ * (C-1). The commission is an admin setting (E15); 8% unless given.
+ */
+export function bookingPrice(
+  hourlyRate: number,
+  minutes: number,
+  feePercent: number = PLATFORM_FEE_PERCENT
+): BookingPrice {
   const total = round2((hourlyRate * minutes) / 60)
-  const platformFee = round2((total * PLATFORM_FEE_PERCENT) / 100)
+  const platformFee = round2((total * feePercent) / 100)
   return { minutes, total, platformFee, venuePayout: round2(total - platformFee) }
 }
 

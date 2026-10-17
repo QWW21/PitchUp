@@ -211,7 +211,19 @@ export async function deleteAccount(
     )
   }
   await checkPassword(user.id, input.password)
+  await closePlayerAccount(user, input.reason ?? null, now)
+}
 
+/**
+ * Closes a player's account (the part of deleting it after the password
+ * check), also used by an admin (E15-03): upcoming bookings cancelled with
+ * everything refunded, personal details wiped, every session ended.
+ */
+export async function closePlayerAccount(
+  user: { id: string; role: string },
+  reason: string | null,
+  now: Date = new Date()
+): Promise<void> {
   // Cancel first: if a refund fails, the account is untouched and the
   // player can try again (bookings already cancelled stay cancelled).
   const upcoming = await prisma.booking.findMany({
@@ -237,7 +249,7 @@ export async function deleteAccount(
       where: { id: user.id },
       data: {
         deletedAt: now,
-        deletionReason: input.reason ?? null,
+        deletionReason: reason,
         name: 'Former player',
         email: `deleted_${user.id}@pitchup.deleted`,
         phone: `deleted_${user.id}`,

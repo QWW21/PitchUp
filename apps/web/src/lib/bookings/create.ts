@@ -41,6 +41,7 @@ import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
 import { notifyBookingPaid } from '@/lib/notifications/booking'
 import { paidState } from './approval'
+import { platformConfig } from '@/lib/admin/config'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -173,7 +174,12 @@ export async function createBooking(
     }
   }
 
-  const price = bookingPrice(Number(pitch.hourlyRate), minutes)
+  // E15: the commission is the admin's current setting, kept on the booking.
+  const price = bookingPrice(
+    Number(pitch.hourlyRate),
+    minutes,
+    (await platformConfig()).platformFeePercent
+  )
   const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
   // Nothing to charge online: confirmed now (or sent to the venue), like a paid booking.
   const free = split.payNow === 0

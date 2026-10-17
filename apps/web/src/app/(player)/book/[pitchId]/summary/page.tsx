@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { SummaryStep } from '@/components/booking/SummaryStep'
+import { SummaryStep } from '@/components/booking/SummaryAndPay'
 
 export default function SummaryPage() {
   return (

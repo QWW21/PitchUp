@@ -6,7 +6,14 @@
  * email and by notification.
  */
 import 'server-only'
-import type { PendingCompany } from '@pitchup/shared'
+import {
+  COMPANY_STATUS_LABELS,
+  COMPANY_TRANSITIONS,
+  type AdminCompanyPage,
+  type AdminCompanyQuery,
+  type CompanyStatusUpdate,
+  type PendingCompany,
+} from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
@@ -90,4 +97,98 @@ export async function rejectCompany(
     })
   })
   deliverSoon([company.owner.id])
+}
+
+// ── The full venue list and status changes (E15-01, E15-02) ─────────────────
+
+/** Every venue, newest first, filtered by status and a name or manager email. */
+export async function listCompanies(query: AdminCompanyQuery): Promise<AdminCompanyPage> {
+  const rows = await prisma.company.findMany({
+    where: {
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.search
+        ? {
+            OR: [
+              { name: { contains: query.search, mode: 'insensitive' } },
+              { owner: { email: { contains: query.search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    take: query.limit + 1,
+    ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+    include: {
+      owner: { select: { id: true, name: true, email: true } },
+      _count: { select: { pitches: { where: { deletedAt: null } } } },
+    },
+  })
+  const more = rows.length > query.limit
+  const page = rows.slice(0, query.limit)
+  return {
+    items: page.map(c => ({
+      id: c.id,
+      name: c.name,
+      city: c.city,
+      status: c.status,
+      manager: c.owner,
+      pitchCount: c._count.pitches,
+      createdAt: c.createdAt.toISOString(),
+      submittedAt: c.submittedAt?.toISOString() ?? null,
+      hasChanges: !!c.changesSubmittedAt,
+      stripeConnected: !!c.stripeAccountId,
+    })),
+    nextCursor: more ? page.at(-1)!.id : null,
+  }
+}
+
+/**
+ * Moves a venue along COMPANY_TRANSITIONS. Approving and sending back are
+ * E09's; suspending takes it off Discover and stops new bookings (the
+ * manager sees why); reinstating puts it back. Bookings already made stay.
+ */
+export async function setCompanyStatus(
+  companyId: string,
+  input: CompanyStatusUpdate,
+  now: Date = new Date()
+): Promise<{ status: string }> {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, name: true, status: true, ownerId: true },
+  })
+  if (!company) throw notFound('Company not found')
+  if (!COMPANY_TRANSITIONS[company.status].includes(input.status)) {
+    throw new ApiException(
+      'CONFLICT',
+      `A venue that is ${COMPANY_STATUS_LABELS[company.status].toLowerCase()} can't become ${COMPANY_STATUS_LABELS[input.status].toLowerCase()}`,
+      { reason: 'INVALID_TRANSITION', from: company.status, to: input.status }
+    )
+  }
+  if (company.status === 'PENDING') {
+    if (input.status === 'ACTIVE') await approveCompany(companyId, now)
+    else await rejectCompany(companyId, input.reason!, now)
+    return { status: input.status }
+  }
+  const suspending = input.status === 'SUSPENDED'
+  await prisma.$transaction(async tx => {
+    await tx.company.update({
+      where: { id: companyId },
+      data: {
+        status: input.status,
+        suspensionReason: suspending ? input.reason! : null,
+        reviewedAt: now,
+      },
+    })
+    await notify(tx, {
+      userId: company.ownerId,
+      type: 'ADMIN_NOTICE',
+      title: suspending ? `${company.name} is suspended` : `${company.name} is live again`,
+      body: suspending
+        ? `${input.reason} Players can't find or book it until PitchUp reinstates it. Bookings already made stay.`
+        : 'PitchUp reinstated your venue: players can find and book it again.',
+      data: { companyId, link: '/manager/overview' },
+    })
+  })
+  deliverSoon([company.ownerId])
+  return { status: input.status }
 }

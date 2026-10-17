@@ -1,7 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E14 (Analytics),
-after E09–E13 and the product changes C-6 to C-13.
+Last updated at the end of the session that implemented E15 (Admin Panel),
+after E09–E14 and the product changes C-6 to C-13.
 
 ## Done
 
@@ -373,6 +373,44 @@ monthly recovery (+1 in a month with nothing negative). New endpoints:
 
 Schema: `Pitch.minTrustScore`, `NoShow.resolution`.
 
+**E15 — Admin Panel: all ten tickets done.**
+
+| Ticket                        | State                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| E15-01 guard + venue list     | done, verified — status and search filters, cursor pages               |
+| E15-02 venue status           | done, verified — approve, send back, suspend, reinstate; 409 otherwise |
+| E15-03 users                  | done, verified — filters, suspend, trust adjustment, delete players    |
+| E15-04 disputes + reviews     | done, verified — decided disputes listed; reviews deleted with reason  |
+| E15-05 stats + config         | done, verified — figures, commission on new bookings, maintenance mode |
+| E15-06 layout + venues        | done, verified in a browser — sidebar, list, venue page                |
+| E15-07 users page             | done, verified in a browser                                            |
+| E15-08 disputes + reviews     | done, verified in a browser                                            |
+| E15-09 overview + settings    | done, verified in a browser — maintenance as a visitor sees it         |
+| E15-10 seed, bootstrap, smoke | done — `admin:bootstrap`, `e2e/web/smoke.spec.ts`                      |
+
+**The panel** (`/admin`, a dark sidebar like the manager area, with counts of
+what waits): Overview (figures, refreshed every minute, and what waits),
+Venues (the approval queue and venue changes from before, plus every venue
+with filters, and a page per venue to suspend or reinstate it), Users (search
+and filters, a page per user to adjust the trust score with a reason, suspend
+or reinstate, and delete a player), Disputes (open and decided), Reviews
+(most reported first, deleted with a reason the author reads) and Settings.
+
+**Suspending a user** ends their sessions on the web and the app and refuses
+sign-in until reinstated; bookings already made stay. **Suspending a venue**
+takes it off Discover and stops new bookings; the manager sees why.
+**Maintenance mode** shows everyone but admins a message, and the API answers
+503 `MAINTENANCE`; sign-in, the admin area, health checks, cron jobs and
+Stripe's webhook stay open. **The commission** (0–20%, default 8%) applies
+to new bookings; each booking keeps the fee it was made with, and the venues'
+analytics use each booking's own.
+
+**Making an admin:** the person registers, then
+`pnpm --filter @pitchup/web admin:bootstrap their@email`.
+
+Schema: `User.suspendedAt`, `suspensionReason`; `Company.suspensionReason`;
+`TrustScoreEvent.note`; `ADMIN_ADJUSTMENT`, `ADMIN_NOTICE`; `PlatformConfig`.
+
 **E14 — Analytics: nine tickets done, the mobile one built.**
 
 | Ticket                      | State                                                                    |
@@ -443,9 +481,14 @@ instead of sending, and the inbox works regardless.
 
 ## Next
 
-**E15 — Admin Panel** (#141–#150): companies, users, disputes and reviews,
-platform stats and config, replacing the minimal admin pages. Decided: admins
-may adjust a player's trust score with a reason; no manager score.
+Every epic (E01–E15) is built. What is left:
+
+- **Your testing** of E09 onward, and the **mobile pass**: the mobile tickets
+  stay open as "built, awaiting mobile testing".
+- **Firebase** for push (E08-10), and **Twilio** for text messages: the code
+  is ready, the accounts are not.
+- **Before real data:** versioned migrations, a verified Resend domain, and
+  live Stripe keys (see "Things that will need a decision").
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -875,6 +918,35 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
 
+### E15 — Admin Panel
+
+- **Statuses kept as they are** (DRAFT, PENDING, ACTIVE, SUSPENDED): the
+  tickets' APPROVED is ACTIVE, and REJECTED is "sent back" to DRAFT with a
+  reason, so the manager fixes and resubmits (E09).
+- **Venue and user detail are pages, not side panels**: linkable, and simpler
+  to make accessible.
+- **Trust adjustments go through the trust engine** (clamped, the monthly
+  replay agrees), with the reason on the event and a notice to the player.
+- **Deleting is for players only**, the same as their own deletion (bookings
+  refunded, details wiped); a manager's or admin's account is suspended.
+- **No default no-show fee setting**: there is no no-show fee (the venue
+  keeps what was paid online, C-8).
+- **The settings are cached in memory for a minute**, not with Next's data
+  cache, which is kept on disk and served stale settings after the database
+  was reset. Another server instance sees a change within the minute.
+- **Maintenance is checked in the root layout and the API wrapper**, not in
+  the edge middleware, which can't reach the database; the middleware only
+  passes the path along.
+- **Ratings need no recalculation** after a review is deleted: they are
+  worked out from the reviews each time.
+- **The seed adds no disputes or reported reviews**: every test shares the
+  seeded database, and extra open disputes would upset the tests that count
+  them. The tests create their own.
+- **Not-admins are sent to their own area**, not to `/login`, when signed in;
+  signed out, to `/login`.
+- **The pitch editor's payout preview assumes 8%**; the booking itself uses
+  the current commission.
+
 ### E14 — Analytics
 
 - **Venue time, not UTC.** The tickets aggregate in UTC with `DATE_TRUNC`;
@@ -1031,6 +1103,12 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 
 ## Known gaps
 
+- **A client component with webpack module id 0 vanishes.** Next leaves it
+  out of the client manifest and its page fails at runtime ("Could not find
+  the module … in the React Client Manifest"). Ids follow file paths, so it
+  hit `SummaryStep.tsx` when E15 added modules; renamed `SummaryAndPay.tsx`.
+  If a page suddenly fails like that, check its component's id in the
+  page's client chunk (`{0:(e,t,a)=>`) and rename the file.
 - **Stripe has never run against a real account.** Unit tests cover the
   Stripe calls with a fake SDK and the webhook with real signatures; the
   booking flow is tested end to end in test-payment mode. Add test-mode

@@ -54,6 +54,8 @@ export type TrustScoreReason =
   | 'NO_SHOW'
   | 'DISPUTE_WON'
   | 'MONTHLY_RECOVERY'
+  /** E15: an admin's change by hand, with a reason. */
+  | 'ADMIN_ADJUSTMENT'
 
 export type NotificationType =
   | 'BOOKING_CONFIRMED'
@@ -79,6 +81,8 @@ export type NotificationType =
   | 'COMPANY_APPROVED'
   | 'COMPANY_REJECTED'
   | 'TRUST_TIER_CHANGED'
+  /** From an admin (E15): a review removed, a score adjusted, a venue suspended. */
+  | 'ADMIN_NOTICE'
   | 'OTP'
   | 'PASSWORD_RESET'
 

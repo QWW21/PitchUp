@@ -55,7 +55,7 @@ export default async function VenueSettingsPage() {
         </div>
       )}
       {status.rejectionReason && status.pending.length === 0 && (
-        <div role="alert" className="max-w-2xl rounded-md bg-error-50 p-4 text-sm text-error-700">
+        <div role="alert" className="max-w-2xl rounded-md bg-error-50 p-4 text-sm text-error-600">
           <p className="font-medium">Your last changes were not approved.</p>
           <p className="mt-1">{status.rejectionReason}</p>
         </div>

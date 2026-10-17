@@ -18,6 +18,7 @@ describe('the deltas (PRD §9.1)', () => {
       NO_SHOW: -20,
       DISPUTE_WON: 10,
       MONTHLY_RECOVERY: 1,
+      ADMIN_ADJUSTMENT: 0,
     })
   })
 })

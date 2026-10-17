@@ -1438,6 +1438,39 @@ accessible data visualisation.
 
 ---
 
+## 28. Running the platform: the admin panel (E15)
+
+### Every lever leaves a trail
+
+An admin changing a trust score is the platform overruling its own rules,
+so it goes through the same engine as everything else (clamped, in the
+ledger, replayable) with a written reason, and the player is told. The same
+for suspending a venue or deleting a review: the person affected reads why.
+Admin power that leaves no record is how trust in a marketplace erodes.
+
+### Suspend, don't delete
+
+Deleting a venue would orphan its bookings, payouts and reviews. Suspending
+is reversible and keeps history intact: the venue drops off Discover, new
+bookings stop, existing ones stand. Accounts work the same way, and the
+check sits where the session is read (cookie and Bearer token), so a
+suspension takes effect on the next request, not at the next sign-in.
+
+### A switch every request reads
+
+Maintenance mode and the commission are read constantly, so they are cached
+for a minute in memory. The first version used Next's data cache, which is
+written to disk and survived a database reset with stale values: a cache
+must be no more durable than what it caches. And the check can't live in
+edge middleware, which has no database; it sits in the root layout and the
+API wrapper, with the paths an admin needs left open.
+
+**What to learn:** audit trails and accountable admin actions; soft states
+(suspended) versus destructive ones; where to enforce access (at the
+session); cache lifetime and invalidation; feature flags and kill switches.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -1457,7 +1490,7 @@ Honest inventory, so none of it is mistaken for finished:
 | Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15     |
 | Manager dashboard    | Everything but Analytics and the rest of Settings (later epics)   |
 | Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11 |
-| Venue approval       | A minimal admin page; the full admin panel is E15                 |
+| Admin panel          | Built (E15); no default no-show fee, settings cached a minute     |
 | Push notifications   | Sending built (E13); needs a Firebase project and app wiring      |
 | Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist    |
 

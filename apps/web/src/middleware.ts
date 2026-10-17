@@ -44,17 +44,14 @@ export function middleware(request: NextRequest): NextResponse {
     return NextResponse.redirect(loginUrl)
   }
 
-  return NextResponse.next()
+  // E15: the root layout reads the path to keep /login and /admin open in
+  // maintenance mode; a layout can't see the URL otherwise.
+  const headers = new Headers(request.headers)
+  headers.set('x-pathname', pathname)
+  return NextResponse.next({ request: { headers } })
 }
 
 export const config = {
-  matcher: [
-    '/dashboard/:path*',
-    '/manager/:path*',
-    '/onboarding/:path*',
-    '/admin/:path*',
-    '/booking/:path*',
-    '/bookings/:path*',
-    '/profile/:path*',
-  ],
+  // Every page (maintenance mode, E15); the API and static files skip it.
+  matcher: ['/((?!api/|_next/static|_next/image|favicon.ico|.*\\..*).*)'],
 }

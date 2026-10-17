@@ -278,7 +278,7 @@ export async function loginWithPassword(
   const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
 
   if (!user || !passwordMatches) return { failure: 'INVALID_CREDENTIALS' }
-  if (user.deletedAt) return { failure: 'ACCOUNT_SUSPENDED' }
+  if (user.deletedAt || user.suspendedAt) return { failure: 'ACCOUNT_SUSPENDED' }
 
   if (!user.emailVerified) {
     // Correct credentials for an unverified account. Returning a distinct
@@ -319,7 +319,7 @@ export async function rotateRefreshToken(
 ): Promise<{ accessToken: string; refreshToken: string } | { failure: RefreshFailure }> {
   const stored = await prisma.refreshToken.findUnique({
     where: { tokenHash: hashToken(presented) },
-    include: { user: { select: { id: true, role: true, deletedAt: true } } },
+    include: { user: { select: { id: true, role: true, deletedAt: true, suspendedAt: true } } },
   })
 
   if (!stored) return { failure: 'INVALID_TOKEN' }
@@ -337,7 +337,7 @@ export async function rotateRefreshToken(
   }
 
   if (stored.expiresAt <= new Date()) return { failure: 'TOKEN_EXPIRED' }
-  if (stored.user.deletedAt) return { failure: 'TOKEN_REVOKED' }
+  if (stored.user.deletedAt || stored.user.suspendedAt) return { failure: 'TOKEN_REVOKED' }
 
   const accessToken = await signAccessToken({
     userId: stored.user.id,
