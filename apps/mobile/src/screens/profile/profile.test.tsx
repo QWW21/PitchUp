@@ -18,7 +18,8 @@ import { profileApi } from '../../lib/profileApi'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
 import { useAuthStore } from '../../stores/authStore'
-import { openNotification, registerPushToken } from '../../lib/push'
+import messaging from '@react-native-firebase/messaging'
+import { openNotification, registerPushToken, startPush, stopPush } from '../../lib/push'
 import { ProfileScreen } from './ProfileScreen'
 import { TrustScoreDetailScreen, withMonths } from './TrustScoreDetailScreen'
 import { EditProfileScreen } from './EditProfileScreen'
@@ -388,5 +389,45 @@ describe('push routing (E08-10, without Firebase)', () => {
     await registerPushToken('tok_123', 'web')
     expect(api.registerDevice).toHaveBeenCalledTimes(1)
     expect(api.registerDevice).toHaveBeenCalledWith('tok_123', 'android')
+  })
+})
+
+describe('push with Firebase (E08-10)', () => {
+  // The Firebase instance from jest.setup.js.
+  const fcm = (messaging as unknown as { instance: Record<string, jest.Mock> }).instance
+
+  beforeEach(() => {
+    api.registerDevice.mockResolvedValue({ registered: true })
+  })
+
+  it('registers the token, follows its refreshes and opens the push that launched the app', async () => {
+    fcm.getInitialNotification!.mockResolvedValueOnce({
+      data: { type: 'NO_SHOW_REPORTED', bookingId: 'b9' },
+    })
+    const n = nav()
+    const stop = await startPush(n)
+    expect(api.registerDevice).toHaveBeenCalledWith('fcm-token-from-jest-0001', 'ios')
+    expect(n.navigate).toHaveBeenCalledWith('BookingDetail', { id: 'b9' })
+
+    const refresh = fcm.onTokenRefresh!.mock.calls[0]![0] as (token: string) => void
+    refresh('fcm-token-rotated-0002')
+    expect(api.registerDevice).toHaveBeenLastCalledWith('fcm-token-rotated-0002', 'ios')
+
+    const opened = fcm.onNotificationOpenedApp!.mock.calls[0]![0] as (m: object) => void
+    opened({ data: { type: 'NO_SHOW_REPORTED', bookingId: 'b7' } })
+    expect(n.navigate).toHaveBeenLastCalledWith('BookingDetail', { id: 'b7' })
+    stop()
+  })
+
+  it('stays quiet when the person says no', async () => {
+    fcm.requestPermission!.mockResolvedValueOnce(0)
+    await startPush(nav())
+    expect(fcm.getToken).not.toHaveBeenCalled()
+    expect(api.registerDevice).not.toHaveBeenCalled()
+  })
+
+  it('throws the token away on sign-out', async () => {
+    await stopPush()
+    expect(fcm.deleteToken).toHaveBeenCalled()
   })
 })

@@ -96,6 +96,17 @@ export const ChangePasswordSchema = z
     path: ['confirmPassword'],
   })
 
+/**
+ * Google sign-in from the app. The first attempt sends only the ID token; an
+ * address with no PitchUp account answers PROFILE_NEEDED, and the app asks
+ * for what Google does not know (phone, city, date of birth) and sends the
+ * token again with `profile`.
+ */
+export const GoogleSignInSchema = z.object({
+  idToken: z.string().min(20).max(4096),
+  profile: RegisterPlayerSchema.pick({ phone: true, city: true, dateOfBirth: true }).optional(),
+})
+
 export type RegisterPlayerInput = z.infer<typeof RegisterPlayerSchema>
 export type RegisterManagerInput = z.infer<typeof RegisterManagerSchema>
 export type LoginInput = z.infer<typeof LoginSchema>
@@ -103,3 +114,4 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>
 export type VerifyOtpInput = z.infer<typeof VerifyOtpSchema>
 export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>
+export type GoogleSignInInput = z.infer<typeof GoogleSignInSchema>

@@ -1471,6 +1471,55 @@ session); cache lifetime and invalidation; feature flags and kill switches.
 
 ---
 
+## 29. Borrowing Google's proof, keeping our accounts (E02-07, E08-10)
+
+### Identity is not the account
+
+Google sign-in could have meant Firebase Authentication, a second user store
+with its own ids. But everything in PitchUp hangs off our `User`: trust
+score, bookings, roles, suspension. So Google is used only for what it is
+good at, proving that someone controls an address. The app gets an ID token
+(a JWT Google signs) and the server checks it like any other JWT: the
+signature against Google's published keys (`jose` caches them and follows
+rotation), the issuer, the audience (our Web client, so a token minted for
+another app is useless here), the expiry, and `email_verified`. The address
+then finds our account, exactly as the password login does. The same
+reasoning removed the unused Auth.js Prisma adapter: with an OAuth provider
+it would have started writing Account rows for a model we don't keep.
+
+### A new person still owes us what Google doesn't know
+
+Registration needs a phone, a city and a date of birth. A first Google
+sign-in answers `PROFILE_NEEDED` instead of inventing them, and the app sends
+the same token again with them. The token is the proof both times, so
+nothing about the half-finished sign-up has to be stored. The email counts
+as verified, because Google verified it; the phone still gets its SMS code
+(HANDOVER: "phone verification claims nothing until a real SMS confirms it").
+The web portal is stricter: it only opens accounts that already exist,
+because venues are created through registration and approval.
+
+### Push: a token per phone, owned by whoever signed in
+
+FCM gives each install a token; the server keeps it per user and sends to it
+(§25). Two lifecycle rules matter. The token can change, so every refresh is
+registered again. And it belongs to the person, not the phone, so signing
+out deletes it; otherwise the next person to sign in would get the
+previous one's notifications until the server noticed.
+
+### Config with a key in it is still a secret
+
+`google-services.json` and `GoogleService-Info.plist` look like
+configuration, but they carry an API key. They are git-ignored like the Maps
+key and documented for download, and the OAuth client ids, which really are
+public, sit in the source.
+
+**What to learn:** federated identity versus identity providers as user
+stores; verifying OIDC ID tokens (JWKS, `aud`, `iss`); account linking by
+verified email and its risks; push token lifecycles; which "config" is
+secret.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
@@ -1482,7 +1531,7 @@ Honest inventory, so none of it is mistaken for finished:
 | Integration env vars | Optional until their epic                                         |
 | Cloudinary           | Signing verified against the algorithm; no live upload tested     |
 | Schema changes       | `prisma db push`, not versioned migrations (see §14)              |
-| Social login         | Placeholder until OAuth credentials exist                         |
+| Social login         | Google built; Apple needs an Apple Developer account              |
 | Mobile app           | Built, typechecked and unit-tested; not yet run on a device       |
 | Mobile colours       | Spec palette; not yet checked for WCAG contrast                   |
 | Stripe               | Unit-tested with fakes; never run against a real account          |

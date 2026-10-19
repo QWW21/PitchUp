@@ -23,7 +23,6 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@auth/prisma-adapter": "^2.11.3",
     "@pitchup/shared": "workspace:*",
     "@prisma/client": "^5.22.0",
     "@react-google-maps/api": "^2.20.8",

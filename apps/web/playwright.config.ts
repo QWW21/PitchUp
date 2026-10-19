@@ -78,6 +78,14 @@ export default defineConfig({
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: '',
       CLOUDINARY_API_KEY: '',
       CLOUDINARY_API_SECRET: '',
+      // No pushes leave the test run; Google sign-in has a fake Web client so
+      // its button and checks are present, but no token will ever match it.
+      FIREBASE_PROJECT_ID: '',
+      FIREBASE_CLIENT_EMAIL: '',
+      FIREBASE_PRIVATE_KEY: '',
+      GOOGLE_CLIENT_ID: 'e2e-web.apps.googleusercontent.com',
+      GOOGLE_CLIENT_SECRET: 'e2e-not-a-secret',
+      GOOGLE_IOS_CLIENT_ID: '',
       // The nightly auto-complete job's token (E11-10), known to the tests.
       CRON_SECRET: E2E_CRON_SECRET,
     },

@@ -58,6 +58,11 @@ apps/mobile/android/local.properties
 apps/mobile/android/key.properties
 apps/mobile/android/*.keystore
 
+# Firebase config files: they carry an API key (AIzaSy…), so like the Maps
+# key they stay out of git. Download them from the Firebase console.
+apps/mobile/android/app/google-services.json
+apps/mobile/ios/PitchUp/GoogleService-Info.plist
+
 # React Native — Metro
 apps/mobile/.metro-health-check*
 

@@ -288,3 +288,21 @@ test.describe('password reset', () => {
     await expect(page).toHaveURL(/\/login/)
   })
 })
+
+test.describe('Google sign-in (E02-07)', () => {
+  test('the button sends the browser to Google with our client', async ({ page }) => {
+    // Google itself is never reached: the request is caught on its way out.
+    await page.route('https://accounts.google.com/**', route => route.abort())
+    await page.goto('/login')
+    const toGoogle = page.waitForRequest(r => r.url().startsWith('https://accounts.google.com/'))
+    await page.getByRole('button', { name: 'Continue with Google' }).click()
+    const url = new URL((await toGoogle).url())
+    expect(url.searchParams.get('client_id')).toBe('e2e-web.apps.googleusercontent.com')
+    expect(url.searchParams.get('redirect_uri')).toMatch(/\/api\/auth\/callback\/google$/)
+  })
+
+  test('explains a Google address with no account', async ({ page }) => {
+    await page.goto('/login?error=GoogleNoAccount')
+    await expect(page.getByText('No PitchUp account uses that Google address.')).toBeVisible()
+  })
+})

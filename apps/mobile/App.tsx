@@ -10,13 +10,14 @@
  */
 import React, { useEffect } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
-import { NavigationContainer } from '@react-navigation/native'
+import { createNavigationContainerRef, NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { colors } from './src/theme/tokens'
 import { authEvents } from './src/lib/authEvents'
+import { startPush } from './src/lib/push'
 import { useAuthStore } from './src/stores/authStore'
 import { ONBOARDING_SEEN_KEY, OnboardingScreen } from './src/screens/auth/OnboardingScreen'
 import { LoginScreen } from './src/screens/auth/LoginScreen'
@@ -58,7 +59,8 @@ export type AuthStackParamList = {
   Register2: { name: string; email: string; phone: string; city: string }
   VerifyEmail: { email: string }
   ForgotPassword: undefined
-  SocialLogin: undefined
+  /** E02-07: the last step of a Google sign-up. */
+  SocialLogin: { idToken: string; name: string; email: string }
 }
 
 export type AppStackParamList = {
@@ -108,6 +110,16 @@ export type AppStackParamList = {
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
 const queryClient = new QueryClient()
 const AppStack = createNativeStackNavigator<AppStackParamList>()
+
+/** Lets a tapped push navigate from outside any screen. */
+const navigation = createNavigationContainerRef<AppStackParamList>()
+const pushNavigator = {
+  navigate: (screen: string, params?: object) => {
+    // Screen names come from @pitchup/shared's notificationTarget, as strings.
+    const go = navigation.navigate as (name: string, params?: object) => void
+    if (navigation.isReady()) go(screen, params)
+  },
+}
 
 function AuthNavigator({ showOnboarding }: { showOnboarding: boolean }) {
   return (
@@ -179,6 +191,22 @@ export default function App() {
     })
   }, [logout])
 
+  // E08-10: push for whoever is signed in, from the moment the app's screens
+  // can be navigated to (a push that launched the app opens its screen).
+  const [navReady, setNavReady] = React.useState(false)
+  useEffect(() => {
+    if (status !== 'authenticated' || !navReady) return
+    let stop: (() => void) | undefined
+    let cancelled = false
+    startPush(pushNavigator)
+      .then(off => (cancelled ? off() : (stop = off)))
+      .catch(caught => console.warn('[push] Could not start:', caught))
+    return () => {
+      cancelled = true
+      stop?.()
+    }
+  }, [status, navReady])
+
   // Wait until both status and onboarding flag are resolved before rendering.
   if (status === 'unknown' || showOnboarding === null) {
     return (
@@ -191,7 +219,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigation} onReady={() => setNavReady(true)}>
           {status === 'authenticated' ? (
             <AppNavigator />
           ) : (

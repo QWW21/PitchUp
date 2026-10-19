@@ -384,3 +384,23 @@ test.describe('password reset', () => {
     expect(unknown.error?.message).toBe('That reset link is not valid')
   })
 })
+
+test.describe('Google sign-in (E02-07)', () => {
+  test('refuses a token Google did not sign for us', async ({ request }) => {
+    const forged = ['eyJhbGciOiJSUzI1NiIsImtpZCI6ImsxIn0', 'eyJlbWFpbCI6ImFAYi5jIn0', 'c2ln'].join(
+      '.'
+    )
+    const r = await post(request, '/auth/mobile/google', { idToken: forged })
+    expect(r.status).toBe(401)
+    expect(r.error?.code).toBe('UNAUTHORIZED')
+  })
+
+  test('checks the sign-up details before anything else', async ({ request }) => {
+    const r = await post(request, '/auth/mobile/google', {
+      idToken: 'x'.repeat(40),
+      profile: { phone: '0711', city: '', dateOfBirth: 'yesterday' },
+    })
+    expect(r.status).toBe(400)
+    expect(r.error?.code).toBe('VALIDATION_ERROR')
+  })
+})

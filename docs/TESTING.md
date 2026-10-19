@@ -133,10 +133,18 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
 
 The build goes to **`.next-e2e`**, not `.next`: building into the folder a
 running `pnpm dev` serves from broke that dev server. And the run **blanks
-every integration key** (Stripe, Resend, Twilio, Cloudinary), so it always
+every integration key** (Stripe, Resend, Twilio, Cloudinary, Firebase), so it always
 uses test payments, logged emails and SMS, and no uploads, whatever real keys
 are in `apps/web/.env`. Without that, a developer's Resend key made every test
 registration send a real email to a made-up address, and fail.
+
+Google sign-in gets a **fake Web client id** instead
+(`e2e-web.apps.googleusercontent.com`), so the button and the token checks
+exist but no real Google token can ever pass. The web test catches the
+redirect to Google before it leaves and checks it carries that client. The
+signed-token paths (a known account, a new one, a forged token, a taken
+phone) are unit-tested in `src/lib/auth/google.test.ts`, with a throwaway
+RSA key standing in for Google's.
 
 `ALLOW_TEST_HOOKS=1` enables `POST /api/v1/dev/reset-rate-limits` on that
 production build, so tests can clear the in-memory rate limits between cases.

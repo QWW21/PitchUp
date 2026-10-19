@@ -54,6 +54,11 @@ export const env = createEnv({
     FIREBASE_PROJECT_ID: z.string().min(1).optional(),
     FIREBASE_CLIENT_EMAIL: z.string().email().optional(),
     FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
+    /** Google sign-in: the Web client (web redirect, and the audience of the app's ID tokens). */
+    GOOGLE_CLIENT_ID: z.string().endsWith('.apps.googleusercontent.com').optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+    /** The iOS client, in case an iPhone token carries it as its audience. */
+    GOOGLE_IOS_CLIENT_ID: z.string().endsWith('.apps.googleusercontent.com').optional(),
 
     ADMIN_PASSWORD: z.string().optional(),
 
@@ -94,6 +99,9 @@ export const env = createEnv({
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || undefined,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || undefined,
     FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY || undefined,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || undefined,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
+    GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID || undefined,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
     CRON_SECRET: process.env.CRON_SECRET || undefined,

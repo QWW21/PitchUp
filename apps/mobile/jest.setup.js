@@ -47,3 +47,32 @@ jest.mock('react-native-maps', () => {
 
 // Stripe's own mock of its native SDK: hooks resolve, CardField renders nothing native.
 jest.mock('@stripe/stripe-react-native', () => require('@stripe/stripe-react-native/jest/mock.js'))
+
+// Firebase Cloud Messaging (push, E08-10). Tests reach for this mock to drive it.
+jest.mock('@react-native-firebase/messaging', () => {
+  const instance = {
+    requestPermission: jest.fn(async () => 1),
+    getToken: jest.fn(async () => 'fcm-token-from-jest-0001'),
+    deleteToken: jest.fn(async () => undefined),
+    onTokenRefresh: jest.fn(() => jest.fn()),
+    onNotificationOpenedApp: jest.fn(() => jest.fn()),
+    getInitialNotification: jest.fn(async () => null),
+  }
+  const messaging = () => instance
+  messaging.AuthorizationStatus = { NOT_DETERMINED: -1, DENIED: 0, AUTHORIZED: 1, PROVISIONAL: 2 }
+  messaging.instance = instance
+  return { __esModule: true, default: messaging }
+})
+
+// Google sign-in (E02-07): the sheet answers with a fixed token unless a test says otherwise.
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    configure: jest.fn(),
+    hasPlayServices: jest.fn(async () => true),
+    signIn: jest.fn(async () => ({ type: 'success', data: { idToken: 'google-id-token-0001' } })),
+    signOut: jest.fn(async () => null),
+  },
+  isSuccessResponse: response => response.type === 'success',
+  isErrorWithCode: error => error != null && typeof error.code === 'string',
+  statusCodes: { IN_PROGRESS: 'IN_PROGRESS', SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
+}))

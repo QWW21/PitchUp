@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { safeCallbackPath } from '@/lib/auth/callback'
 
-export function LoginForm() {
+export function LoginForm({ google }: { google: boolean }) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState(() => searchParams.get('email') ?? '')
@@ -57,6 +57,12 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
+      {searchParams.get('error') === 'GoogleNoAccount' && (
+        <Alert>
+          No PitchUp account uses that Google address. Sign in with your email and password, or
+          register your company first.
+        </Alert>
+      )}
       {searchParams.get('notice') === 'password-changed' && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
           Your password is changed. Sign in with the new one.
@@ -105,6 +111,28 @@ export function LoginForm() {
       <Button type="submit" size="lg" loading={loading}>
         {loading ? 'Signing in…' : 'Sign in'}
       </Button>
+
+      {google && (
+        <>
+          <p className="text-center text-sm text-neutral-500">or</p>
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            disabled={loading}
+            onClick={() =>
+              void signIn('google', {
+                redirectTo: safeCallbackPath(
+                  searchParams.get('callbackUrl'),
+                  window.location.origin
+                ),
+              })
+            }
+          >
+            Continue with Google
+          </Button>
+        </>
+      )}
     </form>
   )
 }

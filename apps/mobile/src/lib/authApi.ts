@@ -6,7 +6,7 @@
  *
  * Paths are relative to API_BASE_URL which already ends in /api/v1.
  */
-import type { RegisterPlayerInput, LoginInput } from '@pitchup/shared'
+import type { GoogleSignInInput, RegisterPlayerInput, LoginInput } from '@pitchup/shared'
 import { api, apiRequest, type ApiEnvelope } from './apiClient'
 import { tokenStorage } from './tokenStorage'
 
@@ -44,6 +44,28 @@ export async function login(input: LoginInput): Promise<AuthUser> {
     refreshToken: result.refreshToken,
   })
   return result.user
+}
+
+export type GoogleSignInOutcome =
+  | { status: 'SIGNED_IN'; user: AuthUser }
+  | { status: 'PROFILE_NEEDED'; email: string; name: string }
+
+/**
+ * Google sign-in (E02-07). A known address signs in and its tokens are
+ * stored, as `login` does; a new one answers PROFILE_NEEDED, and the call is
+ * repeated with `profile` once the person has filled it in.
+ */
+export async function googleSignIn(input: GoogleSignInInput): Promise<GoogleSignInOutcome> {
+  const result = await apiRequest<
+    | (LoginResult & { status: 'SIGNED_IN' })
+    | { status: 'PROFILE_NEEDED'; email: string; name: string }
+  >({ method: 'POST', url: '/auth/mobile/google', data: input })
+  if (result.status === 'PROFILE_NEEDED') return result
+  await tokenStorage.setTokens({
+    accessToken: result.accessToken,
+    refreshToken: result.refreshToken,
+  })
+  return { status: 'SIGNED_IN', user: result.user }
 }
 
 export async function verifyEmail(email: string, code: string): Promise<{ verified: true }> {

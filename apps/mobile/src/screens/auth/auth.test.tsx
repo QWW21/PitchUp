@@ -1,6 +1,6 @@
 /**
  * E02 auth screens — onboarding, login, both registration steps, email
- * verification and forgot password. Each screen is rendered on its own with
+ * verification, forgot password and Google sign-in. Each screen is rendered on its own with
  * a fake navigator and a mocked authApi, so what is checked is the screen's
  * own behaviour: validation, the call it makes, the message a player reads
  * and where it navigates.
@@ -8,6 +8,7 @@
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import * as authApi from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
 import { useAuthStore } from '../../stores/authStore'
@@ -16,6 +17,7 @@ import { LoginScreen } from './LoginScreen'
 import { ONBOARDING_SEEN_KEY, OnboardingScreen } from './OnboardingScreen'
 import { RegisterStep1Screen } from './RegisterStep1Screen'
 import { RegisterStep2Screen } from './RegisterStep2Screen'
+import { SocialLoginScreen } from './SocialLoginScreen'
 import { VerifyEmailScreen } from './VerifyEmailScreen'
 
 jest.mock('../../lib/authApi')
@@ -119,13 +121,112 @@ describe('Login (E02-05)', () => {
     expect(screen.getByText('Hide')).toBeOnTheScreen()
   })
 
-  it('links to forgot password, registration and social login', () => {
+  it('links to forgot password and registration', () => {
     const nav = makeNav()
     show(LoginScreen, nav)
     press('Forgot password?')
     press('Sign up')
+    expect(nav.push.mock.calls).toEqual([['ForgotPassword'], ['Register1']])
+  })
+})
+
+describe('Google sign-in (E02-07)', () => {
+  const user = { id: 'u1', email: 'ana@example.ro', name: 'Ana Pop', role: 'PLAYER' }
+  const signIn = jest.mocked(GoogleSignin.signIn)
+
+  beforeEach(() => {
+    useAuthStore.setState({ status: 'unauthenticated', user: null })
+  })
+
+  it('signs a known Google account straight in', async () => {
+    api.googleSignIn.mockResolvedValue({ status: 'SIGNED_IN', user } as never)
+    show(LoginScreen, makeNav())
     press('Continue with Google')
-    expect(nav.push.mock.calls).toEqual([['ForgotPassword'], ['Register1'], ['SocialLogin']])
+    await waitFor(() => expect(useAuthStore.getState().status).toBe('authenticated'))
+    expect(api.googleSignIn).toHaveBeenCalledWith({ idToken: 'google-id-token-0001' })
+  })
+
+  it('sends a new address on to finish signing up', async () => {
+    api.googleSignIn.mockResolvedValue({
+      status: 'PROFILE_NEEDED',
+      email: 'ana@example.ro',
+      name: 'Ana Pop',
+    })
+    const nav = makeNav()
+    show(LoginScreen, nav)
+    press('Continue with Google')
+    await waitFor(() =>
+      expect(nav.push).toHaveBeenCalledWith('SocialLogin', {
+        idToken: 'google-id-token-0001',
+        name: 'Ana Pop',
+        email: 'ana@example.ro',
+      })
+    )
+    expect(useAuthStore.getState().status).toBe('unauthenticated')
+  })
+
+  it('does nothing when the Google sheet is closed', async () => {
+    signIn.mockResolvedValueOnce({ type: 'cancelled', data: null } as never)
+    show(LoginScreen, makeNav())
+    press('Continue with Google')
+    await waitFor(() => expect(signIn).toHaveBeenCalled())
+    expect(api.googleSignIn).not.toHaveBeenCalled()
+    expect(screen.queryByText(/Google sign-in did not work/)).toBeNull()
+  })
+
+  it('explains a refused account', async () => {
+    api.googleSignIn.mockRejectedValue(new ApiError('FORBIDDEN', 'x'))
+    show(LoginScreen, makeNav())
+    press('Continue with Google')
+    expect(await screen.findByText('This account is not available.')).toBeOnTheScreen()
+  })
+})
+
+describe('Google sign-up, last step (E02-07)', () => {
+  const params = { idToken: 'google-id-token-0001', name: 'Ana Pop', email: 'ana@example.ro' }
+
+  beforeEach(() => {
+    useAuthStore.setState({ status: 'unauthenticated', user: null })
+  })
+
+  it('greets the person and asks for what Google does not know', () => {
+    show(SocialLoginScreen, makeNav(), params)
+    expect(screen.getByText('Almost there, Ana')).toBeOnTheScreen()
+    press('Create account')
+    expect(screen.getByText('Select your city.')).toBeOnTheScreen()
+    expect(screen.getByText('Phone must include country code, e.g. +40712345678')).toBeOnTheScreen()
+    expect(api.googleSignIn).not.toHaveBeenCalled()
+  })
+
+  it('creates the account with the Google token and signs in', async () => {
+    api.googleSignIn.mockResolvedValue({
+      status: 'SIGNED_IN',
+      user: { id: 'u2', email: 'ana@example.ro', name: 'Ana Pop', role: 'PLAYER' },
+    })
+    show(SocialLoginScreen, makeNav(), params)
+    type('Phone', ' +40711111111 ')
+    press('Cluj-Napoca')
+    type('Date of birth', '1995-06-15')
+    press('Create account')
+    await waitFor(() => expect(useAuthStore.getState().status).toBe('authenticated'))
+    expect(api.googleSignIn).toHaveBeenCalledWith({
+      idToken: 'google-id-token-0001',
+      profile: { phone: '+40711111111', city: 'Cluj-Napoca', dateOfBirth: '1995-06-15' },
+    })
+  })
+
+  it('explains a phone number that is taken', async () => {
+    api.googleSignIn.mockRejectedValue(new ApiError('CONFLICT', 'x'))
+    show(SocialLoginScreen, makeNav(), params)
+    type('Phone', '+40711111111')
+    press('Cluj-Napoca')
+    type('Date of birth', '1995-06-15')
+    press('Create account')
+    expect(
+      await screen.findByText(
+        'That phone number is already registered. Sign in with your email instead.'
+      )
+    ).toBeOnTheScreen()
   })
 })
 

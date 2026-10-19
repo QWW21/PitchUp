@@ -7,12 +7,14 @@
 import type { Role } from '@prisma/client'
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@auth/prisma-adapter'
+import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { cache } from 'react'
 import { AUTH, LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { RecipientThrottledError, sendEmailVerification } from '@/lib/auth/service'
+import { accountForGoogleEmail } from '@/lib/auth/google'
+import { env } from '@/lib/env'
 
 /**
  * A bcrypt hash of a throwaway value, compared against when no user matched.
@@ -36,7 +38,9 @@ const sessionFreshness = cache((id: string) =>
 )
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  // No adapter: sessions are JWTs and accounts are ours. Google sign-in
+  // matches an existing account by email (see the signIn callback) instead
+  // of keeping Auth.js's own User/Account tables.
 
   /**
    * Auth.js trusts the request's Host header automatically only in
@@ -110,10 +114,36 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
       },
     }),
+
+    // E02-07: shown only when the Web OAuth client is configured.
+    ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
+      ? [Google({ clientId: env.GOOGLE_CLIENT_ID, clientSecret: env.GOOGLE_CLIENT_SECRET })]
+      : []),
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    /**
+     * Google opens only a confirmed, active account with the same address;
+     * the portal's accounts are made by registering. Anything else returns
+     * to the login page with a reason it can show.
+     */
+    async signIn({ account, profile }) {
+      if (account?.provider !== 'google') return true
+      if (!profile?.email || profile.email_verified !== true) return '/login?error=GoogleNoAccount'
+      const user = await accountForGoogleEmail(profile.email)
+      return user ? true : '/login?error=GoogleNoAccount'
+    },
+
+    async jwt({ token, user, account }) {
+      if (user && account?.provider === 'google') {
+        // `user` is Google's profile; the session must carry our account.
+        const ours = await accountForGoogleEmail(user.email ?? '')
+        if (!ours) return null
+        token.id = ours.id
+        token.role = ours.role
+        token.authAt = Date.now()
+        return token
+      }
       if (user) {
         token.id = user.id as string
         token.role = user.role

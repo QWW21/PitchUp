@@ -8,6 +8,7 @@ import { create } from 'zustand'
 import type { AuthUser } from '../lib/authApi'
 import * as authApi from '../lib/authApi'
 import { tokenStorage } from '../lib/tokenStorage'
+import { stopPush } from '../lib/push'
 
 type AuthStatus = 'unknown' | 'authenticated' | 'unauthenticated'
 
@@ -55,7 +56,7 @@ export const useAuthStore = create<AuthState>(set => ({
   },
 
   async logout() {
-    await authApi.logout()
+    await Promise.all([authApi.logout(), stopPush()])
     set({ status: 'unauthenticated', user: null })
   },
 }))

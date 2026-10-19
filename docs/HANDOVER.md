@@ -1,7 +1,12 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E15 (Admin Panel),
-after E09–E14 and the product changes C-6 to C-13.
+Last updated after Firebase and Google sign-in were connected (E02-07,
+E08-10), following E15 (Admin Panel), E09–E14 and the product changes C-6 to C-13.
+
+**Firebase and Google sign-in (2026-10-19).** The owner created the Firebase
+project `pitchup-3221c` and the Google OAuth clients. See "Firebase and
+Google sign-in" below for what is wired, where the secret files live, and
+what still needs an Apple Developer account.
 
 ## Done
 
@@ -19,7 +24,7 @@ and `apps/web/src/lib/infra.test.ts` (they replaced `scripts/verify-e01.sh`).
 | E02-04 phone OTP verification   | done — 6-box OTP, 60s resend cooldown              |
 | E02-05 login                    | done                                               |
 | E02-06 forgot password          | done                                               |
-| E02-07 social login             | placeholder only — needs OAuth credentials         |
+| E02-07 social login             | built — Google on web and mobile; Apple not yet    |
 | E02-08 backend auth             | done — register, login, refresh, logout, verify    |
 | E02-09 Resend email             | done — adapter + templates, inactive without a key |
 | E02-10 Twilio SMS               | done — adapter, inactive without credentials       |
@@ -28,10 +33,9 @@ and `apps/web/src/lib/infra.test.ts` (they replaced `scripts/verify-e01.sh`).
 | E02-13 web manager login        | done                                               |
 | E02-14 web manager registration | done                                               |
 
-E02-07 is the only one not really finished: `SocialLoginScreen` is a "coming
-soon" placeholder. Google and Apple sign-in both need native configuration
-(`GoogleService-Info.plist`, `google-services.json`, OAuth client IDs) that
-nobody has credentials for yet.
+E02-07 was a placeholder until 2026-10-19; Google sign-in is now built (see
+"Firebase and Google sign-in"). Apple sign-in waits for an Apple Developer
+account.
 
 **The Android app builds and runs.** Verified on a Pixel 9 Pro XL emulator:
 the app launches, Metro serves the bundle, and the onboarding screen renders.
@@ -204,7 +208,7 @@ the account menu (web) and from My Bookings (mobile). E08 added the profile.
 | E08-07 mobile payment methods | built — Stripe card field + SetupIntent; Remove button, not swipe              |
 | E08-08 web profile pages      | done, verified in a browser — `/profile` and five sub-pages                    |
 | E08-09 mobile notifications   | built — grouped, unread, tap opens, mark all read; long press deletes          |
-| E08-10 push                   | **blocked on Firebase** — device-token endpoint and routing done               |
+| E08-10 push                   | built — Firebase messaging wired (2026-10-19); iOS needs an APNs key           |
 
 New endpoints: `GET/PUT/DELETE /profile`, `GET /profile/trust-score`,
 `POST /profile/change-password`, `GET /notifications`,
@@ -225,13 +229,8 @@ support.
 needed for E08. Mobile opens Profile and Notifications from two new buttons in
 the Discover header (no tab bar yet); the bell shows the unread count.
 
-**Push (E08-10) is the one open item.** It needs a Firebase project and its
-config files, which the owner creates. Ready for it: `POST
-/notifications/device-token`, `registerPushToken()` and `openNotification()`
-in `apps/mobile/src/lib/push.ts` (the comment there lists the five lines
-that wire Firebase in), and `notificationTarget()` in `@pitchup/shared`,
-used by both the push handler and the in-app list. Sending pushes is built
-(E13); it waits for the same Firebase project.
+**Push (E08-10)** was the open item until the Firebase project existed; it
+is wired now (see "Firebase and Google sign-in").
 
 **E09 — Manager: Onboarding & Dashboard: ten tickets done, plus a minimal admin approval page.**
 
@@ -479,14 +478,89 @@ sends to your own address until a domain is verified); SMS needs the
 the mobile app's Firebase wiring (E08-10). Without them each channel logs
 instead of sending, and the inbox works regardless.
 
+## Firebase and Google sign-in
+
+Firebase project **`pitchup-3221c`** (Spark plan, Analytics unlinked). The
+same Google Cloud project holds the OAuth clients: Web, Android
+(`com.pitchup`, debug SHA-1) and iOS (`com.pitchup`). The consent screen is
+in **Testing**: only listed test users can sign in with Google until it is
+published.
+
+**Where the secrets are.** None are in git.
+
+- `apps/web/.env` holds `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`,
+  `FIREBASE_PRIVATE_KEY` (from the service-account key file),
+  `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `GOOGLE_IOS_CLIENT_ID`.
+- `apps/mobile/android/app/google-services.json` and
+  `apps/mobile/ios/PitchUp/GoogleService-Info.plist` are git-ignored: they
+  carry an `AIzaSy…` API key, like the Maps key. Download them again from
+  Firebase → Project settings → General if a checkout lacks them; the
+  Android build fails without its file.
+- The OAuth client IDs are public and are in `apps/mobile/src/config.ts`.
+
+**Google sign-in.** Google proves who the person is; the account stays ours,
+matched by email. There is no Firebase Authentication and no Auth.js
+adapter: the unused `@auth/prisma-adapter` was removed, because with an
+OAuth provider it would have needed Account/Session tables we don't have.
+
+- Mobile: "Continue with Google" gets an ID token for the Web client and
+  posts it to `POST /api/v1/auth/mobile/google`. A confirmed account signs
+  in. A new address answers `PROFILE_NEEDED`; `SocialLoginScreen` asks for
+  phone, city and date of birth and sends the token again with them. The
+  account is created as a player with the email already verified, a random
+  password nobody knows ("Forgot password" sets one), and a phone code sent
+  by SMS.
+- Web (the manager portal): the Auth.js Google provider, shown only when
+  `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set. It opens existing,
+  confirmed, active accounts only; anyone else returns to
+  `/login?error=GoogleNoAccount`. The redirect URI registered is
+  `http://localhost:3000/api/auth/callback/google`. The production domain
+  (and any tunnel URL) has to be added to the Web client before Google
+  sign-in works there.
+
+**Push.** `@react-native-firebase/app` and `/messaging` 21.6.1 (the
+release contemporary with React Native 0.76).
+
+- After sign-in, `startPush()` asks permission (Android 13+ and iOS),
+  registers the FCM token and each refresh of it, and opens the screen a
+  tapped push is about, including one that launched the app.
+- Signing out deletes the token.
+- The server sends through the service account (E13-02).
+
+Native changes:
+
+- **Android:** the google-services Gradle plugin and the
+  `POST_NOTIFICATIONS` permission.
+- **iOS:** the bundle id is now `com.pitchup` (was React Native's
+  `org.reactjs.native.example…`).
+  - `GoogleService-Info.plist` is in the app's resources.
+  - `[FIRApp configure]` and Google's URL handler are in `AppDelegate.mm`, and
+    the reversed client ID is a URL scheme in `Info.plist`.
+  - The Podfile uses static frameworks, which React Native Firebase requires.
+
+**Not done, and why:**
+
+- **iPhone push** needs an APNs key from an Apple Developer account,
+  uploaded to Firebase, plus the Push Notifications capability (an
+  entitlements file). Adding the capability without a paid team breaks
+  signing, so it was left out.
+- **Sign in with Apple** needs the same account. The App Store requires it
+  once the iPhone app offers Google.
+- **A release build of Android** needs its own SHA-1 added to the Android
+  OAuth client and to Firebase, or Google sign-in fails in release only.
+- **Neither app has been built with these modules.** They follow the
+  libraries' documented setup; the first Android build after this change is
+  the real check (see "React Native version constraints").
+
 ## Next
 
 Every epic (E01–E15) is built. What is left:
 
 - **Your testing** of E09 onward, and the **mobile pass**: the mobile tickets
   stay open as "built, awaiting mobile testing".
-- **Firebase** for push (E08-10), and **Twilio** for text messages: the code
-  is ready, the accounts are not.
+- **Twilio** for text messages: the code is ready, the account is not.
+- **An Apple Developer account** for iPhone push (an APNs key uploaded to
+  Firebase) and Sign in with Apple.
 - **Before real data:** versioned migrations, a verified Resend domain, and
   live Stripe keys (see "Things that will need a decision").
 
@@ -1172,7 +1246,8 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   and Next runs its own pass. Worth aligning before CI exists.
 - **Nothing has been delivered to a real inbox or handset.** Templates and
   the signing algorithm are verified; delivery and rendering are not. Push
-  (E13) has only run against a fake FCM: it needs a Firebase project.
+  (E13) has only run against a fake FCM; the real Firebase project exists
+  now, but no phone with the app has received one yet.
 - **No profanity filter yet** (PRD §11.3's auto-flag). Reports flag reviews
   for admins, but nothing flags them automatically.
 - **Rate limiting is in-memory**, so it resets on restart and is per

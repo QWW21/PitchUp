@@ -5,6 +5,8 @@ import type { Metadata } from 'next'
 import { auth } from '@/auth'
 import { BrandPanel } from '@/components/BrandPanel'
 import { Wordmark } from '@/components/Wordmark'
+import { isGoogleSignInConfigured } from '@/lib/auth/google'
+import { env } from '@/lib/env'
 import { LoginForm } from './LoginForm'
 
 export const metadata: Metadata = {
@@ -31,7 +33,7 @@ export default async function LoginPage() {
           {/* useSearchParams needs a Suspense boundary, or the whole route
               opts out of static rendering. */}
           <Suspense fallback={<div className="mt-8 h-[280px]" />}>
-            <LoginForm />
+            <LoginForm google={isGoogleSignInConfigured() && Boolean(env.GOOGLE_CLIENT_SECRET)} />
           </Suspense>
 
           <p className="mt-6 text-center text-base text-neutral-500">

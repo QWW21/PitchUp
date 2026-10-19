@@ -15,8 +15,9 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AuthStackParamList } from '../../../App'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
-import { login } from '../../lib/authApi'
+import { googleSignIn, login } from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
+import { googleIdToken } from '../../lib/google'
 import { useAuthStore } from '../../stores/authStore'
 import { colors, spacing } from '../../theme/tokens'
 
@@ -30,6 +31,7 @@ export function LoginScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   async function handleLogin() {
     setError('')
@@ -55,6 +57,31 @@ export function LoginScreen({ navigation }: Props) {
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  /** E02-07: a known address signs in; a new one finishes on SocialLogin. */
+  async function handleGoogle() {
+    setError('')
+    setGoogleLoading(true)
+    try {
+      const idToken = await googleIdToken()
+      if (!idToken) return
+      const result = await googleSignIn({ idToken })
+      if (result.status === 'SIGNED_IN') setUser(result.user)
+      else navigation.push('SocialLogin', { idToken, name: result.name, email: result.email })
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? e.code === 'FORBIDDEN'
+            ? 'This account is not available.'
+            : e.code === 'RATE_LIMITED'
+              ? 'Too many attempts. Try again in a few minutes.'
+              : 'Google sign-in did not work. Try again, or use your email.'
+          : 'Could not reach Google. Check your internet and try again.'
+      )
+    } finally {
+      setGoogleLoading(false)
     }
   }
 
@@ -114,7 +141,8 @@ export function LoginScreen({ navigation }: Props) {
         <Button
           label="Continue with Google"
           variant="secondary"
-          onPress={() => navigation.push('SocialLogin')}
+          onPress={handleGoogle}
+          loading={googleLoading}
         />
 
         <Pressable onPress={() => navigation.push('Register1')} style={styles.registerRow}>
