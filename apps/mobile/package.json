@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "android": "react-native run-android --port 8082",
-    "ios": "DEVELOPER_DIR=/Applications/Xcode_16.app/Contents/Developer react-native run-ios --port 8082",
+    "ios": "react-native run-ios --port 8082",
     "start": "react-native start --port 8082",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",

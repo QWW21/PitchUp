@@ -1,0 +1,118 @@
+diff --git a/ios/bottom-tabs/RNSBottomTabsHostComponentView.mm b/ios/bottom-tabs/RNSBottomTabsHostComponentView.mm
+index fe7d9591172bbb5223976742288b2fb2b1f413d9..3942b55801f87cb83d715cdc8260b73d16ce139b 100644
+--- a/ios/bottom-tabs/RNSBottomTabsHostComponentView.mm
++++ b/ios/bottom-tabs/RNSBottomTabsHostComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSBottomTabsHostComponentView.h"
+ 
+ #if RCT_NEW_ARCH_ENABLED
+diff --git a/ios/bottom-tabs/RNSBottomTabsScreenComponentView.mm b/ios/bottom-tabs/RNSBottomTabsScreenComponentView.mm
+index 174ee450a1c9370bc56633db266b5f9db1256558..cc7c488cc57bd3def62bea49d2991118d55e37e7 100644
+--- a/ios/bottom-tabs/RNSBottomTabsScreenComponentView.mm
++++ b/ios/bottom-tabs/RNSBottomTabsScreenComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSBottomTabsScreenComponentView.h"
+ #import "NSString+RNSUtility.h"
+ #import "RNSConversions.h"
+@@ -542,7 +543,7 @@ -(RCTDirectEventBlock)eventName
+ #if RCT_NEW_ARCH_ENABLED
+ #pragma mark - View class exposure
+ 
+-Class<RCTComponentViewProtocol> RNSBottomTabsScreen(void)
++Class<RCTComponentViewProtocol> RNSBottomTabsScreenCls(void)
+ {
+   return RNSBottomTabsScreenComponentView.class;
+ }
+diff --git a/ios/gamma/split-view/RNSSplitViewHostComponentView.mm b/ios/gamma/split-view/RNSSplitViewHostComponentView.mm
+index 8dc7e605e4a4836e6cb83b25389011871aebc8ce..72035873609e9307665fff325f060caf22d2d1b9 100644
+--- a/ios/gamma/split-view/RNSSplitViewHostComponentView.mm
++++ b/ios/gamma/split-view/RNSSplitViewHostComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSSplitViewHostComponentView.h"
+ #import <React/RCTAssert.h>
+ #import <React/RCTMountingTransactionObserving.h>
+diff --git a/ios/gamma/split-view/RNSSplitViewScreenComponentView.mm b/ios/gamma/split-view/RNSSplitViewScreenComponentView.mm
+index edbcc3346a19d74bac98e22ffb2735cd5c0ef256..c18a4b456d74891baf3539c6673ed068b377ca9a 100644
+--- a/ios/gamma/split-view/RNSSplitViewScreenComponentView.mm
++++ b/ios/gamma/split-view/RNSSplitViewScreenComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSSplitViewScreenComponentView.h"
+ #import <React/RCTAssert.h>
+ #import <React/RCTSurfaceTouchHandler.h>
+diff --git a/ios/gamma/stack/RNSScreenStackHostComponentView.mm b/ios/gamma/stack/RNSScreenStackHostComponentView.mm
+index 2b3e33aee56988198e1236a421cea3f18771f158..24577a63311a252d32f470378838bb09224e885d 100644
+--- a/ios/gamma/stack/RNSScreenStackHostComponentView.mm
++++ b/ios/gamma/stack/RNSScreenStackHostComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSScreenStackHostComponentView.h"
+ 
+ #import <React/RCTConversions.h>
+diff --git a/ios/gamma/stack/RNSStackScreenComponentView.mm b/ios/gamma/stack/RNSStackScreenComponentView.mm
+index f17c4287431d20c5d9a7af154d73e8f33e02686e..328007d101d6d4ace446a50cb7728ff786750896 100644
+--- a/ios/gamma/stack/RNSStackScreenComponentView.mm
++++ b/ios/gamma/stack/RNSStackScreenComponentView.mm
+@@ -1,3 +1,4 @@
++#import <React/RCTFabricComponentsPlugins.h>
+ #import "RNSStackScreenComponentView.h"
+ #import <React/RCTConversions.h>
+ #import <React/RCTMountingTransactionObserving.h>
+diff --git a/ios/stubs/RNSGammaStubs.h b/ios/stubs/RNSGammaStubs.h
+index dfe788d39a0055a3fec5082b4b007fcf203d126e..749ce145f9114fbbab0fc31e2adc42bb11360906 100644
+--- a/ios/stubs/RNSGammaStubs.h
++++ b/ios/stubs/RNSGammaStubs.h
+@@ -1,4 +1,5 @@
+ #import <Foundation/Foundation.h>
++#import <React/RCTComponentViewProtocol.h>
+ 
+ // These symbols are a stubs for components defined in Gamma project implementation.
+ // We need these, because we can not really trick codegen to generate code only for components
+@@ -20,3 +21,16 @@ NS_ASSUME_NONNULL_BEGIN
+ @end
+ 
+ NS_ASSUME_NONNULL_END
++
++#ifdef __cplusplus
++extern "C" {
++#endif
++
++Class<RCTComponentViewProtocol> RNSScreenStackHostCls(void);
++Class<RCTComponentViewProtocol> RNSStackScreenCls(void);
++Class<RCTComponentViewProtocol> RNSSplitViewHostCls(void);
++Class<RCTComponentViewProtocol> RNSSplitViewScreenCls(void);
++
++#ifdef __cplusplus
++}
++#endif
+diff --git a/ios/stubs/RNSGammaStubs.mm b/ios/stubs/RNSGammaStubs.mm
+index 763aa777b6de1cb5f0fd17187930ddb92ba7d35c..310572db905442baadfe51c66eeaa812b5ee15d0 100644
+--- a/ios/stubs/RNSGammaStubs.mm
++++ b/ios/stubs/RNSGammaStubs.mm
+@@ -11,3 +11,23 @@ @implementation RNSSplitViewHostComponentView
+ 
+ @implementation RNSSplitViewScreenComponentView
+ @end
++
++Class<RCTComponentViewProtocol> RNSScreenStackHostCls(void)
++{
++  return RNSScreenStackHostComponentView.class;
++}
++
++Class<RCTComponentViewProtocol> RNSStackScreenCls(void)
++{
++  return RNSStackScreenComponentView.class;
++}
++
++Class<RCTComponentViewProtocol> RNSSplitViewHostCls(void)
++{
++  return RNSSplitViewHostComponentView.class;
++}
++
++Class<RCTComponentViewProtocol> RNSSplitViewScreenCls(void)
++{
++  return RNSSplitViewScreenComponentView.class;
++}
