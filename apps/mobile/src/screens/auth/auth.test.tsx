@@ -7,6 +7,7 @@
  */
 import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
+import { FlatList } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { GoogleSignin } from '@react-native-google-signin/google-signin'
 import * as authApi from '../../lib/authApi'
@@ -61,6 +62,19 @@ describe('Onboarding (E02-01)', () => {
     press('Skip')
     await waitFor(() => expect(nav.replace).toHaveBeenCalledWith('Login'))
     expect(await AsyncStorage.getItem(ONBOARDING_SEEN_KEY)).toBe('1')
+  })
+
+  // Regression: on Android the slide list crashed Fabric when it unmounted
+  // ("Cannot remove child at index 8"). Both props are what stop it; a test
+  // cannot reproduce the native crash, so it guards the props instead.
+  it('keeps every slide mounted as its own native view', () => {
+    show(OnboardingScreen, makeNav())
+    const list = screen.UNSAFE_getByType(FlatList)
+    expect(list.props.removeClippedSubviews).toBe(false)
+    // Each title Text sits in the slide View, which must survive view flattening.
+    for (const title of screen.getAllByText(/pitches near you|Book in seconds|with your team/)) {
+      expect(title.parent?.parent?.props.collapsable).toBe(false)
+    }
   })
 })
 

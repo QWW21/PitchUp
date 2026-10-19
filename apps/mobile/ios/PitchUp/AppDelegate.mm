@@ -38,4 +38,29 @@
 #endif
 }
 
+- (UISceneConfiguration *)application:(UIApplication *)application
+    configurationForConnectingSceneSession:(UISceneSession *)connectingSceneSession
+                                   options:(UISceneConnectionOptions *)options
+{
+  UISceneConfiguration *configuration = [[UISceneConfiguration alloc] initWithName:@"Default Configuration"
+                                                                        sessionRole:connectingSceneSession.role];
+  configuration.delegateClass = [AppDelegate class];
+  return configuration;
+}
+
+- (void)scene:(UIScene *)scene
+    willConnectToSession:(UISceneSession *)session
+                 options:(UISceneConnectionOptions *)connectionOptions
+{
+  if ([scene isKindOfClass:[UIWindowScene class]]) {
+    // `configurationForConnectingSceneSession:` instantiates a *new* AppDelegate
+    // as the scene delegate, so `self` here is not the UIApplicationDelegate
+    // singleton that created `window` in `application:didFinishLaunchingWithOptions:`.
+    // Reach the real singleton explicitly and attach its window to this scene.
+    AppDelegate *appDelegate = (AppDelegate *)UIApplication.sharedApplication.delegate;
+    appDelegate.window.windowScene = (UIWindowScene *)scene;
+    [appDelegate.window makeKeyAndVisible];
+  }
+}
+
 @end

@@ -5,7 +5,39 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# pnpm symlinks can embed null bytes in paths. Two-layer patch:
+# 1) Pathname.new — strip null bytes at object creation time.
+# 2) realdirpath  — bypass File.realdirpath when @path already has null bytes
+#    (objects created before the patch, or via internal C paths).
+require 'pathname'
+module PathnameNullBytePatch
+  def new(path, *args)
+    str = path.respond_to?(:to_path) ? path.to_path : path.to_s
+    str = str.tr("\x00", '') if str.include?("\x00")
+    super(str, *args)
+  end
+end
+::Pathname.singleton_class.prepend(PathnameNullBytePatch)
+
+class ::Pathname
+  unless method_defined?(:_rdrp_no_null)
+    alias_method :_rdrp_no_null, :realdirpath
+    def realdirpath(*args)
+      str = @path.include?("\x00") ? @path.tr("\x00", '') : @path
+      begin
+        ::Pathname.new(File.realdirpath(str, *args))
+      rescue ArgumentError, Errno::ENOENT
+        ::Pathname.new(str.empty? ? '.' : str)
+      end
+    end
+  end
+end
+
+# RN 0.76 defaults min_ios_version_supported to iOS 13.0. Xcode 27 (macOS 27)
+# refuses anything below iOS 15.0, and the app target is already 15.1 (see
+# PitchUp.xcodeproj) — only the Pods still inherited the RN default. Raised
+# to match so pods build under Xcode 27, not just the app target.
+platform :ios, '15.1'
 prepare_react_native_project!
 
 # React Native Firebase needs its pods as static frameworks.
@@ -34,5 +66,17 @@ target 'PitchUp' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Some pods (e.g. Stripe) set their own, lower per-target deployment
+    # target regardless of the Podfile's `platform :ios`. Xcode 27 refuses
+    # anything below iOS 15.0, so clamp every pod target up to match.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        deployment_target = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+        if deployment_target && deployment_target.to_f < 15.1
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+        end
+      end
+    end
   end
 end

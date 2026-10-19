@@ -69,8 +69,14 @@ export function OnboardingScreen({ navigation }: Props) {
         keyExtractor={(_, i) => String(i)}
         onViewableItemsChanged={onViewRef.current}
         viewabilityConfig={{ itemVisiblePercentThreshold: 50 }}
+        // Android Fabric crashes on unmount with subview clipping on; three
+        // slides are not worth clipping anyway. See the comment on `slide`.
+        removeClippedSubviews={false}
         renderItem={({ item }) => (
-          <View style={styles.slide}>
+          // Without this the layout-only wrapper is flattened away and the
+          // three Texts become direct children of the scroll content view,
+          // so the list's item count no longer matches the native children.
+          <View style={styles.slide} collapsable={false}>
             <Text style={styles.emoji}>{item.emoji}</Text>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.body}>{item.body}</Text>

@@ -47,7 +47,8 @@
     },
     "patchedDependencies": {
       "@react-native/codegen@0.76.0": "patches/@react-native__codegen@0.76.0.patch",
-      "react-native-maps@1.29.11": "patches/react-native-maps@1.29.11.patch"
+      "react-native-maps@1.29.11": "patches/react-native-maps@1.29.11.patch",
+      "react-native-screens@4.16.0": "patches/react-native-screens@4.16.0.patch"
     }
   }
 }

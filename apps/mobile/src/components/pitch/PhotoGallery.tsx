@@ -38,6 +38,8 @@ export function PhotoGallery({ photos }: { photos: PitchDetail['photos'] }) {
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         keyExtractor={p => p.id}
+        // Same Android Fabric unmount crash as the onboarding slides.
+        removeClippedSubviews={false}
         onMomentumScrollEnd={e => setCurrent(Math.round(e.nativeEvent.contentOffset.x / width))}
         renderItem={({ item, index }) => (
           <TouchableOpacity
