@@ -519,7 +519,8 @@ features should land with tests in the matching layer.
 
 Worth doing before moving on, not a ticket:
 
-- **iOS has never built.** It is stuck at a linker error; see the known gaps.
+- **iOS now builds and launches** (fixed 2026-10-19, see the known gaps for
+  what's still unverified beyond the sign-in screen).
 
 ## React Native version constraints
 
@@ -548,12 +549,18 @@ in the root `package.json`:
   `target_compile_reactnative_options()` in the JNI `CMakeLists.txt` (an RN
   0.77 helper). Without the second fix the codegen sources compile without
   `-std=c++20` and fail on the C++20 in React Native's own headers.
-- **`react-native-screens@4.29.0.patch`** — **currently orphaned.** It is not
-  referenced from `patchedDependencies` any more, because rn-screens is pinned
-  to 4.16.0. It is kept on disk because it holds the iOS fixes from an earlier
-  session (eight files, mostly the removed `EventQueue::UpdateMode` argument)
-  and would be expensive to recreate. Delete it once iOS is confirmed working
-  on 4.16.0.
+- **`react-native-screens@4.16.0.patch`** — fixes three upstream bugs in the
+  Fabric native-component factory functions that the generated
+  `RCTThirdPartyFabricComponentsProvider.mm` links against: six files under
+  `ios/bottom-tabs/` and `ios/gamma/**` define their `*Cls(void)` factory
+  without importing `<React/RCTFabricComponentsPlugins.h>`, so they compile
+  with C++ name mangling instead of the C linkage the linker needs; a typo
+  (`RNSBottomTabsScreen` instead of `RNSBottomTabsScreenCls`); and
+  `ios/stubs/RNSGammaStubs.mm` (used when `RNS_GAMMA_ENABLED` is unset, which
+  is always, since nothing sets it) defined the stub Objective-C classes but
+  not their `*Cls` C factory functions. The old `react-native-screens@4.29.0.patch`
+  mentioned in earlier revisions of this doc was against the wrong version
+  (4.29.0 was never actually resolved by pnpm) and has been deleted.
 
 The long-term fix for all of this is to upgrade React Native. These pins are
 holding the tree at a version the ecosystem has moved past.
@@ -1177,16 +1184,29 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **No tab bar.** PRD §5.1 puts Discover in a four-tab bar; no epic so far
   has built it, so Discover is a plain stack screen.
 
-- **iOS has never built.** It is stuck at a linker error: undefined `_RNS*Cls`
-  symbols referenced from the generated
-  `RCTThirdPartyFabricComponentsProvider.mm`. The symbols live in
-  react-native-screens' `gamma/` directory, which the pod excludes unless
-  `RNS_GAMMA_ENABLED` is set, and the stubs in `ios/stubs/RNSGammaStubs.mm`
-  define the Objective-C classes but not the C `*Cls` functions the provider
-  actually links against. **This may now be moot**: that whole diagnosis was
-  against rn-screens 4.29.0, and the pin has since moved to 4.16.0, which has
-  no `gamma/` directory at all. Run `pod install` and rebuild before spending
-  any time on the stubs.
+- **iOS builds and launches** (fixed 2026-10-19). `pnpm ios` from
+  `apps/mobile` builds, installs and runs on simulator; the sign-in screen
+  renders and the JS bundle loads over Metro. Three unrelated things were
+  broken at once:
+  - The machine's system Xcode is 27.0, which replaced Simulator.app with
+    DeviceHub.app — don't force `DEVELOPER_DIR` to an older Xcode install for
+    iOS builds, it breaks CoreSimulatorService (`Failed to launch
+AssetCatalogSimulatorAgent`).
+  - react-native-screens@4.16.0 has the linker bug described above under
+    "React Native version constraints" — fixed via
+    `patches/react-native-screens@4.16.0.patch`.
+  - Xcode 27's SDK requires UIScene lifecycle adoption or the app is killed
+    right after launch; `Info.plist` now declares
+    `UIApplicationSceneManifest` and `AppDelegate.mm` implements scene
+    connection (including attaching the window to the actual `AppDelegate`
+    singleton — the scene-delegate class UIKit instantiates from
+    `configurationForConnectingSceneSession:` is a _second_, separate
+    instance whose `window` is nil).
+  - Pods also needed their minimum iOS deployment target raised to 15.1 and
+    a CocoaPods `Pathname` patch in the `Podfile` for pnpm's
+    null-byte-containing symlink paths, both required to build under Xcode 27.
+    Not yet verified beyond the sign-in screen: the seven auth screens, and
+    everything past login (same gap as Android, see below).
 - **Test coverage stops at the device.** Unit, API and browser E2E cover
   backend and web; mobile has unit/component tests with mocked native modules
   only. Nothing runs the app on a device yet (#187). `pnpm format:check` is
