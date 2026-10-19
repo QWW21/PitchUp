@@ -58,6 +58,8 @@ export function PhotoLightbox({ urls, index, onClose }: PhotoLightboxProps) {
           showsHorizontalScrollIndicator={false}
           keyExtractor={(url, i) => `${i}-${url}`}
           getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+          // Same Android Fabric unmount crash as the onboarding slides.
+          removeClippedSubviews={false}
           initialScrollIndex={index ?? 0}
           onMomentumScrollEnd={e => setCurrent(Math.round(e.nativeEvent.contentOffset.x / width))}
           renderItem={({ item }) => (

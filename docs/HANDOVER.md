@@ -358,6 +358,54 @@ in the root `package.json`:
 The long-term fix for all of this is to upgrade React Native. These pins are
 holding the tree at a version the ecosystem has moved past.
 
+### Android: horizontal lists must not clip their subviews
+
+Finishing the onboarding slides crashed the app with a red box:
+
+> Cannot remove child at index 8 from parent ViewGroup [66], only 9 children
+> in parent. Warning: childCount may be incorrect!
+
+The red box hides the frame that matters. From `adb logcat`:
+
+```
+at SurfaceMountingManager.removeViewAt(SurfaceMountingManager.java:588)
+at ReactClippingViewManager.removeViewAt(ReactClippingViewManager.java:77)
+```
+
+Line 77 is the subview-clipping branch, so clipping was on. It calls
+`ReactViewGroup.removeViewWithSubviewClippingEnabled`, which does
+`mAllChildren[indexOfChildInAllChildren(view)]` — that returns `-1` for a view
+already detached, and the out-of-bounds access becomes the message above.
+`parent [66]` was the `AndroidHorizontalScrollContentView` of the slide list,
+and the hierarchy dump showed nine `RCTText` children, six of them with
+`parentTag=null` (clipped, i.e. detached).
+
+Two things combined:
+
+1. **`FlatList` turns subview clipping on by default on Android**
+   (`removeClippedSubviewsOrDefault` in `Libraries/Lists/FlatList.js` returns
+   `Platform.OS === 'android'`). Clipping detaches off-screen children, so by
+   the time the list unmounts the native child list and Fabric's shadow tree
+   disagree.
+2. **View flattening removed the slide wrapper.** The wrapper `View` had only
+   layout styles, so Android dropped it and hoisted its three `Text`s into the
+   scroll content view — three slides became nine direct children, and the
+   index Fabric asked to remove was never the index that existed.
+
+The fix is both halves, in `OnboardingScreen.tsx`: `removeClippedSubviews={false}`
+on the list, and `collapsable={false}` on the slide wrapper so it survives
+flattening. Guarded by a test in `src/screens/auth/auth.test.tsx` ("keeps every
+slide mounted as its own native view") — a unit test cannot reproduce a native
+crash, so it asserts the two props instead.
+
+**The same shape exists elsewhere.** Any horizontal paging `FlatList` whose
+item is a layout-only wrapper is exposed. `PhotoGallery.tsx` and
+`PhotoLightbox.tsx` were given `removeClippedSubviews={false}` for the same
+reason; their items are an `Image` and a `ScrollView`, which are not flattened,
+so they need no `collapsable`. Clipping is a memory optimisation for long
+lists — on a three-slide or a photo list it buys nothing. Prefer turning it
+off on short horizontal lists.
+
 ### Metro port
 
 Metro runs on **8082**, not React Native's default 8081, to avoid colliding
@@ -708,7 +756,9 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   one primary-key lookup per session read. Deleted users are signed out the
   same way.
 - **Android was verified as far as the onboarding screen.** The build, the
-  bundle and the first render are confirmed. The seven auth screens have not
+  bundle and the first render are confirmed. Finishing the slides used to
+  crash Fabric; fixed — see "Android: horizontal lists must not clip their
+  subviews". The seven auth screens have not
   been walked through on a device against a live API;
   `docs/TESTING_E02_MOBILE.md` is the plan for doing that and has not been run.
 - **`pnpm lint` is weaker than `next build`.** The build caught an unused
