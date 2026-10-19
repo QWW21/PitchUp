@@ -290,7 +290,10 @@ test.describe('pitch page', () => {
     try {
       await signIn(page, 'player@demo.ro', 'Player1234!')
       await page.goto(`/discover/${g.id}/${g.pitches[0]!.id}`)
-      await expect(page.getByText('Account restricted')).toBeVisible()
+      await expect(page.getByText('Can’t book here').first()).toBeVisible()
+      await expect(
+        page.getByText('Your account cannot make bookings right now').first()
+      ).toBeVisible()
       await expect(page.getByRole('link', { name: 'Book Now' })).toHaveCount(0)
       await snap(page, info, AREA, '14-account-restricted')
     } finally {

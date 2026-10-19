@@ -4,11 +4,18 @@ import {
   bookingReference,
   formatDuration,
   freeCancellationUntil,
+  describeRefundPolicy,
+  refundPolicyOf,
+  dayPeriod,
+  durationOptions,
+  formatShortDuration,
+  keepDuration,
+  rangeFrom,
   rangeTimes,
   refundPercentFor,
-  tapSlot,
-  type SlotRange,
+  startOptions,
 } from './booking'
+import { DEFAULT_REFUND_POLICY } from './constants/cancellation'
 import type { SlotStatus } from './schemas/detail'
 
 describe('bookingPrice', () => {
@@ -39,21 +46,47 @@ describe('formatDuration', () => {
   })
 })
 
-describe('cancellation policy (PRD §9.2)', () => {
+describe('the refund policy (C-10)', () => {
   it.each([
     [48, 100],
-    [24, 100],
-    [23.9, 50],
-    [2, 50],
+    [12, 100],
+    [11.9, 75],
+    [2, 75],
     [1.9, 0],
     [-1, 0],
-  ])('%s h before → %i%%', (hours, percent) => {
+  ])('by default, %s h before → %i%%', (hours, percent) => {
     expect(refundPercentFor(hours)).toBe(percent)
   })
-  it('is free until 24 hours before kick-off', () => {
+  it("follows a venue's own policy", () => {
+    const strict = { fullRefundHours: 48, partialRefundHours: 24, partialRefundPercent: 50 }
+    expect(refundPercentFor(48, strict)).toBe(100)
+    expect(refundPercentFor(30, strict)).toBe(50)
+    expect(refundPercentFor(23, strict)).toBe(0)
+  })
+  it('is free until 12 hours before kick-off by default', () => {
     expect(freeCancellationUntil(new Date('2026-11-02T18:00:00Z')).toISOString()).toBe(
-      '2026-11-01T18:00:00.000Z'
+      '2026-11-02T06:00:00.000Z'
     )
+  })
+  it('says itself in one sentence', () => {
+    expect(describeRefundPolicy()).toBe(
+      'Free cancellation up to 12 hours before kick-off; 75% back up to 2 hours before; nothing after.'
+    )
+    expect(
+      describeRefundPolicy({ fullRefundHours: 24, partialRefundHours: 0, partialRefundPercent: 50 })
+    ).toBe('Free cancellation up to 24 hours before kick-off; 50% back until kick-off.')
+    expect(
+      describeRefundPolicy({ fullRefundHours: 1, partialRefundHours: 0, partialRefundPercent: 0 })
+    ).toBe('Free cancellation up to 1 hour before kick-off; nothing after.')
+    expect(
+      describeRefundPolicy({ fullRefundHours: 0, partialRefundHours: 0, partialRefundPercent: 0 })
+    ).toBe('Free cancellation until kick-off.')
+  })
+  it('reads a stored policy, or falls back to the default', () => {
+    const p = { fullRefundHours: 6, partialRefundHours: 1, partialRefundPercent: 40 }
+    expect(refundPolicyOf(p)).toEqual(p)
+    expect(refundPolicyOf(null)).toEqual(DEFAULT_REFUND_POLICY)
+    expect(refundPolicyOf({ fullRefundHours: 6 })).toEqual(DEFAULT_REFUND_POLICY)
   })
 })
 
@@ -61,7 +94,8 @@ it('bookingReference is a short upper-case code', () => {
   expect(bookingReference('cmv99p6qg0021u6zf87pw4plg')).toBe('#PW4PLG')
 })
 
-describe('tapSlot', () => {
+describe('start and duration (C-6)', () => {
+  // One character per half hour: . free, x booked, p past.
   const day = (spec: string, from = '18:00'): { time: string; status: SlotStatus }[] => {
     const [h, m] = from.split(':').map(Number)
     return [...spec].map((c, i) => {
@@ -70,50 +104,71 @@ describe('tapSlot', () => {
       return { time, status: c === '.' ? 'available' : c === 'x' ? 'booked' : 'past' }
     })
   }
-  const FOUR_HOURS = 240
+  const states = (slots: ReturnType<typeof day>, min: number) =>
+    startOptions(slots, min)
+      .map(o => o.state[0])
+      .join('')
+  const fits = (slots: ReturnType<typeof day>, i: number, min = 60, max = 180) =>
+    durationOptions(slots, i, min, max)
+      .filter(o => o.fits)
+      .map(o => o.minutes)
 
-  it('starts, extends, and clears when the start is tapped again', () => {
-    const slots = day('......')
-    let s: SlotRange | null = tapSlot(slots, null, 1, FOUR_HOURS)
-    expect(s).toEqual({ start: 1, end: 1 })
-    s = tapSlot(slots, s, 4, FOUR_HOURS)
-    expect(s).toEqual({ start: 1, end: 4 })
-    expect(rangeTimes(slots, s!)).toEqual({ startTime: '18:30', endTime: '20:30', minutes: 120 })
-    expect(tapSlot(slots, s, 1, FOUR_HOURS)).toBeNull()
+  it('offers a start only when the shortest booking fits after it', () => {
+    // Free until a booking at 20:00, then free to closing at 22:00.
+    const slots = day('....x...')
+    expect(states(slots, 60)).toBe('aaasbaas')
+    expect(states(slots, 90)).toBe('aassbass')
   })
 
-  it('starts over when the tap is above the start', () => {
-    expect(tapSlot(day('......'), { start: 3, end: 4 }, 1, FOUR_HOURS)).toEqual({
-      start: 1,
-      end: 1,
+  it('shows past and booked starts as such', () => {
+    expect(states(day('pp..x'), 60)).toBe('ppasb')
+  })
+
+  it('groups starts into morning, afternoon and evening', () => {
+    expect(['11:30', '12:00', '16:30', '17:00'].map(dayPeriod)).toEqual([
+      'Morning',
+      'Afternoon',
+      'Afternoon',
+      'Evening',
+    ])
+  })
+
+  it('durations run from the minimum to the maximum, enabled while they fit', () => {
+    const slots = day('.....x')
+    expect(durationOptions(slots, 0, 60, 180).map(o => o.minutes)).toEqual([60, 90, 120, 150, 180])
+    expect(fits(slots, 0)).toEqual([60, 90, 120, 150])
+    expect(fits(day('..........'), 0, 60, 120)).toEqual([60, 90, 120])
+  })
+
+  it('an overnight venue: the early hours and the evening are separate runs', () => {
+    // 00:00–02:00 (last night's hours), closed, then 22:00–24:00.
+    const slots = [...day('....', '00:00'), ...day('....', '22:00')]
+    expect(fits(slots, 2)).toEqual([60])
+    expect(fits(slots, 4)).toEqual([60, 90, 120])
+    expect(states(slots, 90)).toBe('aassaass')
+    expect(rangeTimes(slots, rangeFrom(4, 120))).toEqual({
+      startTime: '22:00',
+      endTime: '24:00',
+      minutes: 120,
     })
   })
 
-  it('stops before a booked slot', () => {
-    expect(tapSlot(day('..x...'), { start: 0, end: 0 }, 5, FOUR_HOURS)).toEqual({
-      start: 0,
-      end: 1,
+  it('keeps the chosen duration if it fits, else the longest that fits up to it', () => {
+    const opts = (free: number) =>
+      [60, 90, 120].map(minutes => ({ minutes, fits: minutes <= free }))
+    expect(keepDuration(opts(120), 90)).toBe(90)
+    expect(keepDuration(opts(90), 120)).toBe(90)
+    expect(keepDuration(opts(120), null)).toBe(60)
+    expect(keepDuration(opts(30), 90)).toBeNull()
+  })
+
+  it('formats the chips and the range', () => {
+    expect([30, 60, 90, 120].map(formatShortDuration)).toEqual(['30 min', '1h', '1h 30', '2h'])
+    expect(rangeTimes(day('......'), rangeFrom(1, 120))).toEqual({
+      startTime: '18:30',
+      endTime: '20:30',
+      minutes: 120,
     })
-  })
-
-  it('ignores taps on booked and past slots', () => {
-    const slots = day('p.x.')
-    expect(tapSlot(slots, null, 0, FOUR_HOURS)).toBeNull()
-    expect(tapSlot(slots, { start: 1, end: 1 }, 2, FOUR_HOURS)).toEqual({ start: 1, end: 1 })
-  })
-
-  it('stops at the longest booking allowed', () => {
-    expect(tapSlot(day('..........'), { start: 0, end: 0 }, 9, 120)).toEqual({ start: 0, end: 3 })
-  })
-
-  it('stops at a gap in the opening hours', () => {
-    const slots = [...day('..', '10:00'), ...day('..', '17:00')]
-    expect(tapSlot(slots, { start: 0, end: 0 }, 3, FOUR_HOURS)).toEqual({ start: 0, end: 1 })
-  })
-
-  it('writes an end at midnight as 24:00', () => {
-    const slots = day('..', '23:00')
-    expect(rangeTimes(slots, { start: 0, end: 1 }).endTime).toBe('24:00')
   })
 })
 
@@ -128,9 +183,9 @@ describe('cancellationRefund', () => {
   const at = (hoursBefore: number) => new Date(start.getTime() - hoursBefore * 3_600_000)
   it.each([
     [48, 100, 240],
-    [24, 100, 240],
-    [23.99, 50, 120],
-    [2, 50, 120],
+    [12, 100, 240],
+    [11.99, 75, 180],
+    [2, 75, 180],
     [1.99, 0, 0],
   ])('%s h before → %i%% = %i RON', async (hours, percent, amount) => {
     const { cancellationRefund } = await import('./booking')
@@ -138,7 +193,7 @@ describe('cancellationRefund', () => {
   })
   it('keeps bani', async () => {
     const { cancellationRefund } = await import('./booking')
-    expect(cancellationRefund(135, start, at(5)).amount).toBe(67.5)
+    expect(cancellationRefund(135, start, at(5)).amount).toBe(101.25)
   })
 })
 

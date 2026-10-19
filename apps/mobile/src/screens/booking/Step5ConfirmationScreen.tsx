@@ -13,7 +13,7 @@ import { ActivityIndicator, Animated, BackHandler, StyleSheet, Text, View } from
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
-import { formatDateLong, formatDuration } from '@pitchup/shared'
+import { formatDateLong, formatDuration, paymentStatusLine } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
@@ -53,7 +53,9 @@ export function Step5ConfirmationScreen({
     // Registered once: close only reads navigation.
   }, [])
 
-  const confirmed = booking.data?.status === 'CONFIRMED'
+  // C-13: at a venue that confirms by hand, the paid booking waits for it.
+  const waiting = booking.data?.status === 'AWAITING_APPROVAL'
+  const confirmed = booking.data?.status === 'CONFIRMED' || waiting
   useEffect(() => {
     if (!confirmed) return
     Animated.sequence([
@@ -74,7 +76,7 @@ export function Step5ConfirmationScreen({
             <ActivityIndicator color={colors.primary[600]} />
             <Text style={styles.sub}>Confirming your payment…</Text>
           </View>
-        ) : b.status !== 'CONFIRMED' ? (
+        ) : !confirmed ? (
           <View style={styles.center}>
             <Text style={styles.title}>The payment didn&apos;t go through</Text>
             <Text style={styles.sub}>{b.cancellationReason ?? 'Nothing was booked.'}</Text>
@@ -87,9 +89,13 @@ export function Step5ConfirmationScreen({
               </Animated.View>
             </Animated.View>
             <Text style={styles.title} accessibilityRole="header">
-              Booking confirmed!
+              {waiting ? 'Sent to the venue' : 'Booking confirmed!'}
             </Text>
-            <Text style={styles.sub}>Get ready to play!</Text>
+            <Text style={styles.sub}>
+              {waiting
+                ? `${b.company.name} confirms each booking. You'll be told when they answer; if they decline, all your money comes back.`
+                : 'Get ready to play!'}
+            </Text>
             <View style={styles.card}>
               <Text style={styles.reference}>{b.reference}</Text>
               <Text style={styles.pitch}>{b.pitch.name}</Text>
@@ -102,7 +108,7 @@ export function Step5ConfirmationScreen({
                   Free shirts: {b.shirtSets} {b.shirtSets === 1 ? 'set' : 'sets'}
                 </Text>
               ) : null}
-              <Text style={styles.paid}>Total paid: {b.total} RON</Text>
+              <Text style={styles.paid}>{paymentStatusLine(b)}</Text>
             </View>
           </>
         )}

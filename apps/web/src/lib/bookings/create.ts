@@ -11,13 +11,20 @@
  *    yet, so there is nothing to lock.
  * 3. The booking is created PENDING, then the payment is started. A payment
  *    service that is down cancels the booking again and nothing is charged.
+ *
+ * Paying at the venue (C-8): only the deposit is charged online. With a 0%
+ * deposit nothing is, and the booking is confirmed at once.
  */
 import 'server-only'
 import {
   addDays,
   bookingPrice,
+  bookingTrustGate,
   bookingReference,
+  formatShortDuration,
   normalizeWeek,
+  paymentMethodsFor,
+  paymentSplit,
   shirtSetsFor,
   toMinutes,
   trustTier,
@@ -32,6 +39,9 @@ import { ApiException, conflict, notFound, unauthorized, validationError } from 
 import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
+import { notifyBookingPaid } from '@/lib/notifications/booking'
+import { paidState } from './approval'
+import { platformConfig } from '@/lib/admin/config'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -54,16 +64,59 @@ export async function createBooking(
     prisma.pitch.findUnique({
       where: { id: input.pitchId },
       include: {
-        company: { select: { name: true, status: true, workingHours: true } },
+        company: {
+          select: {
+            name: true,
+            status: true,
+            workingHours: true,
+            paymentMode: true,
+            depositPercent: true,
+            autoApproveBookings: true,
+            refundFullHours: true,
+            refundPartialHours: true,
+            refundPartialPercent: true,
+          },
+        },
         shirtInventory: true,
       },
     }),
   ])
   if (!user || user.deletedAt) throw unauthorized()
-  if (!pitch || pitch.company.status !== 'ACTIVE') throw notFound('Pitch not found')
+  if (!pitch || pitch.deletedAt || pitch.company.status !== 'ACTIVE') {
+    throw notFound('Pitch not found')
+  }
   if (!pitch.isActive) throw forbidden('This pitch is not taking bookings', 'PITCH_INACTIVE')
-  if (!trustTier(user.trustScore).canBook) {
-    throw forbidden('Your account cannot make bookings right now', 'TRUST_SCORE_TOO_LOW')
+  // E12-06: suspended players can't book, Poor ones hold one upcoming booking,
+  // and a pitch may ask for a better trust score.
+  const gate = bookingTrustGate({
+    score: user.trustScore,
+    pitchMinScore: pitch.minTrustScore,
+    activeBookings: await prisma.booking.count({
+      where: {
+        playerId: userId,
+        status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+        endTime: { gt: now },
+      },
+    }),
+  })
+  if (gate) {
+    throw new ApiException('FORBIDDEN', gate.message, {
+      reason: gate.reason,
+      ...(gate.required ? { required: gate.required, current: gate.current } : {}),
+    })
+  }
+  const methods = paymentMethodsFor(
+    pitch.company.paymentMode,
+    pitch.company.depositPercent,
+    user.trustScore
+  )
+  if (!methods.includes(input.paymentMethod)) {
+    throw forbidden(
+      methods.length
+        ? 'That way of paying is not available here'
+        : 'This venue takes payment at the venue, for players with a trust score of 70 or more',
+      'PAYMENT_METHOD_UNAVAILABLE'
+    )
   }
 
   // Duration within this pitch's own limits (the schema checked the global ones).
@@ -72,7 +125,7 @@ export async function createBooking(
   const minutes = endMin - startMin
   if (minutes < pitch.minBookingHours * 60 || minutes > pitch.maxBookingHours * 60) {
     throw validationError(
-      `This pitch is booked for ${pitch.minBookingHours}–${pitch.maxBookingHours} hours at a time`,
+      `This pitch is booked for ${formatShortDuration(pitch.minBookingHours * 60)} to ${formatShortDuration(pitch.maxBookingHours * 60)} at a time`,
       { field: 'endTime' }
     )
   }
@@ -88,6 +141,7 @@ export async function createBooking(
     isActive: pitch.isActive,
     advanceBookingDays: pitch.advanceBookingDays,
     week: normalizeWeek(pitch.company.workingHours),
+    pitchWeek: pitch.workingHours ? normalizeWeek(pitch.workingHours) : null,
   }
   const intervals = dayIntervals(
     schedule,
@@ -120,7 +174,16 @@ export async function createBooking(
     }
   }
 
-  const price = bookingPrice(Number(pitch.hourlyRate), minutes)
+  // E15: the commission is the admin's current setting, kept on the booking.
+  const price = bookingPrice(
+    Number(pitch.hourlyRate),
+    minutes,
+    (await platformConfig()).platformFeePercent
+  )
+  const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
+  // Nothing to charge online: confirmed now (or sent to the venue), like a paid booking.
+  const free = split.payNow === 0
+  const settled = paidState(pitch.company.autoApproveBookings, now, startTime)
 
   const { booking, superseded } = await prisma.$transaction(async tx => {
     // Serialises bookings of this pitch until the transaction ends.
@@ -174,15 +237,26 @@ export async function createBooking(
         teamsData: input.teamsData,
         shirtSets: sets,
         ...(input.noteToManager ? { noteToManager: input.noteToManager } : {}),
-        status: 'PENDING',
+        status: free ? settled.status : 'PENDING',
+        ...(free && settled.approvalDeadline ? { approvalDeadline: settled.approvalDeadline } : {}),
+        // C-10: the policy the player agrees to now.
+        refundPolicy: {
+          fullRefundHours: pitch.company.refundFullHours,
+          partialRefundHours: pitch.company.refundPartialHours,
+          partialRefundPercent: pitch.company.refundPartialPercent,
+        },
         pitchRateSnapshot: pitch.hourlyRate,
         platformFee: price.platformFee,
         totalAmount: price.total,
-        paymentProvider: provider.name,
+        paymentMethod: split.method,
+        depositAmount: split.deposit,
+        dueAtVenue: split.dueAtVenue,
+        paymentProvider: free ? null : provider.name,
       },
       select: { id: true, createdAt: true },
     })
     await recordStatus(tx, booking.id, 'PENDING')
+    if (free) await recordStatus(tx, booking.id, settled.status)
     return { booking, superseded: own }
   })
 
@@ -192,15 +266,36 @@ export async function createBooking(
     }
   }
 
+  const result = {
+    bookingId: booking.id,
+    reference: bookingReference(booking.id),
+    total: price.total,
+    holdExpiresAt: holdExpiresAt(booking.createdAt).toISOString(),
+    payNow: split.payNow,
+    dueAtVenue: split.dueAtVenue,
+  }
+  if (free) {
+    // Best effort, as after a payment: a mail outage must not undo the booking.
+    await notifyBookingPaid(booking.id).catch(caught =>
+      console.error(
+        `[bookings] Confirmation notice for ${booking.id} failed:`,
+        caught instanceof Error ? caught.message : 'unknown error'
+      )
+    )
+    return { ...result, payment: { provider: 'none' } }
+  }
+
   let payment
   try {
     payment = await provider.createPayment({
       bookingId: booking.id,
       userId,
-      amountRon: price.total,
+      amountRon: split.payNow,
       description: `${pitch.name}, ${pitch.company.name} — ${input.date} ${input.startTime}–${input.endTime}`,
       customerId: provider.name === 'stripe' ? await getOrCreateCustomer(userId) : null,
       paymentMethodId: input.paymentMethodId,
+      // Fair and Poor players must have a card on file (PRD §9.1): this one stays.
+      saveCard: trustTier(user.trustScore).requiresCardOnFile,
     })
   } catch (caught) {
     // Booking id only: payment errors can carry card details.
@@ -232,10 +327,7 @@ export async function createBooking(
   })
 
   return {
-    bookingId: booking.id,
-    reference: bookingReference(booking.id),
-    total: price.total,
-    holdExpiresAt: holdExpiresAt(booking.createdAt).toISOString(),
+    ...result,
     payment:
       provider.name === 'stripe' && payment.clientSecret
         ? {

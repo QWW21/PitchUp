@@ -29,7 +29,10 @@ const DUMMY_HASH = bcrypt.hashSync('invalid-password-placeholder', AUTH.BCRYPT_C
  * a server render (API routes) it simply calls through.
  */
 const sessionFreshness = cache((id: string) =>
-  prisma.user.findUnique({ where: { id }, select: { passwordChangedAt: true, deletedAt: true } })
+  prisma.user.findUnique({
+    where: { id },
+    select: { passwordChangedAt: true, deletedAt: true, suspendedAt: true },
+  })
 )
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -83,7 +86,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // turns it into the same CredentialsSignin error. PRD §6.6.
         if (!user || !passwordMatches) return null
 
-        if (user.deletedAt) return null
+        // Deleted, or suspended by an admin (E15).
+        if (user.deletedAt || user.suspendedAt) return null
 
         if (!user.emailVerified) {
           // Same rule as the mobile login (loginWithPassword): a distinct
@@ -126,7 +130,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // One indexed lookup by primary key, once per request however many
       // components ask for the session (see sessionFreshness below).
       const current = await sessionFreshness(token.id as string)
-      if (!current || current.deletedAt) return null
+      // A suspension (E15) ends the session at once, like a deletion.
+      if (!current || current.deletedAt || current.suspendedAt) return null
       const authAt = typeof token.authAt === 'number' ? token.authAt : 0
       if (current.passwordChangedAt && current.passwordChangedAt.getTime() > authAt) return null
       return token

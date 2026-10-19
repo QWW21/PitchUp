@@ -65,6 +65,11 @@ const BANNER: Record<
     Icon: CheckCircle2,
   },
   PENDING: { label: 'Awaiting payment', className: 'bg-warning-50 text-amber-800', Icon: Clock },
+  AWAITING_APPROVAL: {
+    label: 'Waiting for the venue',
+    className: 'bg-warning-50 text-amber-800',
+    Icon: Clock,
+  },
   COMPLETED: {
     label: 'Completed',
     className: 'bg-primary-50 text-primary-700',
@@ -76,6 +81,7 @@ const BANNER: Record<
 
 const STATUS_WORDS: Record<BookingStatus, string> = {
   PENDING: 'Booked, awaiting payment',
+  AWAITING_APPROVAL: 'Paid, sent to the venue',
   CONFIRMED: 'Paid and confirmed',
   COMPLETED: 'Played',
   CANCELLED: 'Cancelled',
@@ -130,6 +136,14 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         <banner.Icon className="h-4 w-4" aria-hidden="true" />
         {banner.label}
       </div>
+      {b.status === 'AWAITING_APPROVAL' && (
+        <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
+          {b.company.name} confirms each booking.
+          {b.approvalDeadline &&
+            ` If they haven't answered by ${stamp.format(new Date(b.approvalDeadline))}, it is declined.`}{' '}
+          If declined, all your money comes back.
+        </p>
+      )}
 
       <header className="text-center">
         <h1 className="text-2xl font-bold text-neutral-900">Booking details</h1>
@@ -224,9 +238,24 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
             </div>
           )}
           <div className="flex justify-between border-t border-neutral-200 pt-2 text-base font-semibold text-neutral-900">
-            <dt>{b.paidAt ? 'Total paid' : 'Total'}</dt>
+            <dt>{b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}</dt>
             <dd className="font-mono">{b.total} RON</dd>
           </div>
+          {b.paymentMethod !== 'ONLINE' && !!b.deposit && (
+            <div className="flex justify-between text-neutral-700">
+              <dt>
+                Deposit paid online
+                {b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && ', refunded after the game'}
+              </dt>
+              <dd>{b.deposit} RON</dd>
+            </div>
+          )}
+          {b.paymentMethod !== 'ONLINE' && (
+            <div className="flex justify-between font-medium text-neutral-900">
+              <dt>{b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}</dt>
+              <dd>{b.dueAtVenue} RON</dd>
+            </div>
+          )}
           {b.paidAt && (
             <div className="flex justify-between text-neutral-700">
               <dt>Card</dt>
@@ -281,6 +310,9 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         </ol>
         {b.cancellationReason && b.status === 'CANCELLED' && (
           <p className="mt-2 text-sm text-neutral-700">{b.cancellationReason}</p>
+        )}
+        {b.cancellation && (
+          <p className="mt-2 text-xs text-neutral-500">Refund policy: {b.refundPolicy}</p>
         )}
       </section>
 

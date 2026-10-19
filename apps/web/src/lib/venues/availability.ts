@@ -12,6 +12,7 @@ import {
   BOOKING,
   addDays,
   fromMinutes,
+  intersectIntervals,
   normalizeWeek,
   openIntervalsOn,
   venueClock,
@@ -32,6 +33,8 @@ export interface PitchSchedule {
   isActive: boolean
   advanceBookingDays: number
   week: DayHours[]
+  /** The pitch's own hours (E10-10), always inside the venue's; null follows the venue. */
+  pitchWeek: DayHours[] | null
 }
 
 interface Span {
@@ -41,11 +44,12 @@ interface Span {
 
 export async function loadSchedule(pitchId: string): Promise<PitchSchedule> {
   const pitch = await prisma.pitch.findFirst({
-    where: { id: pitchId, company: { status: 'ACTIVE' } },
+    where: { id: pitchId, deletedAt: null, company: { status: 'ACTIVE' } },
     select: {
       id: true,
       isActive: true,
       advanceBookingDays: true,
+      workingHours: true,
       company: { select: { workingHours: true } },
     },
   })
@@ -55,6 +59,7 @@ export async function loadSchedule(pitchId: string): Promise<PitchSchedule> {
     isActive: pitch.isActive,
     advanceBookingDays: pitch.advanceBookingDays,
     week: normalizeWeek(pitch.company.workingHours),
+    pitchWeek: pitch.workingHours ? normalizeWeek(pitch.workingHours) : null,
   }
 }
 
@@ -65,7 +70,11 @@ export function dayIntervals(
   exceptions: Set<string>
 ): [number, number][] {
   if (!schedule.isActive || exceptions.has(date)) return []
-  return openIntervalsOn(schedule.week, date)
+  const venue = openIntervalsOn(schedule.week, date)
+  // Cut to the venue's hours as well, in case those changed after the pitch's were set.
+  return schedule.pitchWeek
+    ? intersectIntervals(venue, openIntervalsOn(schedule.pitchWeek, date))
+    : venue
 }
 
 export async function exceptionDates(pitchId: string, from: string, to: string) {

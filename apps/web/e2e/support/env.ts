@@ -17,3 +17,6 @@ export function assertTestDatabase(url: string): void {
     throw new Error(`E2E refuses to reset "${name}": the database name must contain "test".`)
   }
 }
+
+/** The nightly job's bearer token on the E2E server (not a real secret). */
+export const E2E_CRON_SECRET = 'e2e-cron-secret-not-real-0001'

@@ -1047,27 +1047,452 @@ date ranges.
 
 ---
 
+## 21. Listening to users: three changes after testing (C-6, C-7, C-8)
+
+The owner tested the booking flow and asked for three changes. Each one
+teaches something different about changing a product that already works.
+
+### An empty space reads as a bug (C-7)
+
+A pitch with no shirts simply hid the shirts section. The code was correct,
+but the owner reported it as a bug: a gap looks like something failed to
+load. The fix is one sentence ("This pitch doesn't lend shirts...") where
+the switch would be. **Say why something is missing**; an explicit "no" is
+part of the interface.
+
+### Make the impossible unclickable (C-6)
+
+The old time grid asked for two clicks (start, then end) and the user had
+to work out what a second click would do. The new step asks two questions a
+person already has in mind: when do we start, and for how long? Every
+choice that cannot work is shown but disabled, with the reason read out to
+screen readers ("19:30, not enough time"). This is the general idea of
+**constraining input instead of validating it**: rather than letting the
+player pick 19:30–21:30 and then saying "that overlaps a booking", the
+option is not offered.
+
+The rules (which starts fit, which lengths fit, what to keep when the start
+changes) are one set of pure functions in `@pitchup/shared`, used by web
+and mobile alike and unit-tested for the awkward cases: overnight venues, a
+booking in the middle, closing time, past slots. Pure functions are where
+such rules are cheapest to test.
+
+### Money in two places (C-8)
+
+Paying at the venue means part of the money moves outside the system. The
+design question is: what does PitchUp still know and control?
+
+- **A deposit is a commitment device.** Taking a little money up front makes
+  a no-show cost something, without asking for the full price. The venue
+  picks how much (0–50%); at 0% it accepts the risk, and the trust score
+  (only 70+ may pay at the venue) is the only protection left.
+- **Record the split at booking time.** The booking stores how it is paid,
+  the deposit and what is due at the venue. Changing the venue's settings
+  later must not change what an existing booking owes, the same reason the
+  hourly rate is copied onto the booking (`pitchRateSnapshot`).
+- **The server decides; the client explains.** The app shows the choices
+  the server allows (`GET /pitches/:id/payment-options`), and creating the
+  booking checks the same rule again (`paymentMethodsFor`). A modified
+  client cannot pay at the venue with a low trust score.
+- **Refund what was charged, not what it cost.** Every refund (cancelling,
+  a slot lost while paying, a confirmed attendance) is taken from the amount
+  actually charged by card (`chargedOnline`). Mixing "price" and "amount
+  paid" is a classic money bug.
+- **A human closes the loop.** Only the manager knows whether the player
+  came. Confirm attended and Report no-show are that signal. Both run under
+  the same per-pitch lock as booking, so a double click can't refund twice,
+  and one excludes the other.
+
+**What to learn:** empty states and explaining absence; constraining input
+versus validating it; pure functions for business rules shared across
+platforms; deposits and no-show economics; snapshotting values onto a
+transaction; server-side enforcement of rules shown on the client;
+idempotency and locks around refunds.
+
+---
+
+## 22. Managing what you sell: pitches (E10)
+
+E10 gives managers the editor for their pitches: details, photos,
+amenities, price, shirts, hours and blocked days.
+
+### Ownership through the parent
+
+A pitch has no owner field; its company does. Every pitch endpoint finds
+the pitch _within the manager's company_ (`ownedPitch(companyId, id)`), so
+another venue's pitch is simply not found. Checking ownership through the
+parent record keeps one source of truth: if a company changed hands, every
+pitch would follow without touching them. Answering 404 rather than 403
+also avoids telling a stranger that the id exists.
+
+### Soft delete
+
+Deleting a pitch sets `deletedAt` instead of removing the row. Bookings
+and reviews point at it; a hard delete would either fail (foreign keys) or
+take a venue's history with it. The cost of a soft delete is that every
+read has to remember `deletedAt: null`. That is why the player-facing reads
+share a few functions (pitch detail, availability, company page) rather
+than each writing its own query. Deleting is also refused while bookings
+are still to be played: there must be nobody left holding a booking for a
+pitch that no longer exists.
+
+### Ordered lists: positions, gaps and races
+
+Photos have an `order`. Three things make that harder than it looks:
+
+- **Reordering sends the whole list** of ids in the new order, applied in
+  one transaction, so a failure leaves the old order intact. If the list
+  the client sends doesn't match what is stored (a photo was deleted in
+  another tab), the server refuses with `OUT_OF_SYNC` rather than guessing.
+- **Deleting closes the gap**, so orders stay 0…n-1 and "the first photo is
+  the cover" stays true.
+- **Ten uploads finishing at once** would all count nine photos and all
+  take order 9. A short lock per pitch (`pg_advisory_xact_lock`) makes them
+  queue, the same technique as booking a slot (§16). The test fires ten
+  uploads in parallel to prove it.
+
+### Rules that depend on other rules
+
+A pitch's hours must sit inside its venue's. The rule is checked when the
+manager saves (with a clear message per day), but the venue's hours can
+change later. So availability does not trust the saved pitch hours alone:
+it **intersects** them with the venue's (`intersectIntervals`). Validating
+on write and still enforcing on read is cheap insurance when one record's
+validity depends on another that can change.
+
+### Forms that know they are dirty
+
+Each tab compares its current values with what was loaded or last saved
+(`useEditorForm`). That one comparison drives the "Unsaved changes" text,
+the dot on the tab and whether Save is enabled. Deriving it, rather than
+setting a flag on every change, means undoing an edit by hand clears it
+too.
+
+**What to learn:** authorisation through parent records; 403 vs 404 for
+resources you don't own; soft delete and its read-side cost; ordering with
+position columns, atomic reorders and optimistic concurrency checks;
+serialising concurrent writers with advisory locks; validating on write
+and enforcing on read; derived "dirty" state in forms; native drag and
+drop with a keyboard alternative.
+
+---
+
+## 23. The venue's day: lists, a calendar and a nightly job (E11)
+
+E11 gives managers their bookings three ways (a filtered list, a week
+calendar, one booking in full) and settles finished games every night.
+
+### Filters belong in the URL
+
+The list's filters (pitch, status, dates, player) are query parameters, not
+component state. Changing one navigates; the server renders the first page
+for those parameters. That makes a filtered view something you can reload,
+bookmark or send to a colleague, and the back button undoes a filter. The
+search box waits for a pause in typing (debouncing) and for two letters, so
+typing a name doesn't fire a request per key.
+
+### Cursor pages
+
+"Load more" asks for the rows after the last one shown (`cursor` = its id),
+not "page 3". With rows ordered by start time and id, a booking created
+while the manager scrolls can't shift a page and make a row appear twice or
+not at all, which offset paging (`skip 40`) allows. The CSV export follows
+the same cursors to fetch everything that matches the filters, not just the
+page on screen.
+
+### Dates are the venue's days
+
+"Bookings on 4 November" means 4 November in Bucharest. The API turns each
+venue day into a UTC range (`venueTimeToUtc`) before querying, as the
+availability code does (§17). Writing `T00:00:00Z` would cut the day two or
+three hours off.
+
+### Lazy and scheduled work
+
+Players' pages settle bookings when they read them (§17): cheap and always
+right for what that player sees. But nothing would ever settle a booking
+nobody looks at, so a nightly job (Vercel Cron, 02:00 UTC) runs the same
+settling for everyone. It is an ordinary HTTP endpoint guarded by a shared
+secret, compared in constant time (`timingSafeEqual`) so the response time
+leaks nothing about the token. The manager's pages deliberately don't
+settle on read: a game that has just ended is still the manager's to
+confirm, report or complete.
+
+### Drawing a calendar
+
+Each booking becomes a block positioned by arithmetic: top = minutes since
+the first hour ÷ 30 × 48 px, height = duration ÷ 30 × 48 px. Bookings that
+overlap in a day (two pitches at once) are given lanes, the same greedy
+interval-colouring a meeting calendar uses, and share the column's width.
+Colours carry meaning (which pitch), so each must still meet contrast with
+white text, and a status is shown by more than colour alone (a cross for a
+no-show, grey for played, stripes for unpaid).
+
+### A bug worth remembering
+
+The tables overflowed the page on a phone even though they sit inside a
+horizontal scroller. The cause was the screen-reader-only labels in their
+headers: `sr-only` is `position: absolute`, and an absolutely positioned
+element is placed against its nearest _positioned_ ancestor. The scroller
+wasn't one, so the labels escaped it and widened the whole page. Making the
+scroller `relative` fixed it.
+
+**What to learn:** state in the URL; debouncing; cursor vs offset
+pagination; timezone-correct date ranges; lazy vs scheduled work and cron
+endpoints; constant-time secret comparison; laying out calendar events and
+interval colouring; colour plus a second cue for accessibility; CSS
+containing blocks for absolutely positioned elements.
+
+---
+
+## 24. A score people can trust: the trust engine (E12)
+
+E12 turns the trust score from a number set in a few places into an engine
+with one entry point, a ledger, and rules that use it.
+
+### One door for every change
+
+Every change to a player's score goes through `applyTrustEvent`. Before,
+the no-show report updated the score itself; with completions, reviews,
+late cancellations, disputes and a monthly bonus coming, six places doing
+their own arithmetic would drift apart. One function means one place for
+the clamp (0–100), the history row and the monthly cap.
+
+### A ledger, and a score you can rebuild
+
+Each change writes a `TrustScoreEvent` (who, why, how much, which booking)
+in the same transaction as the score. The score is then a **cached
+summary of the ledger**, the way a bank balance summarises transactions.
+The monthly job replays every player's events (`replayTrustScore`) and
+corrects any score that disagrees, whether from a manual database edit or
+a bug. Two details make the replay exact: the clamp is applied at every
+step, as the live score does (a +2 at 100 is lost), and when the monthly
+cap stops a completion point, no event is written at all.
+
+### Lost updates, and why one SQL statement fixes them
+
+Two events at once (a review and a completed game, say) would each read
+85, add their delta, and write back: one change lost. The engine updates
+the score with `trustScore = LEAST(100, GREATEST(0, trustScore + delta))`
+in a single statement, so the database applies both, one after the other.
+A short per-player lock also makes the monthly cap check-then-write safe.
+This "read-modify-write race" is one of the most common concurrency bugs.
+
+### Rules as data, decided in one place
+
+What a tier allows (card on file, upfront payment, one active booking,
+no booking) is a table in `@pitchup/shared`, and `bookingTrustGate` turns
+it plus the pitch's minimum into one decision with a reason. The API
+enforces it; the pitch page and the booking flow call the same function to
+explain the refusal before the player gets as far as paying. Showing a
+rule and enforcing it from the same code means they can't disagree.
+
+### Fairness
+
+Managers never see a player's score (PRD §9.1); they see what the player
+did at their venue. A disputed no-show can be reversed (+10), and losing a
+dispute costs nothing extra, so players aren't discouraged from
+challenging a genuine mistake. Incentives are part of the design.
+
+**What to learn:** single entry points for state changes; ledgers and
+derived balances (event sourcing, lightly); lost updates and atomic
+updates; advisory locks; rules as data shared by client and server;
+incentive design in reputation systems.
+
+---
+
+## 25. Telling people things: notifications (E13)
+
+E13 sends every notice through one function and up to four channels: the
+in-app inbox, email, text messages and push.
+
+### Write first, send later (the outbox)
+
+Sending an email inside a database transaction has two failure modes: the
+email goes out and the transaction rolls back (a confirmation for a booking
+that doesn't exist), or the provider is slow and holds the transaction open.
+So `notify()` only **writes a row** in the caller's transaction. Sending
+happens after the response (`after()` in Next.js), and an hourly job picks up
+anything that was missed. This is the **transactional outbox** pattern: the
+database row is the promise, delivery is a separate step that can be retried.
+
+### At most once, by claiming
+
+Two deliverers (the after-response hook and the hourly job) could see the
+same row. Each one first sets `deliveredAt` with `WHERE deliveredAt IS NULL`
+and only sends if it won. The same trick claims a booking's reminder
+(`reminderSentAt`). Updating "only if still unclaimed" is how to make work
+happen once without a queue or a lock.
+
+### Preferences decide what exists
+
+A muted kind of notice isn't hidden, it is never written. Channels (push,
+email, SMS) are checked at delivery time instead, so switching email back on
+doesn't resend old notices. Groups ("Booking reminders") map to several types,
+and the UI and API share the list in `@pitchup/shared`.
+
+### A provider without its SDK
+
+Push uses Firebase Cloud Messaging's HTTP API directly: build a JWT, sign it
+with the service account's RSA key (`node:crypto`), swap it for an access
+token, cache that for an hour. About 100 lines instead of a large SDK, and the
+unit test signs with a throwaway key and checks the signature for real. When
+FCM says a token is unregistered, it is deleted, so dead phones stop costing
+requests.
+
+### Polling is a fine first version
+
+The bell asks for the unread count every 30 seconds. WebSockets or
+server-sent events would be instant, but need a long-lived connection that
+serverless hosting handles badly. A count is one indexed query; polling it is
+cheap and good enough until it isn't.
+
+**What to learn:** the transactional outbox; at-least-once versus at-most-once
+delivery and idempotency; compare-and-set claims; OAuth 2 service accounts and
+JWT signing; polling versus push for live updates; notification fatigue and
+why muting by group beats a switch per type.
+
+---
+
+## 26. Rules that belong to the venue (C-9 … C-13)
+
+After E13 testing the owner moved several platform rules into each venue's
+hands. Three ideas carry most of it.
+
+### Snapshot what the customer agreed to
+
+A venue can change its refund policy at any time, but a player booked under
+the old one. So each booking stores a copy of the policy (`refundPolicy`)
+when it is made, and cancellation reads that copy. It is the same reason an
+order stores the price paid rather than looking up today's price: terms are
+fixed at the moment of agreement. Bookings made before the change have no
+copy and fall back to the default.
+
+### A state that holds without committing
+
+Approving by hand adds `AWAITING_APPROVAL` between paid and confirmed. It
+has to behave like a confirmed booking in some ways (it holds the slot, so
+`liveBookingWhere` includes it) and not in others (no reminder, no
+attendance, no trust penalty if withdrawn). Adding a state to a state
+machine means visiting every place that asks "which states count?"; the
+type checker found the label maps, and a search for each status found the
+queries. A deadline (24 hours, or 2 hours before kick-off) keeps a request
+from holding a slot forever, and the hourly job enforces it.
+
+### Propose, don't edit
+
+A venue's public details must be checked again after approval, but the
+venue must not disappear while they are. So an edit is stored beside the
+live record as a proposal (`pendingChanges`), the page keeps showing the
+approved details, and the admin sees a field-by-field comparison. Approving
+copies the proposal over; turning it down deletes it with a reason. This is
+the pattern behind pull requests, Wikipedia's pending changes and most
+content moderation: the live version and the draft are separate rows (or
+fields), and promotion is one explicit step.
+
+**What to learn:** snapshotting terms at the moment of agreement; adding
+states to a state machine safely; deadlines and sweepers for pending work;
+draft/live separation and review workflows.
+
+---
+
+## 27. Numbers a manager can trust: analytics (E14)
+
+### Decide what a number means before computing it
+
+"Revenue" sounds obvious until a booking is paid at the venue, cancelled
+late with 25% kept, or ends in a no-show. The owner decided: what the venue
+earned, online or not, less refunds. That rule lives in one pure function
+(`bookingEarned`) used by the chart, the cards, the table and the CSV, so
+they always agree. Most analytics bugs are definitional, not arithmetic.
+
+### Time zones decide which day a sale belongs to
+
+Grouping by `DATE_TRUNC` in UTC puts a 22:00 game in Bucharest on the next
+day for half the year. The dashboard works in the venue's local days and
+hours instead. When the database can't easily do that, doing it in code over
+a modest set of rows is fine; it only needs moving into SQL once a venue has
+far more bookings than a dashboard reads.
+
+### A rate needs the right denominator
+
+Occupancy is booked time over _open_ time, from each pitch's real hours and
+closures. Counting bookings over an assumed number of slots would show a
+pitch closed on Sundays as "0% busy" on Sundays. And a cell that was never
+open is `null`, not 0: "closed" and "empty" are different answers.
+
+### Compare like with like
+
+Each card compares with the same length of time just before. With nothing
+before, the change is unknown (`null`), not +100% or infinity.
+
+### A chart is also a table
+
+The SVG chart has a "Show as a table" view and a text label, and the heatmap
+cells carry their figure for screen readers. A chart without its numbers is
+inaccessible and, often, less useful.
+
+**What to learn:** metric definitions; time zones in reporting; denominators
+and survivorship in rates; period-over-period comparison; CSV injection;
+accessible data visualisation.
+
+---
+
+## 28. Running the platform: the admin panel (E15)
+
+### Every lever leaves a trail
+
+An admin changing a trust score is the platform overruling its own rules,
+so it goes through the same engine as everything else (clamped, in the
+ledger, replayable) with a written reason, and the player is told. The same
+for suspending a venue or deleting a review: the person affected reads why.
+Admin power that leaves no record is how trust in a marketplace erodes.
+
+### Suspend, don't delete
+
+Deleting a venue would orphan its bookings, payouts and reviews. Suspending
+is reversible and keeps history intact: the venue drops off Discover, new
+bookings stop, existing ones stand. Accounts work the same way, and the
+check sits where the session is read (cookie and Bearer token), so a
+suspension takes effect on the next request, not at the next sign-in.
+
+### A switch every request reads
+
+Maintenance mode and the commission are read constantly, so they are cached
+for a minute in memory. The first version used Next's data cache, which is
+written to disk and survived a database reset with stale values: a cache
+must be no more durable than what it caches. And the check can't live in
+edge middleware, which has no database; it sits in the root layout and the
+API wrapper, with the paths an admin needs left open.
+
+**What to learn:** audit trails and accountable admin actions; soft states
+(suspended) versus destructive ones; where to enforce access (at the
+session); cache lifetime and invalidation; feature flags and kill switches.
+
+---
+
 ## Things deliberately left incomplete
 
 Honest inventory, so none of it is mistaken for finished:
 
-| Item                 | State                                                          |
-| -------------------- | -------------------------------------------------------------- |
-| Rate limiting        | In-memory; resets on restart, per-instance                     |
-| Edge middleware      | Cookie presence only; the page is the real gate                |
-| Integration env vars | Optional until their epic                                      |
-| Cloudinary           | Signing verified against the algorithm; no live upload tested  |
-| Schema changes       | `prisma db push`, not versioned migrations (see §14)           |
-| Social login         | Placeholder until OAuth credentials exist                      |
-| Mobile app           | Built, typechecked and unit-tested; not yet run on a device    |
-| Mobile colours       | Spec palette; not yet checked for WCAG contrast                |
-| Stripe               | Unit-tested with fakes; never run against a real account       |
-| Booking completion   | Settled lazily on read until the E11 scheduled job exists      |
-| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15  |
-| Manager dashboard    | Overview and Reviews; other sections show "Soon" (E10–E12)     |
-| Venue approval       | A minimal admin page; the full admin panel is E15              |
-| Push notifications   | Tokens stored and routing ready; Firebase not wired (E08-10)   |
-| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist |
+| Item                 | State                                                             |
+| -------------------- | ----------------------------------------------------------------- |
+| Rate limiting        | In-memory; resets on restart, per-instance                        |
+| Edge middleware      | Cookie presence only; the page is the real gate                   |
+| Integration env vars | Optional until their epic                                         |
+| Cloudinary           | Signing verified against the algorithm; no live upload tested     |
+| Schema changes       | `prisma db push`, not versioned migrations (see §14)              |
+| Social login         | Placeholder until OAuth credentials exist                         |
+| Mobile app           | Built, typechecked and unit-tested; not yet run on a device       |
+| Mobile colours       | Spec palette; not yet checked for WCAG contrast                   |
+| Stripe               | Unit-tested with fakes; never run against a real account          |
+| Booking completion   | Nightly job needs `CRON_SECRET` in the deployment                 |
+| Review moderation    | Reports flag reviews; no profanity filter, admin tools in E15     |
+| Manager dashboard    | Everything but Analytics and the rest of Settings (later epics)   |
+| Pay at the venue     | Commission recorded, not billed (E14); no-show penalty fee is E11 |
+| Admin panel          | Built (E15); no default no-show fee, settings cached a minute     |
+| Push notifications   | Sending built (E13); needs a Firebase project and app wiring      |
+| Legal pages          | Mobile links to pitchup.ro terms/privacy/help that don't exist    |
 
 ---
 

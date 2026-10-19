@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { notFound, redirect } from 'next/navigation'
-import { trustTier, type ShirtColour } from '@pitchup/shared'
+import { bookingTrustGate, type ShirtColour } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPitchDetail } from '@/lib/venues/pitch'
@@ -33,7 +33,21 @@ export default async function BookingLayout({ children, params }: Props) {
     where: { id: session.user.id },
     select: { trustScore: true },
   })
-  if (user && !trustTier(user.trustScore).canBook) redirect(pitchPath)
+  const gate = user
+    ? bookingTrustGate({
+        score: user.trustScore,
+        pitchMinScore: pitch.minTrustScore,
+        activeBookings: await prisma.booking.count({
+          where: {
+            playerId: session.user.id,
+            status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+            endTime: { gt: new Date() },
+          },
+        }),
+      })
+    : null
+  // The pitch page says why.
+  if (gate) redirect(pitchPath)
 
   return (
     <BookingShell

@@ -12,7 +12,9 @@ import { Prisma } from '@prisma/client'
 import { REVIEW, type CreateReviewInput, type UpdateReviewInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { applyTrustEvent } from '@/lib/trust/apply'
 import { settlePlayerBookings } from '@/lib/bookings/mine'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 const HOUR = 3_600_000
 
@@ -54,28 +56,35 @@ export async function createReview(
   }
 
   try {
-    const review = await prisma.review.create({
-      data: {
-        bookingId: input.bookingId,
-        pitchId: booking.pitchId,
-        playerId,
-        rating: input.rating,
-        text: input.text ?? null,
-        ...(input.photoUrls?.length ? { photoUrls: input.photoUrls } : {}),
-        isAnonymous: input.isAnonymous,
-        moderationStatus: 'APPROVED',
-      },
-      select: { id: true },
+    const review = await prisma.$transaction(async tx => {
+      const created = await tx.review.create({
+        data: {
+          bookingId: input.bookingId,
+          pitchId: booking.pitchId,
+          playerId,
+          rating: input.rating,
+          text: input.text ?? null,
+          ...(input.photoUrls?.length ? { photoUrls: input.photoUrls } : {}),
+          isAnonymous: input.isAnonymous,
+          moderationStatus: 'APPROVED',
+        },
+        select: { id: true },
+      })
+      // +1 trust, once per booking even if the review is deleted and written again.
+      const rewarded = await tx.trustScoreEvent.count({
+        where: { userId: playerId, reason: 'REVIEW_LEFT', relatedBookingId: input.bookingId },
+      })
+      if (!rewarded) await applyTrustEvent(tx, playerId, 'REVIEW_LEFT', input.bookingId, now)
+      return created
     })
-    await prisma.notification.create({
-      data: {
-        userId: booking.pitch.company.ownerId,
-        type: 'REVIEW_LEFT',
-        title: 'New review',
-        body: `${input.rating}★ for ${booking.pitch.name}`,
-        data: { reviewId: review.id, bookingId: input.bookingId },
-      },
+    await notify(prisma, {
+      userId: booking.pitch.company.ownerId,
+      type: 'REVIEW_LEFT',
+      title: 'New review',
+      body: `${input.rating}★ for ${booking.pitch.name}`,
+      data: { reviewId: review.id, bookingId: input.bookingId, link: '/manager/reviews' },
     })
+    deliverSoon([booking.pitch.company.ownerId, playerId])
     return review
   } catch (caught) {
     // Two submits at once: the database's one-review-per-booking rule wins.

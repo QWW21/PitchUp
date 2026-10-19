@@ -4,10 +4,8 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import {
-  CANCELLATION_WINDOWS,
   DAY_LONG,
   DAY_SHORT,
-  REFUND_PERCENTAGES,
   addDays,
   dayOfWeek,
   venueClock,
@@ -57,13 +55,30 @@ interface BookNowPanelProps {
   hourlyRate: number
   signedIn: boolean
   block: BookingBlock
+  /** Why this player can't book here (E12-06). */
+  blockNote?: string | undefined
+  /** The tier this pitch asks for, when it asks for one. */
+  minTier?: string | null
+  /** C-10: the venue's refund policy, in a sentence. */
+  refundPolicy: string
+  /** C-13: the venue confirms each booking by hand. */
+  confirmsByHand?: boolean
 }
 
 /**
  * Price, today + six days of availability, and Book Now. Sticky beside the
  * gallery on desktop, a full-width section on small screens. E04-08.
  */
-export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPanelProps) {
+export function BookNowPanel({
+  pitchId,
+  hourlyRate,
+  signedIn,
+  block,
+  blockNote,
+  minTier,
+  refundPolicy,
+  confirmsByHand,
+}: BookNowPanelProps) {
   // The venue's today, not the browser's: a visitor abroad still sees Romanian dates.
   const today = venueClock(new Date()).date
   const dates = Array.from({ length: 7 }, (_, i) => addDays(today, i))
@@ -123,7 +138,7 @@ export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPa
                       onClick={() =>
                         setClosedNote(
                           block === 'restricted'
-                            ? 'Your account cannot make bookings right now.'
+                            ? (blockNote ?? 'Your account cannot make bookings right now.')
                             : i === 0 && q.data && !q.data.isClosed
                               ? 'No more slots today.'
                               : `This pitch is closed on ${DAY_LONG[dow]}.`
@@ -156,13 +171,21 @@ export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPa
 
       <div className="mt-5">
         {block === 'unavailable' ? (
-          <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-500">
+          <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-700">
             Not available
           </span>
         ) : block === 'restricted' ? (
-          <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-500">
-            Account restricted
-          </span>
+          <>
+            <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-700">
+              Can&rsquo;t book here
+            </span>
+            <p className="mt-2 text-sm text-neutral-700">
+              {blockNote ?? 'Your account cannot make bookings right now.'}{' '}
+              <Link href="/profile/trust-score" className="font-medium text-primary-700 underline">
+                Your trust score
+              </Link>
+            </p>
+          </>
         ) : (
           <Link
             href={hrefFor()}
@@ -172,11 +195,18 @@ export function BookNowPanel({ pitchId, hourlyRate, signedIn, block }: BookNowPa
           </Link>
         )}
       </div>
-      <p className="mt-3 text-xs text-neutral-500">
-        Free cancellation up to {CANCELLATION_WINDOWS.FULL_REFUND_HOURS}h before kick-off;{' '}
-        {REFUND_PERCENTAGES.PARTIAL}% refund up to {CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS}h
-        before.
-      </p>
+      {minTier && (
+        <p className="mt-3 text-xs text-neutral-700">
+          For players with a {minTier} trust score or better.
+        </p>
+      )}
+      {confirmsByHand && (
+        <p className="mt-3 text-xs text-neutral-700">
+          This venue confirms each booking. You pay when you book, and get it all back if they
+          decline.
+        </p>
+      )}
+      <p className="mt-3 text-xs text-neutral-500">{refundPolicy}</p>
     </aside>
   )
 }

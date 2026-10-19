@@ -15,6 +15,7 @@ import { colors, spacing } from '../../theme/tokens'
 const BADGE: Record<BookingStatus, { label: string; bg: string; fg: string }> = {
   CONFIRMED: { label: 'Confirmed', bg: colors.primary[50], fg: colors.primary[700] },
   PENDING: { label: 'Pending', bg: colors.warning[50], fg: '#92400E' },
+  AWAITING_APPROVAL: { label: 'Waiting for venue', bg: colors.warning[50], fg: '#92400E' },
   COMPLETED: { label: 'Completed', bg: colors.primary[50], fg: colors.primary[700] },
   NO_SHOW: { label: 'No-show', bg: colors.error[50], fg: colors.error[600] },
   CANCELLED: { label: 'Cancelled', bg: colors.neutral[100], fg: colors.neutral[700] },
@@ -105,6 +106,9 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
         </View>
 
         {upcoming ? <CountdownChip startsAt={b.startsAt} /> : null}
+        {b.status === 'CONFIRMED' && b.dueAtVenue > 0 ? (
+          <Text style={styles.due}>To pay at the venue: {b.dueAtVenue} RON</Text>
+        ) : null}
 
         {b.status === 'CANCELLED' ? (
           <View style={styles.line}>
@@ -188,4 +192,5 @@ const styles = StyleSheet.create({
   secondaryText: { fontSize: 14, fontWeight: '500', color: colors.neutral[900] },
   ghost: { paddingHorizontal: 12, paddingVertical: 8 },
   ghostText: { fontSize: 14, fontWeight: '500', color: colors.primary[600] },
+  due: { fontSize: 14, fontWeight: '600', color: colors.neutral[900] },
 })

@@ -64,9 +64,7 @@ export const POST = withErrorHandling(
       })
     }
 
-    // A player may only upload under their own user folder. Pitch, company and
-    // review ownership needs the records those epics create, so it is checked
-    // in E08/E10 rather than guessed at here.
+    // A player may only upload under their own user folder.
     if (context === 'USER' && ownerId !== session.user.id) {
       return err('FORBIDDEN', 'Cannot upload to another user', 403)
     }
@@ -93,6 +91,17 @@ export const POST = withErrorHandling(
       const allowed = company ? ownerId === company.id : ownerId === session.user.id
       if (session.user.role !== 'MANAGER' || !allowed) {
         return err('FORBIDDEN', 'Cannot upload for this company', 403)
+      }
+    }
+
+    // Pitch photos (E10-02): the pitch's own venue manager only.
+    if (context === 'PITCH') {
+      const pitch = await prisma.pitch.findFirst({
+        where: { id: ownerId, deletedAt: null },
+        select: { company: { select: { ownerId: true } } },
+      })
+      if (session.user.role !== 'MANAGER' || pitch?.company.ownerId !== session.user.id) {
+        return err('FORBIDDEN', 'Cannot upload photos for this pitch', 403)
       }
     }
 

@@ -14,7 +14,7 @@ import {
   DEFAULT_ONBOARDING_HOURS,
   type ManagerStats,
   type OnboardingStatus,
-  type PendingCompany,
+  type AdminCompanyPage,
 } from '@pitchup/shared'
 import { get, post, put } from '../support/api'
 import { createManager, createPlayer, db, seedBooking, uniqueEmail, venue } from '../support/db'
@@ -161,7 +161,7 @@ test.describe('the four steps (E09-01 … E09-05)', () => {
     expect(after.submittedAt).not.toBeNull()
     expect(await status()).toMatchObject({ currentStep: null, companyStatus: 'PENDING' })
     const told = await db.notification.count({
-      where: { type: 'COMPANY_SUBMITTED', data: { equals: { companyId: after.id } } },
+      where: { type: 'COMPANY_SUBMITTED', data: { path: ['companyId'], equals: after.id } },
     })
     expect(told).toBeGreaterThan(0)
     // Not public yet.
@@ -200,7 +200,9 @@ test.describe('approval (admin, agreed for E09)', () => {
     expect((await get(a.ctx, '/admin/companies')).status).toBe(403)
     expect((await post(a.ctx, `/admin/companies/${ca.id}/approve`, {})).status).toBe(403)
 
-    const pending = (await get<PendingCompany[]>(admin, '/admin/companies')).data!
+    // E15: every venue, filtered by status.
+    const pending = (await get<AdminCompanyPage>(admin, '/admin/companies?status=PENDING&limit=50'))
+      .data!.items
     expect(pending.map(c => c.id)).toEqual(expect.arrayContaining([ca.id, cb.id]))
     expect(pending.find(c => c.id === ca.id)).toMatchObject({
       name: INFO.name,

@@ -15,6 +15,8 @@ export interface PaymentRequest {
   customerId: string | null
   /** A saved card to charge. */
   paymentMethodId?: string | undefined
+  /** Keep the card on the player's Stripe customer (Fair and Poor tiers must, E12-06). */
+  saveCard?: boolean | undefined
 }
 
 export interface CreatedPayment {

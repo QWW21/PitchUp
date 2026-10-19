@@ -7,6 +7,7 @@ import React from 'react'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { addDays, venueClock, type PitchAvailability } from '@pitchup/shared'
+import { DEFAULT_REFUND_POLICY } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
 import { useBookingStore, bookingBody, type BookingPitch } from '../../stores/bookingStore'
@@ -86,6 +87,7 @@ describe('bookingStore', () => {
     s.setColour(0, 'RED')
     s.setNote('  bring a ball  ')
     expect(bookingBody(useBookingStore.getState())).toEqual({
+      paymentMethod: 'ONLINE',
       pitchId: 'p1',
       date,
       startTime: '18:00',
@@ -137,7 +139,7 @@ describe('Step 1: date (E05-02)', () => {
   })
 })
 
-describe('Step 2: time (E05-03)', () => {
+describe('Step 2: start and duration (C-6)', () => {
   const day = (statuses: string): PitchAvailability => ({
     date,
     pitchId: 'p1',
@@ -152,14 +154,18 @@ describe('Step 2: time (E05-03)', () => {
 
   beforeEach(() => useBookingStore.getState().setDate(date))
 
-  it('selects a range, prices it at the hourly rate, and carries it on', async () => {
+  it('a start, then a duration; priced at the hourly rate and carried on', async () => {
     api.day.mockResolvedValue(day('........'))
     const nav = makeNav()
     show(Step2TimeScreen, nav)
-    fireEvent.press(await screen.findByTestId('slot-18:00'))
-    fireEvent.press(screen.getByTestId('slot-19:30'))
-    expect(screen.getByText('18:00–20:00 · 2h 00min')).toBeOnTheScreen()
-    expect(screen.getByText(/2h 00min × 120 RON\/h =/)).toBeOnTheScreen()
+    expect(await screen.findByText('EVENING')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Next')).toBeDisabled()
+    press('18:00, available')
+    // The shortest length is picked first; then two hours.
+    expect(screen.getByText('18:00–19:00 · 1h · 120 RON')).toBeOnTheScreen()
+    press('2h')
+    expect(screen.getByText('18:00–20:00 · 2h · 240 RON')).toBeOnTheScreen()
+    expect(screen.getByLabelText('18:00, selected')).toBeOnTheScreen()
     press('Next')
     expect(useBookingStore.getState()).toMatchObject({
       startTime: '18:00',
@@ -169,14 +175,26 @@ describe('Step 2: time (E05-03)', () => {
     expect(nav.navigate).toHaveBeenCalledWith('BookingTeams')
   })
 
-  it('stops a range before a booked slot and needs at least the minimum', async () => {
+  it('disables starts and durations that do not fit, and keeps what still fits', async () => {
+    // 18:30 booked; free from 19:00 to 22:00.
     api.day.mockResolvedValue(day('.x......'))
     show(Step2TimeScreen, makeNav())
-    fireEvent.press(await screen.findByTestId('slot-18:00'))
-    fireEvent.press(screen.getByTestId('slot-20:00'))
-    expect(screen.getByText('18:00–18:30 · 30min')).toBeOnTheScreen()
-    expect(screen.getByText('Choose at least 1 hour(s).')).toBeOnTheScreen()
-    expect(screen.getByLabelText('Next')).toBeDisabled()
+    expect(await screen.findByLabelText('18:00, not enough time')).toBeDisabled()
+    expect(screen.getByLabelText('18:30, booked')).toBeDisabled()
+    expect(screen.getByLabelText('21:30, not enough time')).toBeDisabled()
+    press('19:00, available')
+    press('3h')
+    press('20:00, available')
+    // Only two hours are left before closing: the longest that fits.
+    expect(screen.getByText('20:00–22:00 · 2h · 240 RON')).toBeOnTheScreen()
+    expect(screen.getByLabelText('2h 30, doesn’t fit')).toBeDisabled()
+  })
+
+  it('opens on the time chosen before', async () => {
+    useBookingStore.getState().setTime('19:00', '20:30', 90)
+    api.day.mockResolvedValue(day('........'))
+    show(Step2TimeScreen, makeNav())
+    expect(await screen.findByText('19:00–20:30 · 1h 30 · 180 RON')).toBeOnTheScreen()
   })
 
   it('says so when nothing is free', async () => {
@@ -202,6 +220,16 @@ describe('Step 3: teams and shirts (E05-04)', () => {
     expect(screen.getByText('Team B plays in its own kit.')).toBeOnTheScreen()
   })
 
+  it('says when the pitch lends no shirts (C-7)', () => {
+    useBookingStore.setState({ pitch: { ...pitch, hasShirts: false, shirtStock: [] } })
+    show(Step3TeamsScreen, makeNav())
+    expect(screen.getByText('Teams')).toBeOnTheScreen()
+    expect(
+      screen.getByText("This pitch doesn't lend shirts. Bring your own bibs or colours.")
+    ).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Free shirts')).toBeNull()
+  })
+
   it('three teams need two sets: with three in stock that is fine', () => {
     show(Step3TeamsScreen, makeNav())
     fireEvent.press(screen.getByText('3 Teams'))
@@ -224,6 +252,14 @@ describe('Step 4: summary and payment (E05-05)', () => {
     const s = useBookingStore.getState()
     s.setDate(date)
     s.setTime('18:00', '20:00', 120)
+    api.paymentOptions.mockResolvedValue({
+      mode: 'ONLINE',
+      depositPercent: 20,
+      methods: ['ONLINE'],
+      trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
+    })
   })
 
   it('shows the booking and pays in test mode', async () => {
@@ -232,6 +268,8 @@ describe('Step 4: summary and payment (E05-05)', () => {
       reference: '#AAAAAA',
       total: 240,
       holdExpiresAt: new Date().toISOString(),
+      payNow: 240,
+      dueAtVenue: 0,
       payment: { provider: 'test' },
     })
     api.confirmTest.mockResolvedValue({ status: 'CONFIRMED' } as never)
@@ -268,6 +306,68 @@ describe('Step 4: summary and payment (E05-05)', () => {
     expect(await screen.findByText(/Your card was declined/)).toBeOnTheScreen()
   })
 
+  it('pays at the venue: the deposit only, and the choice is sent (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'ONLINE_OR_VENUE',
+      depositPercent: 20,
+      methods: ['ONLINE', 'VENUE_DEPOSIT_TOWARDS', 'VENUE_REFUND_DEPOSIT'],
+      trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
+    })
+    api.create.mockResolvedValue({ bookingId: 'b3', payment: { provider: 'test' } } as never)
+    api.confirmTest.mockResolvedValue({ status: 'CONFIRMED' } as never)
+    const nav = makeNav()
+    show(Step4SummaryScreen, nav)
+    expect(await screen.findByText('How do you want to pay?')).toBeOnTheScreen()
+    expect(screen.getByText('Confirm & pay 240 RON')).toBeOnTheScreen()
+    press(/^Pay at the venue, the deposit counts/)
+    expect(screen.getByText('Pay 48 RON deposit now · 192 RON at the venue')).toBeOnTheScreen()
+    press(/^Pay in full at the venue/)
+    expect(
+      screen.getByText('48 RON deposit now, refunded after the game · 240 RON at the venue')
+    ).toBeOnTheScreen()
+    fireEvent.press(screen.getByText('Confirm & pay 48 RON deposit'))
+    await waitFor(() => expect(nav.replace).toHaveBeenCalled())
+    expect(api.create).toHaveBeenCalledWith(
+      expect.objectContaining({ paymentMethod: 'VENUE_REFUND_DEPOSIT' })
+    )
+  })
+
+  it('with no deposit nothing is paid online: Confirm booking (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'VENUE',
+      depositPercent: 0,
+      methods: ['VENUE_DEPOSIT_TOWARDS'],
+      trustTooLow: false,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
+    })
+    api.create.mockResolvedValue({ bookingId: 'b4', payment: { provider: 'none' } } as never)
+    const nav = makeNav()
+    show(Step4SummaryScreen, nav)
+    expect(await screen.findByText('Nothing to pay now · 240 RON at the venue')).toBeOnTheScreen()
+    fireEvent.press(screen.getByText('Confirm booking'))
+    await waitFor(() =>
+      expect(nav.replace).toHaveBeenCalledWith('BookingConfirmation', { bookingId: 'b4' })
+    )
+    expect(api.confirmTest).not.toHaveBeenCalled()
+  })
+
+  it('a venue that takes payment there only says why a low-trust player cannot book (C-8)', async () => {
+    api.paymentOptions.mockResolvedValue({
+      mode: 'VENUE',
+      depositPercent: 20,
+      methods: [],
+      trustTooLow: true,
+      refundPolicy: DEFAULT_REFUND_POLICY,
+      autoApproveBookings: true,
+    })
+    show(Step4SummaryScreen, makeNav())
+    expect(await screen.findByText(/trust score of 70 or\s+more/)).toBeOnTheScreen()
+    expect(screen.queryByText(/Confirm/)).toBeNull()
+  })
+
   it('closing past step 1 asks first; Discard leaves', async () => {
     const nav = makeNav()
     show(Step4SummaryScreen, nav)
@@ -293,6 +393,10 @@ describe('Step 5: confirmation (E05-06)', () => {
       total: 240,
       paidAt: new Date().toISOString(),
       cancellationReason: null,
+      paymentMethod: 'ONLINE',
+      deposit: null,
+      dueAtVenue: 0,
+      attendedAt: null,
       pitch: { id: 'p1', name: 'Teren 1' },
       company: { id: 'c1', name: 'Arena Gheorgheni', address: 'Str. X', city: 'Cluj-Napoca' },
     } as never)

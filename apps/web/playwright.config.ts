@@ -10,7 +10,13 @@
  * database, recreated and seeded first by e2e/prepare-db.ts.
  */
 import { defineConfig, devices } from '@playwright/test'
-import { E2E_BASE_URL, E2E_DATABASE_URL, E2E_DIST_DIR, E2E_PORT } from './e2e/support/env'
+import {
+  E2E_BASE_URL,
+  E2E_CRON_SECRET,
+  E2E_DATABASE_URL,
+  E2E_DIST_DIR,
+  E2E_PORT,
+} from './e2e/support/env'
 
 const build = process.env.E2E_SKIP_BUILD ? '' : 'pnpm exec next build && '
 
@@ -72,6 +78,8 @@ export default defineConfig({
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: '',
       CLOUDINARY_API_KEY: '',
       CLOUDINARY_API_SECRET: '',
+      // The nightly auto-complete job's token (E11-10), known to the tests.
+      CRON_SECRET: E2E_CRON_SECRET,
     },
   },
 })

@@ -1,12 +1,18 @@
 'use client'
 
 /**
- * Step 4: summary and payment — E05-10 (UIUX_SPEC §7.4).
+ * Step 4: summary and payment — E05-10 (UIUX_SPEC §7.4). Named SummaryAndPay
+ * since E15: as SummaryStep.tsx, webpack gave it module id 0, which Next leaves
+ * out of the client manifest, and the page failed.
  *
  * Pay creates the booking (PENDING, holding the slot), then completes the
  * payment: with Stripe Elements when Stripe is set up, or with the built-in
  * test payment otherwise. A declined card leaves the player here to try
  * again; the next attempt replaces the unpaid booking.
+ *
+ * Paying at the venue (C-8): where the venue allows it and the player's trust
+ * score is 70+, they choose how to pay; only the deposit is charged here,
+ * and with no deposit nothing is.
  */
 import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -15,17 +21,24 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
 import { CalendarDays, Clock, Info, MapPin, NotebookPen, Shirt, Users } from 'lucide-react'
 import {
-  CANCELLATION_WINDOWS,
   DAY_LONG,
+  PAYMENT_METHOD_LABELS,
   bookingPrice,
+  describePayment,
+  paymentSplit,
   dayOfWeek,
   formatDuration,
   freeCancellationUntil,
+  partialRefundUntil,
+  describeRefundPolicy,
+  DEFAULT_REFUND_POLICY,
   shirtSetsFor,
   venueTimeToUtc,
   toMinutes,
   type BookingConfirmation,
+  type BookingPaymentMethod,
   type CreateBookingResult,
+  type PaymentOptions,
   type PaymentConfig,
   type SavedCard,
 } from '@pitchup/shared'
@@ -57,8 +70,13 @@ const MESSAGES: Record<string, string> = {
   SLOT_CONFLICT: 'Someone has just booked that time. Please pick another.',
   TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
   SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
+  PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
+  ACTIVE_BOOKING_LIMIT:
+    'At your trust score you can have one upcoming booking at a time. Play or cancel it first.',
 }
 const describe = (e: ApiError) => (e.details?.reason && MESSAGES[e.details.reason]) || e.message
+/** Refusals that come from the player's trust score link to the trust page. */
+const TRUST_REASONS = ['TRUST_SCORE_TOO_LOW', 'TRUST_TIER_INSUFFICIENT', 'ACTIVE_BOOKING_LIMIT']
 
 const dateLabel = (date: string) =>
   `${DAY_LONG[dayOfWeek(date)]}, ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}`
@@ -72,8 +90,14 @@ const atVenue = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Europe/Bucharest',
 })
 
-function bookingBody(pitchId: string, d: BookingDraft, paymentMethodId?: string) {
+function bookingBody(
+  pitchId: string,
+  d: BookingDraft,
+  method: BookingPaymentMethod,
+  paymentMethodId?: string
+) {
   return {
+    paymentMethod: method,
     pitchId,
     date: d.date,
     startTime: d.startTime,
@@ -96,6 +120,13 @@ export function SummaryStep() {
     queryKey: ['payment-config'],
     queryFn: () => api<PaymentConfig>('/api/v1/payments/config'),
   })
+  const options = useQuery({
+    queryKey: ['payment-options', pitch.id],
+    queryFn: () => api<PaymentOptions>(`/api/v1/pitches/${pitch.id}/payment-options`),
+  })
+  const [chosen, setChosen] = useState<BookingPaymentMethod | null>(null)
+  const methods = options.data?.methods ?? []
+  const method = chosen && methods.includes(chosen) ? chosen : (methods[0] ?? null)
 
   useEffect(() => {
     if (ready && !draft.teamsDone)
@@ -112,12 +143,13 @@ export function SummaryStep() {
   }
 
   const price = bookingPrice(pitch.hourlyRate, draft.minutes)
+  const split = method ? paymentSplit(price.total, method, options.data!.depositPercent) : null
   const sets = shirtSetsFor(draft.teamCount, draft.wantsShirts)
   const start = venueTimeToUtc(draft.date, toMinutes(draft.startTime))
-  const freeUntil = freeCancellationUntil(start)
-  const halfUntil = new Date(
-    start.getTime() - CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS * 3_600_000
-  )
+  // C-10: the venue's own policy, which the booking keeps.
+  const policy = options.data?.refundPolicy ?? DEFAULT_REFUND_POLICY
+  const freeUntil = freeCancellationUntil(start, policy)
+  const partUntil = partialRefundUntil(start, policy)
   const now = Date.now()
   const players = draft.players.slice(0, draft.teamCount).reduce((a, b) => a + b, 0)
   const done = (booking: BookingConfirmation | CreateBookingResult) =>
@@ -179,26 +211,89 @@ export function SummaryStep() {
         <p className="mt-2 text-xs text-neutral-500">No booking fee: you pay the pitch price.</p>
       </section>
 
+      {methods.length > 1 && (
+        <fieldset className="rounded-xl bg-white p-4 shadow-sm">
+          <legend className="text-base font-semibold text-neutral-900">
+            How do you want to pay?
+          </legend>
+          <div className="mt-3 space-y-2">
+            {methods.map(m => {
+              const s = paymentSplit(price.total, m, options.data!.depositPercent)
+              return (
+                <label
+                  key={m}
+                  className={`flex cursor-pointer gap-3 rounded-lg border p-3 focus-within:ring-2 focus-within:ring-primary-600 ${
+                    m === method ? 'border-primary-600 bg-primary-50' : 'border-neutral-200'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="payment-method"
+                    className="mt-1 accent-primary-600"
+                    checked={m === method}
+                    onChange={() => setChosen(m)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-neutral-900">
+                      {s.payNow === 0 && m !== 'ONLINE'
+                        ? 'Pay at the venue'
+                        : PAYMENT_METHOD_LABELS[m]}
+                    </span>
+                    <span className="block text-sm text-neutral-700">{describePayment(s)}</span>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
+      )}
+      {methods.length === 1 && split && split.method !== 'ONLINE' && (
+        <p className="rounded-xl bg-white p-4 text-sm font-medium text-neutral-900 shadow-sm">
+          {describePayment(split)}
+        </p>
+      )}
+
       <div className="rounded-r-md border-l-[3px] border-info-500 bg-info-50 p-3 text-sm text-neutral-700">
         <p className="flex items-start gap-2">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-info-500" aria-hidden="true" />
           <span>
             {freeUntil.getTime() > now
               ? `Free cancellation until ${atVenue.format(freeUntil)}.`
-              : halfUntil.getTime() > now
-                ? `Cancelling now refunds 50%, until ${atVenue.format(halfUntil)}.`
+              : partUntil.getTime() > now && policy.partialRefundPercent > 0
+                ? `Cancelling now refunds ${policy.partialRefundPercent}%, until ${atVenue.format(partUntil)}.`
                 : 'This booking starts soon: cancelling it will not be refunded.'}{' '}
-            50% back until {CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS} hours before kick-off,
-            nothing after that.
+            {describeRefundPolicy(policy)}
+            {options.data?.autoApproveBookings === false &&
+              ' This venue confirms each booking: you pay now, and get it all back if they decline.'}
           </span>
         </p>
       </div>
 
-      {config.isLoading && <div className="h-24 animate-pulse rounded-xl bg-neutral-100" />}
-      {config.data?.provider === 'test' && <TestPayment total={price.total} onDone={done} />}
-      {config.data?.provider === 'stripe' && stripePromise && (
+      {(config.isLoading || options.isLoading) && (
+        <div className="h-24 animate-pulse rounded-xl bg-neutral-100" />
+      )}
+      {options.isSuccess && !method && (
+        <Alert>
+          This venue takes payment at the venue only, for players with a trust score of 70 or more.
+        </Alert>
+      )}
+      {split && split.payNow === 0 && <NoPayment method={split.method} onDone={done} />}
+      {split && split.payNow > 0 && config.data?.provider === 'test' && (
+        <TestPayment
+          amount={split.payNow}
+          deposit={!!split.deposit}
+          method={split.method}
+          onDone={done}
+        />
+      )}
+      {split && split.payNow > 0 && config.data?.provider === 'stripe' && stripePromise && (
         <Elements stripe={stripePromise}>
-          <StripePayment total={price.total} onDone={done} />
+          <StripePayment
+            amount={split.payNow}
+            deposit={!!split.deposit}
+            method={split.method}
+            onDone={done}
+          />
         </Elements>
       )}
       {(config.isError || (config.isSuccess && !config.data.provider)) && (
@@ -220,15 +315,15 @@ function Row({ icon, children }: { icon: ReactNode; children: ReactNode }) {
 }
 
 function PayButton({
-  total,
+  amount,
+  deposit,
   busy,
   onClick,
-  label,
 }: {
-  total: number
+  amount: number
+  deposit: boolean
   busy: boolean
   onClick: () => void
-  label?: string
 }) {
   return (
     <button
@@ -238,22 +333,82 @@ function PayButton({
       aria-busy={busy || undefined}
       className="flex h-14 w-full items-center justify-center rounded-md bg-accent-600 text-base font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
     >
-      {busy ? 'Processing…' : (label ?? `Confirm & pay ${total} RON`)}
+      {busy ? 'Processing…' : `Confirm & pay ${amount} RON${deposit ? ' deposit' : ''}`}
     </button>
+  )
+}
+
+interface PayProps {
+  amount: number
+  deposit: boolean
+  method: BookingPaymentMethod
+}
+
+/** Nothing to pay online (a venue with no deposit): the booking is confirmed at once. */
+function NoPayment({
+  method,
+  onDone,
+}: {
+  method: BookingPaymentMethod
+  onDone: (b: CreateBookingResult) => void
+}) {
+  const { pitch, draft } = useBooking()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
+
+  const book = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      return onDone(
+        await api<CreateBookingResult>('/api/v1/bookings', {
+          method: 'POST',
+          body: JSON.stringify(bookingBody(pitch.id, draft, method)),
+        })
+      )
+    } catch (caught) {
+      setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <section aria-label="Payment" className="space-y-3">
+      {error && <Alert>{error}</Alert>}
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
+      <button
+        type="button"
+        onClick={book}
+        disabled={busy}
+        aria-busy={busy || undefined}
+        className="flex h-14 w-full items-center justify-center rounded-md bg-accent-600 text-base font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
+      >
+        {busy ? 'Booking…' : 'Confirm booking'}
+      </button>
+    </section>
   )
 }
 
 /** Test mode: no card, a choice of outcome. Shown only without Stripe keys. */
 function TestPayment({
-  total,
+  amount,
+  deposit,
+  method,
   onDone,
-}: {
-  total: number
-  onDone: (b: BookingConfirmation) => void
-}) {
+}: PayProps & { onDone: (b: BookingConfirmation) => void }) {
   const { pitch, draft } = useBooking()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
 
   const pay = async (outcome: 'succeed' | 'decline') => {
     setBusy(true)
@@ -261,16 +416,19 @@ function TestPayment({
     try {
       const created = await api<CreateBookingResult>('/api/v1/bookings', {
         method: 'POST',
-        body: JSON.stringify(bookingBody(pitch.id, draft)),
+        body: JSON.stringify(bookingBody(pitch.id, draft, method)),
       })
       const result = await api<BookingConfirmation>('/api/v1/payments/test/confirm', {
         method: 'POST',
         body: JSON.stringify({ bookingId: created.bookingId, outcome }),
       })
-      if (result.status === 'CONFIRMED') return onDone(result)
+      if (result.status === 'CONFIRMED' || result.status === 'AWAITING_APPROVAL') {
+        return onDone(result)
+      }
       setError('Your card was declined. Nothing was charged; try again.')
     } catch (caught) {
       setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
@@ -288,7 +446,15 @@ function TestPayment({
         charged.
       </p>
       {error && <Alert>{error}</Alert>}
-      <PayButton total={total} busy={busy} onClick={() => pay('succeed')} />
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
+      <PayButton amount={amount} deposit={deposit} busy={busy} onClick={() => pay('succeed')} />
       <button
         type="button"
         disabled={busy}
@@ -303,12 +469,11 @@ function TestPayment({
 
 /** Stripe: a saved card or a new one, confirmed in the browser. */
 function StripePayment({
-  total,
+  amount,
+  deposit,
+  method: payWith,
   onDone,
-}: {
-  total: number
-  onDone: (b: CreateBookingResult) => void
-}) {
+}: PayProps & { onDone: (b: CreateBookingResult) => void }) {
   const { pitch, draft } = useBooking()
   const stripe = useStripe()
   const elements = useElements()
@@ -320,6 +485,7 @@ function StripePayment({
   const [save, setSave] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [trustRefusal, setTrustRefusal] = useState(false)
 
   useEffect(() => {
     if (cards.data?.[0]) setMethod(m => (m === 'new' ? cards.data![0]!.id : m))
@@ -333,7 +499,7 @@ function StripePayment({
       const saved = method !== 'new' ? method : undefined
       const created = await api<CreateBookingResult>('/api/v1/bookings', {
         method: 'POST',
-        body: JSON.stringify(bookingBody(pitch.id, draft, saved)),
+        body: JSON.stringify(bookingBody(pitch.id, draft, payWith, saved)),
       })
       if (created.payment.provider !== 'stripe')
         throw { code: 'X', message: 'Unexpected payment mode' }
@@ -350,6 +516,7 @@ function StripePayment({
       }
     } catch (caught) {
       setError(describe(caught as ApiError))
+      setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
@@ -417,7 +584,15 @@ function StripePayment({
         </>
       )}
       {error && <Alert>{error}</Alert>}
-      <PayButton total={total} busy={busy || !stripe} onClick={pay} />
+      {error && trustRefusal && (
+        <a
+          href="/profile/trust-score"
+          className="block text-sm font-medium text-primary-700 underline"
+        >
+          View your trust score
+        </a>
+      )}
+      <PayButton amount={amount} deposit={deposit} busy={busy || !stripe} onClick={pay} />
     </section>
   )
 }

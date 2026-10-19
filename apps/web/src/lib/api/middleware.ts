@@ -27,13 +27,19 @@ async function sessionFromBearer(request: NextRequest): Promise<Session | null> 
   if (!claims) return null
   const user = await prisma.user.findUnique({
     where: { id: claims.userId },
-    select: { id: true, email: true, name: true, role: true, deletedAt: true },
+    select: { id: true, email: true, name: true, role: true, deletedAt: true, suspendedAt: true },
   })
-  if (!user || user.deletedAt) return null
+  if (!user || user.deletedAt || user.suspendedAt) return null
   return {
     user: { id: user.id, email: user.email, name: user.name, role: user.role },
     expires: new Date(Date.now() + ACCESS_TOKEN_TTL_SECONDS * 1000).toISOString(),
   }
+}
+
+/** The caller's session: a request that presents a token is judged on that token alone. */
+export async function sessionFor(request: NextRequest): Promise<Session | null> {
+  const hasBearer = !!request.headers.get('authorization')
+  return hasBearer ? sessionFromBearer(request) : auth()
 }
 
 /**
@@ -43,9 +49,7 @@ async function sessionFromBearer(request: NextRequest): Promise<Session | null> 
  */
 export function requireAuth(handler: AuthedHandler) {
   return async (request: NextRequest): Promise<NextResponse> => {
-    const hasBearer = !!request.headers.get('authorization')
-    // A request that presents a token is judged on that token alone.
-    const session = hasBearer ? await sessionFromBearer(request) : await auth()
+    const session = await sessionFor(request)
     if (!session?.user) {
       return err('UNAUTHORIZED', 'Authentication required', 401)
     }

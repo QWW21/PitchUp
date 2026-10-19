@@ -169,7 +169,26 @@ export function ProfileScreen({ navigation }: Props) {
             label="Notifications"
             onPress={() => navigation.navigate('Notifications')}
           />
+          <Item
+            icon="bell-cog-outline"
+            label="Notification settings"
+            onPress={() => navigation.navigate('NotificationSettings')}
+          />
         </Section>
+        {p.role === 'MANAGER' ? (
+          <Section title="Your venue">
+            <Item
+              icon="calendar-multiple"
+              label="Venue bookings"
+              onPress={() => navigation.navigate('ManagerBookings')}
+            />
+            <Item
+              icon="chart-bar"
+              label="Analytics"
+              onPress={() => navigation.navigate('ManagerAnalytics')}
+            />
+          </Section>
+        ) : null}
         <Section title="Legal">
           <Item
             icon="file-document-outline"

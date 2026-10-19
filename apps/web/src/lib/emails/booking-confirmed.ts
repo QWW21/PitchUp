@@ -1,9 +1,6 @@
-/** Booking confirmed — sent when a payment succeeds (E05-08). */
+/** Booking confirmed — the email of the BOOKING_CONFIRMED notification (E05-08, E13). */
 import 'server-only'
 import { formatDateLong, formatDuration, type BookingConfirmation } from '@pitchup/shared'
-import { prisma } from '@/lib/prisma'
-import { getEmailProvider } from '@/lib/notifications'
-import { loadConfirmation } from '@/lib/bookings/read'
 import { renderEmailLayout, renderMutedParagraph, renderParagraph } from './layout'
 import type { VerificationEmail } from './verification'
 
@@ -21,7 +18,11 @@ export function renderBookingConfirmedEmail(b: BookingConfirmation): Verificatio
     when(b),
     `${b.teamCount} teams`,
     ...(shirts ? [shirts] : []),
-    `Paid: ${b.total} RON`,
+    b.paymentMethod === 'ONLINE'
+      ? `Paid: ${b.total} RON`
+      : b.deposit
+        ? `Deposit paid: ${b.deposit} RON${b.paymentMethod === 'VENUE_REFUND_DEPOSIT' ? ', refunded after the game' : ''}. To pay at the venue: ${b.dueAtVenue} RON.`
+        : `To pay at the venue: ${b.dueAtVenue} RON.`,
   ]
   return {
     subject: `Booking confirmed: ${b.pitch.name}, ${b.date} ${b.startTime}`,
@@ -40,19 +41,4 @@ export function renderBookingConfirmedEmail(b: BookingConfirmation): Verificatio
       lines.join('\n') +
       `\n\nCancel at least 24 hours before kick-off for a full refund, or at least 2 hours before for half.`,
   }
-}
-
-export async function sendBookingConfirmedEmail(bookingId: string): Promise<void> {
-  const [booking, player] = await Promise.all([
-    loadConfirmation(bookingId),
-    prisma.booking.findUnique({
-      where: { id: bookingId },
-      select: { player: { select: { email: true } } },
-    }),
-  ])
-  if (!booking || !player) return
-  await getEmailProvider().send({
-    to: player.player.email,
-    ...renderBookingConfirmedEmail(booking),
-  })
 }

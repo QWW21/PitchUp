@@ -5,7 +5,8 @@
  * step 1 as DRAFT, filled in by steps 2 and 3, and submitted by step 4
  * (Stripe Connect), which makes it PENDING until an admin approves it.
  * Steps can be redone while DRAFT or PENDING; an approved venue's details
- * are edited in Settings (later epics).
+ * are changed from Settings, and an admin approves them again (C-13,
+ * lib/manager/venue.ts).
  */
 import 'server-only'
 import { Prisma, type Company } from '@prisma/client'
@@ -19,6 +20,7 @@ import type {
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 export const managerCompany = (ownerId: string) => prisma.company.findUnique({ where: { ownerId } })
 
@@ -109,7 +111,7 @@ export async function saveInfo(
  * server key is set. Null when it cannot (no key, no result, an error):
  * the address is still saved.
  */
-async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
+export async function geocode(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!env.GOOGLE_MAPS_API_KEY) return null
   try {
     const url = `https://maps.googleapis.com/maps/api/geocode/json?region=ro&address=${encodeURIComponent(address)}&key=${env.GOOGLE_MAPS_API_KEY}`
@@ -206,19 +208,20 @@ export async function submitForApproval(companyId: string): Promise<void> {
     where: { role: 'ADMIN', deletedAt: null },
     select: { id: true },
   })
-  await prisma.$transaction([
-    prisma.company.update({
+  await prisma.$transaction(async tx => {
+    await tx.company.update({
       where: { id: companyId },
       data: { status: 'PENDING', submittedAt: new Date(), rejectionReason: null },
-    }),
-    prisma.notification.createMany({
-      data: admins.map(a => ({
+    })
+    for (const a of admins) {
+      await notify(tx, {
         userId: a.id,
-        type: 'COMPANY_SUBMITTED' as const,
+        type: 'COMPANY_SUBMITTED',
         title: 'New venue to review',
         body: `${company.name} finished onboarding and waits for approval.`,
-        data: { companyId },
-      })),
-    }),
-  ])
+        data: { companyId, link: '/admin/companies' },
+      })
+    }
+  })
+  deliverSoon(admins.map(a => a.id))
 }

@@ -22,7 +22,17 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the E01 rules: PRD constants, booking/review/pitch schemas, environment
   validation, the Prisma singleton and Cloudinary upload signing; booking
   rules (price, refund windows, slot selection); the onboarding schemas
-  (company info, location, hours, the admin's reason); and the Stripe code against
+  (company info, location, hours, the admin's reason); start times and
+  durations (C-6); paying at the venue (C-8: who may, the deposit split,
+  the wording); the pitch editor's rules (E10: pitch hours inside the
+  venue's, interval overlap, custom sizes, pricing limits, shirt sets); the
+  manager's booking rules (E11: the no-show window, slots, list filters);
+  the trust engine (E12: deltas, tiers, replaying a history, late-cancel
+  windows, the booking gate); where a notification leads and what can be
+  muted (E13); refund policies and answering a booking request (C-10,
+  C-13); analytics (E14: periods, buckets, what a booking earned, CSV
+  escaping); push over FCM with a really signed JWT against a fake Google
+  (E13-02); and the Stripe code against
   a fake SDK, including webhook signatures checked by the real one. They run
   in seconds.
 - **Mobile** tests render the E02 auth screens (onboarding, login, both
@@ -31,7 +41,11 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   the booking flow, My Bookings (list, detail, cancel sheet, dispute,
   review), My reviews (optimistic delete) and the review sort pills, the
   profile screens (profile, trust score, edit, password, delete, cards,
-  notifications) and push routing, and
+  notifications) and push routing, the manager's venue bookings (E11-09:
+  filters, opening one, a no-show asked about first), notification
+  settings (E13-09: channels, muting a group, no phone, a failed save),
+  accepting and declining a booking (C-12, C-13), venue analytics (E14-10:
+  the cards, period chips, bars, pitch performance), and
   exercise the stores, the API client's refresh logic (one shared refresh; sign-out when it
   fails) and location permission handling, with native modules mocked once in
   `apps/mobile/jest.setup.js`. They do not replace testing on a device.
@@ -49,7 +63,31 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   tokens), onboarding (who may onboard, each step's checks, one company per
   manager, payouts before the earlier steps refused, Stripe Connect in test
   mode, submission), venue approval (admin only, approve, send back and
-  submit again) and the manager's numbers for today, and the E01
+  submit again) and the manager's numbers for today, paying at the venue
+  (the setting, the trust gate, deposit-only charges, no-deposit bookings,
+  Confirm attended refunding a deposit once, no-shows and their trust
+  penalty, another venue kept out), managing pitches (E10: who may,
+  default dimensions, partial edits, ten photos and concurrent uploads,
+  reorder and its out-of-date check, switching on, pricing, amenities,
+  shirts promised to bookings, pitch hours deciding the slots, blocked
+  dates, soft delete), the venue's bookings (E11: who may, filters and
+  pages, the week feed, the booking with the player's history, the no-show
+  window, completing, free time, the nightly job and its token), trust (E12: +2
+  per game and the monthly cap, late cancellations, the review point, a
+  pitch's minimum, Poor and Suspended limits, disputes either way, the
+  monthly recovery and correction), notifications (E13: preferences,
+  a paid booking emailed, muted kinds not written, the tier-change notice,
+  the unread count, the hourly job's reminders, text messages and outbox
+  sweep), the venue's rules (C-9 … C-13: the 12-hour trust window, a
+  booking keeping its refund policy, new-booking notices, the manager
+  cancelling and declining, requests held, accepted, withdrawn and expired,
+  venue details approved again), analytics against known bookings (E14:
+  revenue by bucket and pitch, the heatmap's booked-over-open cells and
+  closed hours, the cards against the previous period, the pitch table,
+  the CSV), the admin panel (E15: venue filters and statuses, users
+  filtered, suspended (sessions ended, sign-in refused) and adjusted with a
+  reason, players deleted, disputes, reviews deleted with a reason, the
+  figures, the commission on new bookings, maintenance mode), and the E01
   infrastructure
   (no schema drift, an idempotent seed, the admin's bcrypt cost, the health
   envelope, the rate limiter, no server secret in the client bundle). They
@@ -64,7 +102,19 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
   profile pages (settings, trust score, password, payment methods, account
   deletion), manager onboarding (the four steps and their errors, no
   skipping ahead, under review, admin approval, sent back with a reason),
-  the manager shell and who is kept out of it, at 1280px and 375px.
+  the manager shell and who is kept out of it, start time then duration
+  (C-6), the no-shirts note (C-7), paying at the venue and the manager's
+  Bookings and Settings pages (C-8), the pitch list and every tab of the
+  pitch editor (E10), the bookings list with URL filters and CSV export, the
+  booking page and the week calendar (E11), a pitch's trust minimum and
+  the player told why, and deciding a dispute (E12), the notification bell
+  and the notification settings page (E13), the Settings tabs, accepting
+  and declining a booking and the admin's comparison of venue changes
+  (C-10 … C-13), the analytics dashboard (E14: cards, URL filters, chart
+  legend and table, sorting, the CSV download, an empty venue), the admin
+  panel (E15: overview, venues, users, reviews, disputes, settings and
+  maintenance as a visitor sees it) and a smoke test of each role's golden
+  path, at 1280px and 375px.
 - **Accessibility** scans every web page, dialog and error state with axe-core
   against WCAG 2.1 A and AA; any violation fails the test with the rule and
   the elements. The map's Google canvas is left out. To pass colour contrast,

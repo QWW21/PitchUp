@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { formatDateLong, formatDuration } from '@pitchup/shared'
+import { formatDateLong, formatDuration, paymentStatusLine } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { getBookingForViewer } from '@/lib/bookings/read'
@@ -38,7 +38,8 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
     )
   }
 
-  if (booking.status !== 'CONFIRMED') {
+  const waiting = booking.status === 'AWAITING_APPROVAL'
+  if (booking.status !== 'CONFIRMED' && !waiting) {
     return (
       <section className="py-16 text-center">
         <h1 className="text-xl font-semibold text-neutral-900">
@@ -77,8 +78,14 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
           className="motion-safe:animate-[draw_600ms_linear_forwards] motion-safe:[stroke-dashoffset:60]"
         />
       </svg>
-      <h1 className="mt-6 text-2xl font-bold text-neutral-900">Booking confirmed!</h1>
-      <p className="mt-1 text-neutral-500">Get ready to play.</p>
+      <h1 className="mt-6 text-2xl font-bold text-neutral-900">
+        {waiting ? 'Sent to the venue' : 'Booking confirmed!'}
+      </h1>
+      <p className="mt-1 max-w-md text-neutral-500">
+        {waiting
+          ? `${booking.company.name} confirms each booking. You'll get a notification when they answer; if they decline, all your money comes back.`
+          : 'Get ready to play.'}
+      </p>
 
       <dl className="mt-8 w-full space-y-1 rounded-xl bg-neutral-100 p-5">
         <dt className="sr-only">Reference</dt>
@@ -101,8 +108,8 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
             </dd>
           </>
         )}
-        <dt className="sr-only">Paid</dt>
-        <dd className="pt-1 font-medium text-primary-700">Total paid: {booking.total} RON</dd>
+        <dt className="sr-only">Payment</dt>
+        <dd className="pt-1 font-medium text-primary-700">{paymentStatusLine(booking)}</dd>
       </dl>
 
       <ConfirmationActions

@@ -10,7 +10,12 @@ export type UserRole = 'PLAYER' | 'MANAGER' | 'ADMIN'
 
 export type CompanyStatus = 'PENDING' | 'ACTIVE' | 'SUSPENDED'
 
-export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+/**
+ * PENDING: created, not paid yet. AWAITING_APPROVAL: paid, waiting for a venue
+ * that confirms each booking by hand (C-13); it holds the slot like CONFIRMED.
+ */
+export type BookingStatus =
+  'PENDING' | 'AWAITING_APPROVAL' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
 
 export type DisputeStatus = 'NONE' | 'OPEN' | 'RESOLVED_PLAYER' | 'RESOLVED_MANAGER'
 
@@ -49,9 +54,17 @@ export type TrustScoreReason =
   | 'NO_SHOW'
   | 'DISPUTE_WON'
   | 'MONTHLY_RECOVERY'
+  /** E15: an admin's change by hand, with a reason. */
+  | 'ADMIN_ADJUSTMENT'
 
 export type NotificationType =
   | 'BOOKING_CONFIRMED'
+  /** To the player: paid, and the venue will confirm it (C-13). */
+  | 'BOOKING_AWAITING_APPROVAL'
+  /** To the manager: a new confirmed booking (C-11). */
+  | 'BOOKING_RECEIVED'
+  /** To the manager: a booking waits for their answer (C-13). */
+  | 'BOOKING_REQUESTED'
   | 'BOOKING_REMINDER_24H'
   | 'BOOKING_REMINDER_2H'
   | 'BOOKING_CANCELLED_PLAYER'
@@ -64,6 +77,12 @@ export type NotificationType =
   | 'REVIEW_LEFT'
   | 'MANAGER_REPLIED'
   | 'REVIEW_REPORTED'
+  | 'COMPANY_SUBMITTED'
+  | 'COMPANY_APPROVED'
+  | 'COMPANY_REJECTED'
+  | 'TRUST_TIER_CHANGED'
+  /** From an admin (E15): a review removed, a score adjusted, a venue suspended. */
+  | 'ADMIN_NOTICE'
   | 'OTP'
   | 'PASSWORD_RESET'
 

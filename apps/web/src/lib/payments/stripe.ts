@@ -38,7 +38,15 @@ export const toBani = (ron: number): number => Math.round(ron * 100)
 export const stripeProvider: PaymentProvider = {
   name: 'stripe',
 
-  async createPayment({ bookingId, userId, amountRon, description, customerId, paymentMethodId }) {
+  async createPayment({
+    bookingId,
+    userId,
+    amountRon,
+    description,
+    customerId,
+    paymentMethodId,
+    saveCard,
+  }) {
     const intent = await stripe().paymentIntents.create(
       {
         amount: toBani(amountRon),
@@ -49,6 +57,8 @@ export const stripeProvider: PaymentProvider = {
         metadata: { bookingId, userId },
         ...(customerId ? { customer: customerId } : {}),
         ...(paymentMethodId ? { payment_method: paymentMethodId } : {}),
+        // The card stays on file for next time; the server insists for lower tiers.
+        ...(saveCard && customerId ? { setup_future_usage: 'off_session' as const } : {}),
       },
       // A retried request for the same booking never makes a second charge.
       { idempotencyKey: `booking-${bookingId}` }

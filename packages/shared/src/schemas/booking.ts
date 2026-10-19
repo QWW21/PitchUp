@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { BOOKING } from '../constants/booking'
 import { REVIEW } from '../constants/review'
 import { SHIRT_COLOURS } from '../constants/shirts'
+import { BOOKING_PAYMENT_METHODS, type BookingPaymentMethod } from '../payment'
 import { idSchema } from './common'
 import type { BookingStatus } from '../types'
 
@@ -50,6 +51,8 @@ export const CreateBookingSchema = z
     noteToManager: z.string().trim().max(BOOKING.MAX_NOTE_LENGTH).optional(),
     /** A saved Stripe card to charge; omitted for a new card or test payments. */
     paymentMethodId: z.string().min(1).max(100).optional(),
+    /** How the player pays (C-8): online, or at the venue with a deposit. */
+    paymentMethod: z.enum(BOOKING_PAYMENT_METHODS).default('ONLINE'),
   })
   .refine(data => minutesOf(data.endTime) > minutesOf(data.startTime), {
     message: 'End time must be after start time',
@@ -83,10 +86,32 @@ export const DisputeSchema = z.object({
   evidenceUrls: z.array(z.string().url()).max(REVIEW.MAX_PHOTOS).optional(),
 })
 
+/** PUT /admin/disputes/:bookingId/resolve — E12-04. The note is shown to the player. */
 export const ResolveDisputeSchema = z.object({
-  resolution: z.enum(['RESOLVED_PLAYER', 'RESOLVED_MANAGER']),
-  adminNote: z.string().max(500).optional(),
+  outcome: z.enum(['RESOLVED_PLAYER', 'RESOLVED_MANAGER']),
+  note: z.string().trim().min(10, 'Explain the decision (10 characters or more)').max(500),
 })
+
+/** GET /admin/disputes — one open dispute. */
+export interface OpenDispute {
+  bookingId: string
+  reference: string
+  date: string
+  startTime: string
+  endTime: string
+  pitch: string
+  venue: string
+  player: { name: string; email: string }
+  managerReason: string | null
+  disputeText: string | null
+  reportedAt: string
+  /** What the venue kept: the deposit or the online payment. */
+  keptAmount: number
+  /** E15: decided disputes are listed too. */
+  status: 'OPEN' | 'RESOLVED_PLAYER' | 'RESOLVED_MANAGER'
+  resolution: string | null
+  resolvedAt: string | null
+}
 
 export type CreateBookingInput = z.infer<typeof CreateBookingSchema>
 export type CancelBookingInput = z.infer<typeof CancelBookingSchema>
@@ -114,8 +139,14 @@ export interface CreateBookingResult {
   total: number
   /** After this the unpaid booking stops holding the slot. */
   holdExpiresAt: string
+  /** Charged now: the full price, the deposit (C-8), or nothing. */
+  payNow: number
+  dueAtVenue: number
+  /** `none`: nothing to pay online (a 0% deposit); the booking is already confirmed. */
   payment:
-    { provider: 'stripe'; clientSecret: string; publishableKey: string } | { provider: 'test' }
+    | { provider: 'stripe'; clientSecret: string; publishableKey: string }
+    | { provider: 'test' }
+    | { provider: 'none' }
 }
 
 /** POST /api/v1/payments/test/confirm — test mode only. */
@@ -139,6 +170,12 @@ export interface BookingConfirmation {
   total: number
   paidAt: string | null
   cancellationReason: string | null
+  /** C-8: how it is paid, the deposit charged online, and what is left for the venue. */
+  paymentMethod: BookingPaymentMethod
+  deposit: number | null
+  dueAtVenue: number
+  /** When the manager confirmed the player came (and was paid at the venue). */
+  attendedAt: string | null
   pitch: { id: string; name: string }
   company: { id: string; name: string; address: string; city: string }
 }
@@ -191,6 +228,9 @@ export interface BookingListItem {
   company: { id: string; name: string; logoUrl: string | null }
   total: number
   refundAmount: number | null
+  paymentMethod: BookingPaymentMethod
+  /** Still to pay at the venue (C-8); 0 when paid online. */
+  dueAtVenue: number
   cancelledBy: 'PLAYER' | 'MANAGER' | 'ADMIN' | 'SYSTEM' | null
   hasReview: boolean
   /** Completed, not reviewed, and within the review window. */
@@ -231,6 +271,10 @@ export interface BookingDetail extends BookingConfirmation {
   statusHistory: { status: BookingStatus; at: string }[]
   /** Null when the booking can no longer be cancelled (started, or already final). */
   cancellation: { refundPercent: number; refundAmount: number } | null
+  /** C-10: the venue's refund policy when this was booked, in a sentence. */
+  refundPolicy: string
+  /** C-13: when a booking waiting for the venue is declined if not answered. */
+  approvalDeadline: string | null
   review: {
     id: string
     rating: number

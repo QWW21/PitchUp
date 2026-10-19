@@ -14,6 +14,8 @@ import {
   REVIEW,
   bookingReference,
   cancellationRefund,
+  describeRefundPolicy,
+  refundPolicyOf,
   endLabel,
   fromMinutes,
   venueClock,
@@ -26,25 +28,39 @@ import {
   type PaymentProviderName,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { chargedOnline } from './charged'
+import { applyTrustEvent } from '@/lib/trust/apply'
 import { recordStatus } from './status'
 
 const HOUR = 3_600_000
 const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
 
 /** Settles this player's finished and abandoned bookings. Idempotent. */
-export async function settlePlayerBookings(playerId: string, now: Date = new Date()) {
+export const settlePlayerBookings = (playerId: string, now: Date = new Date()) =>
+  settleBookings({ playerId }, now)
+
+/**
+ * Settles finished and abandoned bookings among `scope`: a player's, a
+ * venue's (the manager pages), or everyone's (the nightly job, E11-10).
+ * Returns how many of each it settled.
+ */
+export async function settleBookings(
+  scope: Prisma.BookingWhereInput,
+  now: Date = new Date()
+): Promise<{ completed: number; cancelled: number }> {
   const holdStart = new Date(now.getTime() - BOOKING.PENDING_HOLD_MINUTES * 60_000)
   const [finished, abandoned] = await Promise.all([
     prisma.booking.findMany({
-      where: { playerId, status: 'CONFIRMED', endTime: { lte: now } },
-      select: { id: true },
+      where: { ...scope, status: 'CONFIRMED', endTime: { lte: now } },
+      select: { id: true, playerId: true },
     }),
     prisma.booking.findMany({
-      where: { playerId, status: 'PENDING', createdAt: { lte: holdStart } },
+      where: { ...scope, status: 'PENDING', createdAt: { lte: holdStart } },
       select: { id: true },
     }),
   ])
-  if (!finished.length && !abandoned.length) return
+  const counts = { completed: finished.length, cancelled: abandoned.length }
+  if (!finished.length && !abandoned.length) return counts
   await prisma.$transaction(async tx => {
     if (finished.length) {
       const ids = finished.map(b => b.id)
@@ -53,6 +69,9 @@ export async function settlePlayerBookings(playerId: string, now: Date = new Dat
         data: { status: 'COMPLETED' },
       })
       await recordStatus(tx, ids, 'COMPLETED')
+      // +2 trust each (E12-02), within the monthly cap.
+      for (const b of finished)
+        await applyTrustEvent(tx, b.playerId, 'BOOKING_COMPLETED', b.id, now)
     }
     if (abandoned.length) {
       const ids = abandoned.map(b => b.id)
@@ -68,6 +87,7 @@ export async function settlePlayerBookings(playerId: string, now: Date = new Dat
       await recordStatus(tx, ids, 'CANCELLED')
     }
   })
+  return counts
 }
 
 function tabWhere(playerId: string, tab: BookingTab, now: Date): Prisma.BookingWhereInput {
@@ -77,7 +97,7 @@ function tabWhere(playerId: string, tab: BookingTab, now: Date): Prisma.BookingW
         playerId,
         endTime: { gt: now },
         OR: [
-          { status: 'CONFIRMED' },
+          { status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] } },
           {
             status: 'PENDING',
             createdAt: { gt: new Date(now.getTime() - BOOKING.PENDING_HOLD_MINUTES * 60_000) },
@@ -106,6 +126,10 @@ const listSelect = {
   endTime: true,
   totalAmount: true,
   refundAmount: true,
+  paymentMethod: true,
+  depositAmount: true,
+  dueAtVenue: true,
+  attendedAt: true,
   cancelledBy: true,
   review: { select: { id: true } },
   pitch: {
@@ -148,6 +172,8 @@ function toListItem(b: ListRow, now: Date): BookingListItem {
     company: b.pitch.company,
     total: Number(b.totalAmount),
     refundAmount: b.refundAmount === null ? null : Number(b.refundAmount),
+    paymentMethod: b.paymentMethod,
+    dueAtVenue: Number(b.dueAtVenue),
     cancelledBy: b.cancelledBy,
     hasReview: !!b.review,
     canReview: reviewOpen(b.status, b.endTime, !!b.review, now),
@@ -214,6 +240,8 @@ export const detailSelect = {
   stripePaymentIntentId: true,
   cardBrand: true,
   cardLast4: true,
+  refundPolicy: true,
+  approvalDeadline: true,
   statusEvents: { orderBy: { createdAt: 'asc' }, select: { status: true, createdAt: true } },
   review: {
     select: {
@@ -263,7 +291,8 @@ function history(b: DetailRow): BookingDetail['statusHistory'] {
     if (!known.has(status)) steps.push({ status, at: at(status, when) })
   }
   add('PENDING', b.createdAt)
-  if (b.paidAt) add('CONFIRMED', b.paidAt)
+  // Paid at a venue that confirms by hand: confirmed later, if at all (C-13).
+  if (b.paidAt && !known.has('AWAITING_APPROVAL')) add('CONFIRMED', b.paidAt)
   if (recorded.length) return [...steps, ...recorded]
   if (b.status === 'CANCELLED') add('CANCELLED', b.cancelledAt ?? b.updatedAt)
   if (b.status === 'COMPLETED' || b.status === 'NO_SHOW') add(b.status, b.updatedAt)
@@ -277,8 +306,16 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     ? (b.teamsData as { playerCount?: number; colour?: string }[])
     : []
   const review = b.review && !b.review.deletedAt ? b.review : null
-  const cancellable = (b.status === 'PENDING' || b.status === 'CONFIRMED') && b.startTime > now
-  const refund = cancellationRefund(b.paidAt ? total : 0, b.startTime, now)
+  const cancellable =
+    (b.status === 'PENDING' || b.status === 'CONFIRMED' || b.status === 'AWAITING_APPROVAL') &&
+    b.startTime > now
+  const policy = refundPolicyOf(b.refundPolicy)
+  const paid = b.paidAt ? chargedOnline(b) : 0
+  // C-13: withdrawing a request the venue hasn't accepted gives everything back.
+  const refund =
+    b.status === 'AWAITING_APPROVAL'
+      ? { percent: 100, amount: paid }
+      : cancellationRefund(paid, b.startTime, now, policy)
   const disputeUntil = b.noShow
     ? new Date(b.noShow.createdAt.getTime() + NO_SHOW_DISPUTE_WINDOW_HOURS * HOUR)
     : null
@@ -295,6 +332,10 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     total,
     paidAt: b.paidAt?.toISOString() ?? null,
     cancellationReason: b.cancellationReason,
+    paymentMethod: b.paymentMethod,
+    deposit: b.depositAmount === null ? null : Number(b.depositAmount),
+    dueAtVenue: Number(b.dueAtVenue),
+    attendedAt: b.attendedAt?.toISOString() ?? null,
     pitch: {
       id: b.pitch.id,
       name: b.pitch.name,
@@ -329,6 +370,8 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     cancellation: cancellable
       ? { refundPercent: b.paidAt ? refund.percent : 0, refundAmount: refund.amount }
       : null,
+    refundPolicy: describeRefundPolicy(policy),
+    approvalDeadline: b.approvalDeadline?.toISOString() ?? null,
     review: review
       ? {
           id: review.id,

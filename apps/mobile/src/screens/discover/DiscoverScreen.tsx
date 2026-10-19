@@ -105,6 +105,8 @@ export function DiscoverScreen({ navigation }: Props) {
   const notifications = useQuery({
     queryKey: ['notifications', 'badge'],
     queryFn: () => profileApi.notifications(null),
+    // E13-08: the badge catches up within a minute.
+    refetchInterval: 60_000,
   })
   const unread = notifications.data?.unread ?? 0
 
@@ -124,7 +126,7 @@ export function DiscoverScreen({ navigation }: Props) {
           <Icon name="bell-outline" size={24} color={colors.neutral[900]} />
           {unread ? (
             <View style={styles.count}>
-              <Text style={styles.countText}>{unread > 9 ? '9+' : unread}</Text>
+              <Text style={styles.countText}>{unread > 99 ? '99+' : unread}</Text>
             </View>
           ) : null}
         </Pressable>

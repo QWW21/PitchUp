@@ -40,7 +40,12 @@ import { ChangePasswordScreen } from './src/screens/profile/ChangePasswordScreen
 import { DeleteAccountScreen } from './src/screens/profile/DeleteAccountScreen'
 import { PaymentMethodsScreen } from './src/screens/profile/PaymentMethodsScreen'
 import { NotificationsScreen } from './src/screens/notifications/NotificationsScreen'
-import type { BookingTab } from '@pitchup/shared'
+import { NotificationSettingsScreen } from './src/screens/profile/NotificationSettingsScreen'
+import { ManagerBookingsScreen } from './src/screens/manager/ManagerBookingsScreen'
+import { ManagerBookingDetailScreen } from './src/screens/manager/ManagerBookingDetailScreen'
+import type { AnalyticsPeriod, BookingTab } from '@pitchup/shared'
+import { ManagerAnalyticsScreen } from './src/screens/manager/ManagerAnalyticsScreen'
+import { ManagerPitchPerformanceScreen } from './src/screens/manager/ManagerPitchPerformanceScreen'
 
 // ---------------------------------------------------------------------------
 // Navigation param types — exported so screen files can import them without
@@ -90,6 +95,14 @@ export type AppStackParamList = {
   DeleteAccount: undefined
   PaymentMethods: undefined
   Notifications: undefined
+  /** E13-09. */
+  NotificationSettings: undefined
+  /** E11-09. A venue manager's bookings, opened from Profile. */
+  ManagerBookings: undefined
+  ManagerBookingDetail: { id: string }
+  /** E14-10. The venue's analytics, opened from Profile. */
+  ManagerAnalytics: undefined
+  ManagerPitchPerformance: { period: AnalyticsPeriod }
 }
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>()
@@ -135,6 +148,11 @@ function AppNavigator() {
       <AppStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       <AppStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />
       <AppStack.Screen name="Notifications" component={NotificationsScreen} />
+      <AppStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
+      <AppStack.Screen name="ManagerBookings" component={ManagerBookingsScreen} />
+      <AppStack.Screen name="ManagerBookingDetail" component={ManagerBookingDetailScreen} />
+      <AppStack.Screen name="ManagerAnalytics" component={ManagerAnalyticsScreen} />
+      <AppStack.Screen name="ManagerPitchPerformance" component={ManagerPitchPerformanceScreen} />
     </AppStack.Navigator>
   )
 }

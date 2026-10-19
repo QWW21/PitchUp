@@ -10,8 +10,10 @@ import type {
   CancelBookingResult,
   CalendarDay,
   CreateBookingResult,
+  BookingPaymentMethod,
   MyReview,
   PaymentConfig,
+  PaymentOptions,
   PitchAvailability,
   SavedCard,
 } from '@pitchup/shared'
@@ -27,11 +29,15 @@ export interface CreateBookingBody {
   wantsShirts: boolean
   noteToManager?: string
   paymentMethodId?: string
+  paymentMethod: BookingPaymentMethod
 }
 
 export const bookingApi = {
   paymentConfig: () => apiRequest<PaymentConfig>({ method: 'GET', url: '/payments/config' }),
   savedCards: () => apiRequest<SavedCard[]>({ method: 'GET', url: '/payments/methods' }),
+  /** How this player may pay here (C-8): online, or at the venue with a deposit. */
+  paymentOptions: (pitchId: string) =>
+    apiRequest<PaymentOptions>({ method: 'GET', url: `/pitches/${pitchId}/payment-options` }),
   calendar: (pitchId: string, from: string, days: number) =>
     apiRequest<CalendarDay[]>({
       method: 'GET',

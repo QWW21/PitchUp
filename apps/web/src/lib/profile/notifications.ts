@@ -22,11 +22,12 @@ const asStrings = (data: unknown): Record<string, string> =>
 export async function listNotifications(
   userId: string,
   cursor: string | undefined,
-  limit: number
+  limit: number,
+  unreadOnly = false
 ): Promise<NotificationPage> {
   const [rows, unread] = await Promise.all([
     prisma.notification.findMany({
-      where: { userId },
+      where: { userId, ...(unreadOnly ? { isRead: false } : {}) },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -83,3 +84,7 @@ export async function registerDeviceToken(
     update: { userId, platform },
   })
 }
+
+/** GET /notifications/count — the badge, cheaply (E13-06). */
+export const unreadCount = (userId: string) =>
+  prisma.notification.count({ where: { userId, isRead: false } })

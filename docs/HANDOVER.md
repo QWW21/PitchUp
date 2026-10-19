@@ -1,6 +1,7 @@
 # Where things stand
 
-Last updated at the end of the session that implemented E09 (Manager: Onboarding & Dashboard).
+Last updated at the end of the session that implemented E15 (Admin Panel),
+after E09–E14 and the product changes C-6 to C-13.
 
 ## Done
 
@@ -229,7 +230,8 @@ config files, which the owner creates. Ready for it: `POST
 /notifications/device-token`, `registerPushToken()` and `openNotification()`
 in `apps/mobile/src/lib/push.ts` (the comment there lists the five lines
 that wire Firebase in), and `notificationTarget()` in `@pitchup/shared`,
-used by both the push handler and the in-app list. Sending pushes is E13.
+used by both the push handler and the in-app list. Sending pushes is built
+(E13); it waits for the same Firebase project.
 
 **E09 — Manager: Onboarding & Dashboard: ten tickets done, plus a minimal admin approval page.**
 
@@ -279,16 +281,214 @@ admin panel is E15.
   for the pin to follow the address. A server-side `GOOGLE_MAPS_API_KEY`
   (optional) geocodes when the manager saves without a pin.
 
+**E10 — Manager: Pitches & Pricing: ten tickets done (web and API).**
+
+| Ticket                           | State                                                            |
+| -------------------------------- | ---------------------------------------------------------------- |
+| E10-01 create / edit basic info  | done, verified — starts inactive; usual dimensions filled in     |
+| E10-02 photos                    | done, verified — 10 max, reorder together, gaps closed on delete |
+| E10-03 amenities + pricing       | done, verified — one hourly rate (C-2), booking limits           |
+| E10-04 shirts + hours + blocked  | done, verified — sets per colour (C-1); hours inside the venue's |
+| E10-05 status, delete, list      | done, verified — on needs a photo and a price; soft delete       |
+| E10-06 pitch list page           | done, verified in a browser — sort, switch, delete, empty state  |
+| E10-07 basic info, photos, amen. | done, verified in a browser — upload needs Cloudinary keys       |
+| E10-08 pricing tab               | done, verified in a browser — live price preview                 |
+| E10-09 shirts tab                | done, verified in a browser                                      |
+| E10-10 availability tab          | done, verified in a browser — venue-closed days locked           |
+
+New endpoints: `POST /pitches`, `PUT`/`DELETE /pitches/:id`,
+`PATCH /pitches/:id/status`, `POST /pitches/:id/photos`,
+`PUT /pitches/:id/photos/reorder`, `DELETE /pitches/:id/photos/:photoId`,
+`PUT /pitches/:id/amenities`, `PUT /pitches/:id/pricing`,
+`PUT /pitches/:id/shirts`, `PUT /pitches/:id/availability` (the GET stays
+the public slots), `POST /pitches/:id/exceptions`,
+`DELETE /pitches/:id/exceptions/:exceptionId`, `GET /manager/pitches` and
+`GET /manager/pitches/:id`. The upload signer accepts `PITCH` for the
+pitch's own manager.
+
+Schema: `Pitch.workingHours` (the pitch's own week; null follows the venue)
+and `Pitch.deletedAt`. Availability uses the pitch's hours cut to the
+venue's, so a venue that later shortens its hours can't leave a pitch open
+outside them. Deleted pitches are gone from every player-facing read.
+
+**Pages:** `/manager/pitches` and `/manager/pitches/:id/edit/{basic-info,
+photos,amenities,pricing,shirts,availability}`. Pitches in the sidebar is
+live.
+
+**To add real photos** the Cloudinary keys must be in `apps/web/.env`
+(they are on your machine); without them the Photos tab says so and the
+rest works.
+
+**E11 — Manager: Calendar & Bookings: nine tickets done, the mobile one built.**
+
+| Ticket                         | State                                                                |
+| ------------------------------ | -------------------------------------------------------------------- |
+| E11-01 `GET /manager/bookings` | done, verified — filters, venue days, cursor pages, no player emails |
+| E11-02 calendar feed           | done, verified — Monday to Sunday, pitch colours, cancelled left out |
+| E11-03 booking detail          | done, verified — payout, history at this venue (no trust score)      |
+| E11-04 no-show                 | done, verified — 30 min to 4 h after kick-off; twice is a no-op      |
+| E11-05 complete + free time    | done, verified                                                       |
+| E11-06 list page               | done, verified in a browser — URL filters, Load more, CSV export     |
+| E11-07 week calendar           | done, verified in a browser — legend toggles, week navigation        |
+| E11-08 booking page            | done, verified in a browser — actions with a confirm dialog          |
+| E11-09 mobile screens          | **built** — list with status and pitch chips, detail with actions    |
+| E11-10 utilities + nightly job | done, verified — `CRON_SECRET`, `vercel.json` at 02:00 UTC           |
+
+New endpoints: `GET /manager/bookings` (now paged and filtered; C-8's
+upcoming/recent shape is gone), `GET /manager/bookings/calendar`,
+`GET /manager/bookings/:id`, `POST /manager/bookings/:id/complete`,
+`GET /manager/pitches/:id/availability-gaps`, `/cron/auto-complete` (GET
+for Vercel Cron, POST too). The C-8 attended and no-show endpoints stay.
+
+**Pages:** `/manager/bookings` (list), `/manager/bookings/calendar` (week),
+`/manager/bookings/:id` (detail and actions). Calendar in the sidebar is
+live. On the phone, Profile → "Venue bookings" for managers.
+
+**Setting up the nightly job:** set `CRON_SECRET` (16+ characters) in the
+deployment; Vercel Cron sends it. Without it the job refuses every call and
+nothing is settled except by the pages and the manual "Mark as complete".
+
+**E12 — Penalty & Trust: nine tickets done, the mobile one already built in E08.**
+
+| Ticket                             | State                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| E12-01 `applyTrustEvent`           | done, verified — one SQL update, clamped, with its history row         |
+| E12-02 +2 per completed game       | done, verified — nightly job, players' reads and Mark as complete      |
+| E12-03 late cancellation           | done, verified — −5 under 24 h, −10 under 2 h, confirmed bookings only |
+| E12-04 disputes                    | done, verified — admin list and decision, minimal `/admin/disputes`    |
+| E12-05 review +1, monthly job      | done, verified — recovery +1, scores rebuilt from history              |
+| E12-06 booking gate                | done, verified — pitch minimum, Poor one at a time, Suspended none     |
+| E12-07 mobile trust history        | built in E08 — awaiting mobile testing                                 |
+| E12-08 web history + gate message  | done, verified in a browser                                            |
+| E12-09 pitch minimum in the editor | done, verified in a browser — "Who can book", list column              |
+| E12-10 shared tests and exports    | done                                                                   |
+
+Every score change goes through `applyTrustEvent` (`src/lib/trust/apply.ts`):
+completions (+2, at most +10 a calendar month), reviews (+1, once per
+booking), late cancellations, no-shows (−20), won disputes (+10) and the
+monthly recovery (+1 in a month with nothing negative). New endpoints:
+`GET /admin/disputes`, `PUT /admin/disputes/:bookingId/resolve`,
+`/cron/trust-monthly` (1st of the month, 03:00 UTC, same `CRON_SECRET`).
+`PUT /pitches/:id` accepts `minTrustScore` (0, 50, 70 or 90).
+
+Schema: `Pitch.minTrustScore`, `NoShow.resolution`.
+
+**E15 — Admin Panel: all ten tickets done.**
+
+| Ticket                        | State                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| E15-01 guard + venue list     | done, verified — status and search filters, cursor pages               |
+| E15-02 venue status           | done, verified — approve, send back, suspend, reinstate; 409 otherwise |
+| E15-03 users                  | done, verified — filters, suspend, trust adjustment, delete players    |
+| E15-04 disputes + reviews     | done, verified — decided disputes listed; reviews deleted with reason  |
+| E15-05 stats + config         | done, verified — figures, commission on new bookings, maintenance mode |
+| E15-06 layout + venues        | done, verified in a browser — sidebar, list, venue page                |
+| E15-07 users page             | done, verified in a browser                                            |
+| E15-08 disputes + reviews     | done, verified in a browser                                            |
+| E15-09 overview + settings    | done, verified in a browser — maintenance as a visitor sees it         |
+| E15-10 seed, bootstrap, smoke | done — `admin:bootstrap`, `e2e/web/smoke.spec.ts`                      |
+
+**The panel** (`/admin`, a dark sidebar like the manager area, with counts of
+what waits): Overview (figures, refreshed every minute, and what waits),
+Venues (the approval queue and venue changes from before, plus every venue
+with filters, and a page per venue to suspend or reinstate it), Users (search
+and filters, a page per user to adjust the trust score with a reason, suspend
+or reinstate, and delete a player), Disputes (open and decided), Reviews
+(most reported first, deleted with a reason the author reads) and Settings.
+
+**Suspending a user** ends their sessions on the web and the app and refuses
+sign-in until reinstated; bookings already made stay. **Suspending a venue**
+takes it off Discover and stops new bookings; the manager sees why.
+**Maintenance mode** shows everyone but admins a message, and the API answers
+503 `MAINTENANCE`; sign-in, the admin area, health checks, cron jobs and
+Stripe's webhook stay open. **The commission** (0–20%, default 8%) applies
+to new bookings; each booking keeps the fee it was made with, and the venues'
+analytics use each booking's own.
+
+**Making an admin:** the person registers, then
+`pnpm --filter @pitchup/web admin:bootstrap their@email`.
+
+Schema: `User.suspendedAt`, `suspensionReason`; `Company.suspensionReason`;
+`TrustScoreEvent.note`; `ADMIN_ADJUSTMENT`, `ADMIN_NOTICE`; `PlatformConfig`.
+
+**E14 — Analytics: nine tickets done, the mobile one built.**
+
+| Ticket                      | State                                                                    |
+| --------------------------- | ------------------------------------------------------------------------ |
+| E14-01 revenue series       | done, verified — day, week or month, every bucket present                |
+| E14-02 occupancy heatmap    | done, verified — booked over open time, venue hours, closed hours `null` |
+| E14-03 per-pitch table      | done, verified — revenue, bookings, occupancy, rates, rating             |
+| E14-04 KPI summary          | done, verified — five figures against the same length before             |
+| E14-05 CSV export           | done, verified — 10,000 rows at most, `X-Truncated`, formulas defused    |
+| E14-06 dashboard + cards    | done, verified in a browser — period and pitch in the URL                |
+| E14-07 revenue chart        | done, verified in a browser — SVG, legend toggles, a table view          |
+| E14-08 heatmap              | done, verified in a browser                                              |
+| E14-09 pitch table + export | done, verified in a browser — sortable, CSV download                     |
+| E14-10 mobile analytics     | **built** — Profile → Analytics, awaiting mobile testing                 |
+
+**What revenue means** (decided 2026-10-17): what the venue earned. The full
+price of games played (COMPLETED, or CONFIRMED once started), whether paid
+online or at the venue; plus what it kept from late cancellations and
+no-shows; less refunds. PitchUp's 8% is taken from that. Everything is in the
+venue's days and hours (Europe/Bucharest), and periods end now.
+
+New endpoints: `GET /manager/analytics/{revenue,occupancy,pitches,summary,export}`,
+all with `period` (7d, 30d, 90d, 12m) and, except pitches, `pitchId`. Page:
+`/manager/analytics` (the sidebar's Analytics is live). Rules in
+`packages/shared/src/analytics.ts`, figures in `apps/web/src/lib/manager/analytics.ts`.
+
+**E13 — Notifications: eight tickets done, the two mobile ones built.**
+
+| Ticket                             | State                                                                  |
+| ---------------------------------- | ---------------------------------------------------------------------- |
+| E13-01 model + dispatcher          | done, verified — `notify()` writes the inbox row, delivery after it    |
+| E13-02 push (FCM)                  | done, unit-tested — HTTP v1 with a signed JWT; idle without Firebase   |
+| E13-03 email                       | done, verified — templates for the main notices, a generic one else    |
+| E13-04 SMS + 24-hour reminder      | done, verified — hourly job, reminders 23–25 h ahead, once each        |
+| E13-05 booking lifecycle wired     | done, verified — every notice goes through `notify()`                  |
+| E13-06 in-app feed                 | done, verified — unread count, `unreadOnly`, mark one or all read      |
+| E13-07 preferences                 | done, verified — three channels, six groups, partial updates           |
+| E13-08 mobile inbox + badge        | built in E08 — badge now refreshes every minute, awaiting mobile tests |
+| E13-09 mobile preferences screen   | **built** — Profile → Notification settings, awaiting mobile testing   |
+| E13-10 web bell + preferences page | done, verified in a browser — player header and manager shell          |
+
+**How a notice travels:** `notify(tx, payload)` (`src/lib/notifications/dispatch.ts`)
+writes the in-app row inside the caller's transaction, so a notice exists only
+if what it announces happened; a type the user muted writes nothing. After the
+response, `deliverSoon(userIds)` sends email, SMS and push for the new rows
+(Next's `after()`), and the hourly `/cron/notifications` job sends anything
+left over from the last two hours and queues the 24-hour reminders. Each row is
+claimed (`deliveredAt`) before sending, so nothing goes out twice.
+
+New endpoints: `GET /notifications/count`, `GET/PUT /notifications/preferences`,
+`GET /notifications?unreadOnly=true`, `/cron/notifications` (hourly in
+`vercel.json`, the same `CRON_SECRET`).
+
+**Pages:** the bell in the player's header and the manager shell (unread count,
+the latest five, mark all read); `/profile/notifications` (switches that save at
+once, and every notice with Load more). On the phone, Profile → Notification
+settings.
+
+Schema: `NotificationPreference`, `Notification.deliveredAt`,
+`Booking.reminderSentAt`, `TRUST_TIER_CHANGED`.
+
+**Turning the channels on:** email needs `RESEND_API_KEY` (and Resend only
+sends to your own address until a domain is verified); SMS needs the
+`TWILIO_*` variables; push needs `FIREBASE_PROJECT_ID`,
+`FIREBASE_CLIENT_EMAIL` and `FIREBASE_PRIVATE_KEY` from a service account, and
+the mobile app's Firebase wiring (E08-10). Without them each channel logs
+instead of sending, and the inbox works regardless.
+
 ## Next
 
-**The product changes filed during E08 testing**, in the owner's order:
-C-7 #201 (the "no shirts" option in the teams step), C-6 #200 (time picker:
-start plus duration, half-hour steps), C-8 #202 (pay at the venue: the
-venue's choice of online, online or at the venue, or at the venue only; a
-deposit of 0–50%, default 20%, for players with trust 70+; commission from
-the deposit; and a minimal manager Bookings page to confirm attendance or
-report a no-show). Then **E10 — Manager: Pitches & Pricing**: the dashboard
-already shows Pitches as "Soon".
+Every epic (E01–E15) is built. What is left:
+
+- **Your testing** of E09 onward, and the **mobile pass**: the mobile tickets
+  stay open as "built, awaiting mobile testing".
+- **Firebase** for push (E08-10), and **Twilio** for text messages: the code
+  is ready, the accounts are not.
+- **Before real data:** versioned migrations, a verified Resend domain, and
+  live Stripe keys (see "Things that will need a decision").
 
 **How testing is split from E03 on:** backend and web are verified as part of
 each epic; mobile is built to the point of compiling and bundling, then
@@ -452,6 +652,36 @@ those tickets carries a comment pointing here.
 - **C-5 The map opens on the chosen city.** `mapCenter()` centres on the
   player only when they are in the selected city; otherwise on that city.
 
+### Product changes after E05 testing (milestone E17, #200–#202)
+
+- **C-7 A pitch that lends no shirts says so** on the teams step ("This
+  pitch doesn't lend shirts. Bring your own bibs or colours.") and the step
+  is titled "Teams" there. Web and mobile.
+- **C-6 Start time, then a duration.** The time step lists start times in
+  Morning / Afternoon / Evening groups, then "How long?" from the pitch's
+  minimum to maximum in half hours. A start without room for the shortest
+  booking (before the next booking or closing) is disabled and read as "not
+  enough time"; so are lengths that don't fit. A new start keeps the length
+  if it fits, otherwise the longest that does. One shared set of rules
+  (`startOptions`, `durationOptions`, `keepDuration` in `booking.ts`)
+  replaced `tapSlot`.
+- **C-8 Pay at the venue.** `Company.paymentMode` (`ONLINE`, the default;
+  `ONLINE_OR_VENUE`; `VENUE`) and `Company.depositPercent` (0–50, default
+  20), set on `/manager/settings`. Players with trust 70+ may pay at the
+  venue: (a) `VENUE_REFUND_DEPOSIT`, the deposit is refunded when the
+  manager confirms they came and they pay the full price there; or (b)
+  `VENUE_DEPOSIT_TOWARDS`, the deposit counts and they pay the rest there.
+  With a 0% deposit nothing is charged online and the booking is confirmed
+  at once. Below 70 a player pays online; at a venue-only venue they cannot
+  book (the server refuses with `PAYMENT_METHOD_UNAVAILABLE`). The booking
+  records `paymentMethod`, `depositAmount`, `dueAtVenue` and `attendedAt`.
+  Cancelling refunds the deposit by the usual tiers. The minimal
+  `/manager/bookings` page lists upcoming bookings and those started in the
+  last 7 days, with **Confirm attended** (refunds the deposit for (a)) and
+  **Report no-show** (from 30 minutes after kick-off: the venue keeps what
+  was paid online, trust −20, the player is notified and can dispute).
+  Rules shared in `packages/shared/src/payment.ts`. Web and mobile.
+
 **Upgrading a dev database made before C-2.** `pnpm --filter @pitchup/web
 db:push` refuses, because the new required `hourlyRate` column has no value
 for existing pitches. Either start again
@@ -464,6 +694,43 @@ ALTER TABLE "Pitch" ADD COLUMN "hourlyRate" DECIMAL(10,2);
 UPDATE "Pitch" SET "hourlyRate" = "offPeakRate";
 ALTER TABLE "Pitch" ALTER COLUMN "hourlyRate" SET NOT NULL;
 ```
+
+### Product changes after E13 testing (milestone E17, C-9 … C-13)
+
+- **C-9 Late cancellation costs trust from 12 hours**, not 24: −5 under 12
+  hours before kick-off, −10 under 2. The same at every venue.
+- **C-10 Each venue's refund policy.** Default: everything back from 12
+  hours before kick-off, 75% from 2 hours, nothing after. A manager sets the
+  hours and the percentage in Settings; a booking keeps a copy of the policy
+  it was made under (`Booking.refundPolicy`; none means the default).
+  Shown on the pitch page, at checkout and on the booking.
+- **C-11 The manager hears of every booking** (`BOOKING_RECEIVED`), in-app,
+  by email, and by push once Firebase is set up. Muteable ("New bookings",
+  shown to managers only).
+- **C-12 The manager can cancel or decline** a booking, with a reason the
+  player reads: everything paid online back, no trust lost.
+- **C-13 Settings and approving by hand.** Settings has three tabs:
+  Bookings and payments (approve automatically, the default, or each by
+  hand; the refund policy; how players pay), Venue details (the onboarding
+  forms) and Your account (links to the manager's own profile pages).
+  - Approving by hand: a paid booking is `AWAITING_APPROVAL`, holding the
+    slot; Accept confirms it, Decline refunds it. Unanswered, the hourly job
+    declines and refunds it 24 hours after payment or 2 hours before
+    kick-off, whichever is first (by kick-off for bookings made later). The
+    player may withdraw a waiting request with everything back.
+  - Venue details are approved again: a change is a proposal
+    (`Company.pendingChanges`) that an admin approves or turns down on
+    `/admin/companies`; the live page keeps the approved details meanwhile.
+    The manager can withdraw it.
+
+New endpoints: `POST /manager/bookings/:id/accept`, `POST
+/manager/bookings/:id/cancel`, `GET/PUT /manager/settings/bookings`, `GET/DELETE
+/manager/venue`, `PUT /manager/venue/{info,location,contact-hours}`, `GET
+/admin/venue-changes`, `POST /admin/venue-changes/:companyId/{approve,reject}`.
+Schema: `BookingStatus.AWAITING_APPROVAL`, three notification types,
+`Company.autoApproveBookings`, `refundFullHours`, `refundPartialHours`,
+`refundPartialPercent`, `pendingChanges`, `changesSubmittedAt`,
+`changesRejectionReason`, `Booking.refundPolicy`, `Booking.approvalDeadline`.
 
 ## Deviations from the tickets, and why
 
@@ -699,8 +966,197 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
 - **Seeded venues have no Stripe account**; anything not in DRAFT counts as
   past the payouts step.
 
+### E15 — Admin Panel
+
+- **Statuses kept as they are** (DRAFT, PENDING, ACTIVE, SUSPENDED): the
+  tickets' APPROVED is ACTIVE, and REJECTED is "sent back" to DRAFT with a
+  reason, so the manager fixes and resubmits (E09).
+- **Venue and user detail are pages, not side panels**: linkable, and simpler
+  to make accessible.
+- **Trust adjustments go through the trust engine** (clamped, the monthly
+  replay agrees), with the reason on the event and a notice to the player.
+- **Deleting is for players only**, the same as their own deletion (bookings
+  refunded, details wiped); a manager's or admin's account is suspended.
+- **No default no-show fee setting**: there is no no-show fee (the venue
+  keeps what was paid online, C-8).
+- **The settings are cached in memory for a minute**, not with Next's data
+  cache, which is kept on disk and served stale settings after the database
+  was reset. Another server instance sees a change within the minute.
+- **Maintenance is checked in the root layout and the API wrapper**, not in
+  the edge middleware, which can't reach the database; the middleware only
+  passes the path along.
+- **Ratings need no recalculation** after a review is deleted: they are
+  worked out from the reviews each time.
+- **The seed adds no disputes or reported reviews**: every test shares the
+  seeded database, and extra open disputes would upset the tests that count
+  them. The tests create their own.
+- **Not-admins are sent to their own area**, not to `/login`, when signed in;
+  signed out, to `/login`.
+- **The pitch editor's payout preview assumes 8%**; the booking itself uses
+  the current commission.
+
+### E14 — Analytics
+
+- **Venue time, not UTC.** The tickets aggregate in UTC with `DATE_TRUNC`;
+  that would put a 22:00 game on the next day for half the year. Figures are
+  worked out in JavaScript in the venue's days and hours instead (one pass
+  over the period's bookings and opening hours).
+- **Occupancy is booked over open time**, from each pitch's real hours and
+  closures, rather than a count over a guessed number of slots. Hours never
+  open are `null` (hatched on the heatmap), so "closed" and "empty" differ;
+  rows show the hours anyone was open, Monday first.
+- **The server fills the gaps** in the revenue series; the tickets left it
+  to the client.
+- **No Recharts** (web) and **no react-native-svg** (mobile): the web chart
+  is a small SVG with a table view, the phone's bars are plain Views, so no
+  new dependency and no new native module.
+- **RON, not pence or £.** Amounts are in RON with bani, as stored.
+- **The dashboard renders on the server** from the URL, like the bookings
+  list, rather than four client queries. No skeletons: a `loading.tsx` made
+  Next 15.5 answer the filters' navigation with an empty response, so the
+  filters show "Updating…" and wait instead.
+- **Rates as % change**, as the tickets have them; a period with nothing
+  before it shows "No earlier data".
+- **The CSV has no trust score** (managers don't see it, PRD §9.1), a BOM
+  for Excel, and cells starting with `= + - @` prefixed so they aren't run
+  as formulas.
+
+### E13 — Notifications
+
+- **The existing `Notification` and `DeviceToken` models are reused**, with
+  `deliveredAt` added, rather than new tables; `FcmToken` would duplicate
+  `DeviceToken`.
+- **Push uses FCM's HTTP v1 API directly**, signing the service account's JWT
+  with Node's `crypto`, instead of adding `firebase-admin`. Dead tokens are
+  removed when FCM says they're unregistered.
+- **No React Email.** The emails use the existing HTML layout; three notices
+  have their own template, the rest a generic one with a button.
+- **An outbox, not sending inside the request.** The row is written in the
+  transaction and delivered after the response; the hourly job is the safety
+  net, and only for rows from the last two hours, so old rows aren't mailed
+  out when the job first runs.
+- **SMS only for urgent kinds** (reminders, a venue cancelling, a no-show), and only
+  when the user switched it on. Every account has a phone (E02), so the "no
+  phone" refusal (400 `PHONE_REQUIRED`) can't happen from the web today.
+- **Muting is by group** (confirmed, reminders, cancellations, no-shows,
+  reviews, trust); account and venue-approval notices can't be muted.
+- **The existing `PATCH` read endpoints are kept**, and validation errors are
+  400 as everywhere else, not 422.
+- **No notice for a failed payment**: the checkout page already says so, and
+  an unpaid booking simply lapses.
+- **A trust tier change is its own notice** (`TRUST_TIER_CHANGED`). When it
+  happens in a background job it is delivered by the next hourly run.
+- **The 2-hour reminder type exists but nothing sends it yet**; only the
+  24-hour reminder is scheduled.
+
+### E12 — Penalty & Trust
+
+- **Exactly 2 hours before kick-off counts as a late cancellation (−5)**,
+  not very late, matching the refund tiers (50% back from 2 hours). The
+  ticket's "no penalty at exactly 2h" contradicted its own table.
+- **Only a confirmed booking's cancellation costs trust**; abandoning an
+  unpaid checkout doesn't, nor does cancelling because the account is
+  being deleted.
+- **The history records each event's defined delta; the monthly job
+  replays them with the clamp at every step** (`replayTrustScore`). Past
+  the +10 monthly cap on completions no event is written at all, so the
+  history and the score always agree.
+- **Fair and Poor "card on file"**: their card is kept on their Stripe
+  customer when they pay (`setup_future_usage`), rather than refusing a
+  first booking until a card is saved. Poor players pay in full online
+  (paying at the venue needs 70+, C-8) and hold one upcoming booking.
+- **Pitch minimums are 0, 50, 70 or 90** (a tier's lower bound); "Poor" is
+  not offered because Suspended players can't book anywhere.
+- **Disputes use the existing `NoShow` row** (dispute status, resolution,
+  resolver) rather than a new `Dispute` model. A player who wins gets +10,
+  the booking counts as played, and a kept "deposit back" deposit is
+  refunded. Managers have no trust score, so a wrong report costs the
+  venue nothing (the ticket's open question).
+- **A minimal `/admin/disputes` page** came with the endpoints so disputes
+  can be decided now; E15 builds the full panel.
+- **The trust history** is E08's `GET /profile/trust-score` (already paged
+  with a cursor), not a second endpoint.
+- **A completed game later reported as a no-show keeps its +2.**
+
+### E11 — Calendar & Bookings
+
+- **Another venue's booking is a 404**, not the ticket's 403.
+- **No-shows from 30 minutes to 4 hours after kick-off**: PRD §9.3's 30
+  minutes and the ticket's 4-hour limit together. Completed games (settled
+  by a player's read) can still be reported inside that window. No no-show
+  fee is charged (the venue keeps the deposit or the online payment, C-8);
+  the trust change is still the direct −20 until E12.
+- **Manager pages don't settle bookings when they read** (players' pages
+  still do): a finished game stays Confirmed until the manager confirms
+  attendance, reports a no-show or marks it complete, or the nightly job
+  settles it.
+- **The booking opens on its own page**, not a slide-in panel; the list
+  links to it. "Confirm attended" and "Report no-show" moved there from
+  C-8's list.
+- **Pitch colours are derived, not stored**: by the pitch's place among the
+  venue's pitches (deleted ones included), from the ticket's eight shades
+  darkened for WCAG AA with white text. Played games are grey with the
+  pitch colour on the side rather than faded (fading fails contrast).
+- **The calendar draws the venue's opening hours** (widened to fit every
+  booking), not a fixed 07:00–23:00.
+- **CSV columns:** date, start, end, player, pitch, status, price, payment,
+  due at the venue, reference. Fee and payout are on the booking page.
+- **`calcPrice` is `bookingPrice`** in half-hour slots (C-2); there is one
+  pricing function, not two. `generateSlots` and `isWithinNoShowWindow` are
+  shared.
+- **Mobile** filters by status and pitch; no date filter yet.
+
+### E10 — Pitches & Pricing
+
+- **Pricing follows C-2**: one hourly rate. The shortest booking is 1h,
+  1h 30 or 2h and the longest 2h to 4h in half hours (the owner asked for
+  half hours; `minBookingHours`/`maxBookingHours` are now decimals). "No
+  limit" is not offered: 4 hours is the app-wide maximum.
+- **Shirts follow C-1**: a "Lend shirts" switch and sets per colour, no
+  price. Fewer sets than upcoming bookings were promised is **409**
+  `SHIRTS_PROMISED` (not 412) with the booking ids; `force: true` saves
+  anyway, and the tab offers that.
+- **A pitch needs a price as well as a photo to be switched on** (the
+  ticket allowed 0 RON; that would break payments). A new pitch is created
+  at 0 RON, inactive.
+- **Another venue's pitch is a 404**, not the ticket's 403, like bookings.
+- **Photos reorder by drag and drop (native HTML) or with "Move
+  earlier/later" buttons** for keyboards; no `@dnd-kit` dependency.
+  Uploads show a status per file rather than a progress bar (`fetch` has no
+  upload progress).
+- **Blocked dates can't be added over bookings** (409 with the booking
+  ids); there is no `force`, because managers can't cancel bookings until
+  E11.
+- **Pitches of a venue awaiting approval** can be created through the API
+  (the ticket's pre-setup); the dashboard itself opens after approval, and
+  pitches do not switch on by themselves.
+- **The unsaved-changes dot** shows on the open tab only.
+
+### C-6, C-7, C-8
+
+- **Reporting a no-show was built here, minimally**, because C-8 needs it:
+  status `NO_SHOW`, a `NoShow` row whose `penaltyAmount` is what the venue
+  keeps (the deposit or the online payment), trust −20 with its history
+  event, and a notification. PRD §9.3's flat fee and 20% penalty, and paying
+  the venue out, are still E11/E14.
+- **The commission is recorded, not billed.** `platformFee` is 8% of the
+  price for every booking as before; whether it is kept from the deposit or
+  invoiced to the venue follows from `paymentMethod` and the deposit, and is
+  billed in E14. A deposit below 8% cannot cover it; that remainder is
+  invoiced too.
+- **Settings shows the deposit in steps of 5%** (the API takes any whole
+  number from 0 to 50). The rest of Settings is E12.
+- **Attendance is confirmed from kick-off**, a no-show from 30 minutes after
+  (PRD §9.3); neither has an end date yet.
+
 ## Known gaps
 
+- **A client component with webpack module id 0 vanishes.** Next leaves it
+  out of the client manifest and its page fails at runtime ("Could not find
+  the module … in the React Client Manifest"). Ids follow file paths, so it
+  hit `SummaryStep.tsx` when E15 added modules; renamed `SummaryAndPay.tsx`.
+  If a page suddenly fails like that, check its component's id in the
+  page's client chunk (`{0:(e,t,a)=>`) and rename the file.
 - **Stripe has never run against a real account.** Unit tests cover the
   Stripe calls with a fake SDK and the webhook with real signatures; the
   booking flow is tested end to end in test-payment mode. Add test-mode
@@ -765,7 +1221,8 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   import that lint passed, because the root ESLint config ignores `.next`
   and Next runs its own pass. Worth aligning before CI exists.
 - **Nothing has been delivered to a real inbox or handset.** Templates and
-  the signing algorithm are verified; delivery and rendering are not.
+  the signing algorithm are verified; delivery and rendering are not. Push
+  (E13) has only run against a fake FCM: it needs a Firebase project.
 - **No profanity filter yet** (PRD §11.3's auto-flag). Reports flag reviews
   for admins, but nothing flags them automatically.
 - **Rate limiting is in-memory**, so it resets on restart and is per
@@ -779,8 +1236,13 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   existing rows. Before any deployment holds real bookings, switch to
   `prisma migrate` so each change is a reviewed SQL file (ARCHITECTURE §14).
 - `PROFILE_VERIFIED`, a manager trust score, and `ADMIN_ADJUSTMENT` appear
-  in later tickets but are not in the PRD or the schema. Flagged in place
-  on E12 and E15; each needs a call before that epic starts.
+  in later tickets but are not in the PRD or the schema. **Decided for E15
+  (2026-10-17):** admins may adjust a player's score with a reason
+  (`ADMIN_ADJUSTMENT`, in the history like any event); no manager score for
+  now, admins see the venue's facts instead. `PROFILE_VERIFIED` stays
+  dropped (E12).
+- **E14 revenue (decided 2026-10-17):** the full value of played bookings,
+  online and paid at the venue, with the split shown, less refunds.
 - **Players who sign in on the web go to `/discover`**, not `/dashboard`.
   E02-13 sends every login to `/dashboard`, which is the manager area and has
   nothing for a player. The dashboard now redirects players; managers and

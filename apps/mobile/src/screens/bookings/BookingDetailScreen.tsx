@@ -57,6 +57,12 @@ const BANNER: Record<BookingStatus, { label: string; bg: string; fg: string; ico
     fg: '#92400E',
     icon: 'clock-outline',
   },
+  AWAITING_APPROVAL: {
+    label: 'Waiting for the venue',
+    bg: colors.warning[50],
+    fg: '#92400E',
+    icon: 'clock-outline',
+  },
   COMPLETED: {
     label: 'Completed',
     bg: colors.primary[50],
@@ -74,6 +80,7 @@ const BANNER: Record<BookingStatus, { label: string; bg: string; fg: string; ico
 
 const WORDS: Record<BookingStatus, string> = {
   PENDING: 'Booked, awaiting payment',
+  AWAITING_APPROVAL: 'Paid, sent to the venue',
   CONFIRMED: 'Paid and confirmed',
   COMPLETED: 'Played',
   CANCELLED: 'Cancelled',
@@ -209,9 +216,27 @@ export function BookingDetailScreen({ navigation, route }: Props) {
           <Line label={`Pitch (${formatDuration(b.minutes)})`} value={`${b.total} RON`} />
           {b.shirtSets > 0 ? <Line label="Shirts" value="Free" /> : null}
           <View style={styles.total}>
-            <Text style={styles.totalText}>{b.paidAt ? 'Total paid' : 'Total'}</Text>
+            <Text style={styles.totalText}>
+              {b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}
+            </Text>
             <Text style={styles.totalText}>{b.total} RON</Text>
           </View>
+          {b.paymentMethod !== 'ONLINE' && b.deposit ? (
+            <Line
+              label={
+                b.paymentMethod === 'VENUE_REFUND_DEPOSIT'
+                  ? 'Deposit paid online, refunded after the game'
+                  : 'Deposit paid online'
+              }
+              value={`${b.deposit} RON`}
+            />
+          ) : null}
+          {b.paymentMethod !== 'ONLINE' ? (
+            <Line
+              label={b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}
+              value={`${b.dueAtVenue} RON`}
+            />
+          ) : null}
           {b.paidAt ? (
             <Line
               label="Card"

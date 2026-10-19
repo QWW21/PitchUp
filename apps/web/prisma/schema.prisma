@@ -30,8 +30,23 @@ enum CompanyStatus {
   SUSPENDED
 }
 
+/// How a venue is paid — C-8.
+enum VenuePaymentMode {
+  ONLINE
+  ONLINE_OR_VENUE
+  VENUE
+}
+
+enum BookingPaymentMethod {
+  ONLINE
+  VENUE_REFUND_DEPOSIT
+  VENUE_DEPOSIT_TOWARDS
+}
+
 enum BookingStatus {
   PENDING
+  /// Paid, waiting for a venue that confirms each booking by hand (C-13).
+  AWAITING_APPROVAL
   CONFIRMED
   COMPLETED
   CANCELLED
@@ -103,10 +118,18 @@ enum TrustScoreReason {
   NO_SHOW
   DISPUTE_WON
   MONTHLY_RECOVERY
+  /// E15: an admin's change by hand, with its reason in `note`.
+  ADMIN_ADJUSTMENT
 }
 
 enum NotificationType {
   BOOKING_CONFIRMED
+  /// To the player: paid, and the venue will confirm it (C-13).
+  BOOKING_AWAITING_APPROVAL
+  /// To the manager: a new confirmed booking (C-11).
+  BOOKING_RECEIVED
+  /// To the manager: a booking waits for their answer (C-13).
+  BOOKING_REQUESTED
   BOOKING_REMINDER_24H
   BOOKING_REMINDER_2H
   BOOKING_CANCELLED_PLAYER
@@ -126,6 +149,10 @@ enum NotificationType {
   /// To the manager: their venue was approved, or sent back (E09).
   COMPANY_APPROVED
   COMPANY_REJECTED
+  /// To the player: their trust tier went up or down (E13).
+  TRUST_TIER_CHANGED
+  /// From an admin (E15): a review removed, a score adjusted, a venue suspended or reinstated.
+  ADMIN_NOTICE
   OTP
   PASSWORD_RESET
 }
@@ -170,58 +197,77 @@ model User {
   deletedAt         DateTime?
   /// Why the player deleted their account, if they said (E08-03).
   deletionReason    String?
+  /// E15: an admin suspended the account: no sign-in until reinstated.
+  suspendedAt       DateTime?
+  suspensionReason  String?
 
-  company             Company?
-  bookings            Booking[]
-  reviews             Review[]
-  reviewReports       ReviewReport[]
-  notifications       Notification[]
-  trustScoreEvents    TrustScoreEvent[]
-  noShowsReported     NoShow[]             @relation("NoShowReportedByManager")
-  noShowsResolved     NoShow[]             @relation("NoShowResolvedByAdmin")
-  verificationCodes   VerificationCode[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  deviceTokens        DeviceToken[]
+  company                Company?
+  bookings               Booking[]
+  reviews                Review[]
+  reviewReports          ReviewReport[]
+  notifications          Notification[]
+  trustScoreEvents       TrustScoreEvent[]
+  noShowsReported        NoShow[]                @relation("NoShowReportedByManager")
+  noShowsResolved        NoShow[]                @relation("NoShowResolvedByAdmin")
+  verificationCodes      VerificationCode[]
+  refreshTokens          RefreshToken[]
+  passwordResetTokens    PasswordResetToken[]
+  deviceTokens           DeviceToken[]
+  notificationPreference NotificationPreference?
 
   @@index([role])
   @@index([city])
 }
 
 model Company {
-  id                   String        @id @default(cuid())
-  ownerId              String        @unique
-  name                 String
-  description          String?
-  logoUrl              String?
-  websiteUrl           String?
-  facebookUrl          String?
-  instagramUrl         String?
+  id                     String           @id @default(cuid())
+  ownerId                String           @unique
+  name                   String
+  description            String?
+  logoUrl                String?
+  websiteUrl             String?
+  facebookUrl            String?
+  instagramUrl           String?
   /// Contact and address are filled in steps 2 and 3 of onboarding (E09),
   /// so a DRAFT company may not have them yet. ACTIVE ones always do.
-  phone                String?
-  email                String?
-  addressLine1         String?
-  addressLine2         String?
-  city                 String?
-  county               String?
-  country              String        @default("RO")
-  postalCode           String?
-  lat                  Float?
-  lng                  Float?
-  workingHours         Json?
-  stripeAccountId      String?
+  phone                  String?
+  email                  String?
+  addressLine1           String?
+  addressLine2           String?
+  city                   String?
+  county                 String?
+  country                String           @default("RO")
+  postalCode             String?
+  lat                    Float?
+  lng                    Float?
+  workingHours           Json?
+  stripeAccountId        String?
   /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
-  stripeChargesEnabled Boolean       @default(false)
-  stripePayoutsEnabled Boolean       @default(false)
-  status               CompanyStatus @default(DRAFT)
+  stripeChargesEnabled   Boolean          @default(false)
+  stripePayoutsEnabled   Boolean          @default(false)
+  /// C-8: how players pay, and the online deposit (0–50%) when they pay at the venue.
+  paymentMode            VenuePaymentMode @default(ONLINE)
+  depositPercent         Int              @default(20)
+  /// C-13: confirm every booking at once, or each by hand.
+  autoApproveBookings    Boolean          @default(true)
+  /// C-10: the venue's refund policy. Bookings keep a copy of it.
+  refundFullHours        Int              @default(12)
+  refundPartialHours     Int              @default(2)
+  refundPartialPercent   Int              @default(75)
+  /// C-13: details changed after approval, waiting for an admin (VenueProfileChanges).
+  pendingChanges         Json?
+  changesSubmittedAt     DateTime?
+  changesRejectionReason String?
+  status                 CompanyStatus    @default(DRAFT)
   /// When the manager finished onboarding, and when an admin decided.
-  submittedAt          DateTime?
-  reviewedAt           DateTime?
+  submittedAt            DateTime?
+  reviewedAt             DateTime?
   /// Why an admin sent it back; cleared when resubmitted.
-  rejectionReason      String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  rejectionReason        String?
+  /// E15: why an admin suspended the venue.
+  suspensionReason       String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   pitches Pitch[]
@@ -241,13 +287,20 @@ model Pitch {
   lengthMeters       Float?
   isActive           Boolean     @default(true)
   coverPhotoIndex    Int         @default(0)
-  minBookingHours    Int         @default(1)
-  maxBookingHours    Int         @default(4)
+  /// Hours, in halves: 1, 1.5, 2… (a booking is any half hour between the two).
+  minBookingHours    Float       @default(1)
+  maxBookingHours    Float       @default(4)
   advanceBookingDays Int         @default(60)
   /// One price per hour at any time of day. No peak pricing.
   hourlyRate         Decimal     @db.Decimal(10, 2)
   /// Shirts are always free; the inventory says which colours there are.
   hasShirts          Boolean     @default(false)
+  /// The pitch's own week (E10-10), within the venue's hours; null follows the venue.
+  workingHours       Json?
+  /// Soft delete (E10-05): hidden everywhere, kept for its bookings and reviews.
+  deletedAt          DateTime?
+  /// The lowest trust score that may book (E12-06): a tier's lower bound; 0 = anyone allowed to book.
+  minTrustScore      Int         @default(0)
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
@@ -316,7 +369,7 @@ model ShirtInventory {
 }
 
 model Booking {
-  id                    String        @id @default(cuid())
+  id                    String               @id @default(cuid())
   pitchId               String
   playerId              String
   startTime             DateTime
@@ -324,30 +377,44 @@ model Booking {
   teamCount             Int
   teamsData             Json?
   noteToManager         String?
-  status                BookingStatus @default(PENDING)
+  status                BookingStatus        @default(PENDING)
   cancelledBy           CancelledBy?
   cancelledAt           DateTime?
   cancellationReason    String?
-  pitchRateSnapshot     Decimal       @db.Decimal(10, 2)
+  pitchRateSnapshot     Decimal              @db.Decimal(10, 2)
   /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
-  shirtSets             Int           @default(0)
+  shirtSets             Int                  @default(0)
   /// PitchUp's commission, kept from the venue's payout (8%). Not added to
   /// what the player pays.
-  platformFee           Decimal       @db.Decimal(10, 2)
+  platformFee           Decimal              @db.Decimal(10, 2)
   /// What the player pays: the pitch rental, hourly rate × hours.
-  totalAmount           Decimal       @db.Decimal(10, 2)
-  refundAmount          Decimal?      @db.Decimal(10, 2)
+  totalAmount           Decimal              @db.Decimal(10, 2)
+  refundAmount          Decimal?             @db.Decimal(10, 2)
   /// "stripe", or "test" for the built-in test payments used without Stripe keys.
   paymentProvider       String?
   /// The provider's payment id (a Stripe PaymentIntent, or test_pi_… in test mode).
-  stripePaymentIntentId String?       @unique
+  stripePaymentIntentId String?              @unique
   stripeRefundId        String?
   paidAt                DateTime?
   /// The card that paid, for the booking detail (E06-02); null in test mode.
   cardBrand             String?
   cardLast4             String?
-  createdAt             DateTime      @default(now())
-  updatedAt             DateTime      @updatedAt
+  /// C-8: online in full, or at the venue with a deposit (refunded, or counted).
+  paymentMethod         BookingPaymentMethod @default(ONLINE)
+  /// Charged online as the deposit; null when paid online in full.
+  depositAmount         Decimal?             @db.Decimal(10, 2)
+  /// Paid to the venue on the day; 0 when paid online.
+  dueAtVenue            Decimal              @default(0) @db.Decimal(10, 2)
+  /// The manager confirmed the player came (C-8).
+  attendedAt            DateTime?
+  /// The 24-hour reminder went out (E13-04).
+  reminderSentAt        DateTime?
+  /// C-10: the venue's refund policy when this was booked.
+  refundPolicy          Json?
+  /// C-13: an AWAITING_APPROVAL booking not answered by then is declined.
+  approvalDeadline      DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
 
   pitch  Pitch @relation(fields: [pitchId], references: [id], onDelete: Restrict)
   player User  @relation(fields: [playerId], references: [id], onDelete: Restrict)
@@ -392,6 +459,8 @@ model NoShow {
   disputeEvidenceUrls Json?
   resolvedByAdminId   String?
   resolvedAt          DateTime?
+  /// What the admin decided and why (E12-04); the player sees it.
+  resolution          String?
   createdAt           DateTime      @default(now())
 
   booking           Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -463,22 +532,37 @@ model ReviewReport {
 }
 
 model Notification {
-  id        String           @id @default(cuid())
-  userId    String
-  type      NotificationType
-  title     String
-  body      String
-  data      Json?
-  isRead    Boolean          @default(false)
-  sentPush  Boolean          @default(false)
-  sentEmail Boolean          @default(false)
-  sentSms   Boolean          @default(false)
-  createdAt DateTime         @default(now())
+  id          String           @id @default(cuid())
+  userId      String
+  type        NotificationType
+  title       String
+  body        String
+  data        Json?
+  isRead      Boolean          @default(false)
+  sentPush    Boolean          @default(false)
+  sentEmail   Boolean          @default(false)
+  sentSms     Boolean          @default(false)
+  /// Set when the email, SMS and push for it were attempted (E13): an outbox.
+  deliveredAt DateTime?
+  createdAt   DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, isRead])
+  @@index([deliveredAt, createdAt])
+}
+
+/// How a person wants to be told (E13-07). No row means the defaults.
+model NotificationPreference {
+  id            String             @id @default(cuid())
+  userId        String             @unique
+  pushEnabled   Boolean            @default(true)
+  emailEnabled  Boolean            @default(true)
+  smsEnabled    Boolean            @default(false)
+  disabledTypes NotificationType[] @default([])
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model TrustScoreEvent {
@@ -486,6 +570,8 @@ model TrustScoreEvent {
   userId           String
   delta            Int
   reason           TrustScoreReason
+  /// E15: why an admin adjusted the score.
+  note             String?
   relatedBookingId String?
   createdAt        DateTime         @default(now())
 
@@ -566,4 +652,16 @@ model City {
   country String @default("RO")
 
   @@index([country])
+}
+
+/// E15: platform settings an admin can change, one row ("singleton").
+model PlatformConfig {
+  id                 String   @id @default("singleton")
+  /// PitchUp's commission on new bookings, 0–20%.
+  platformFeePercent Int      @default(8)
+  /// When on, everyone but admins sees the maintenance notice.
+  maintenanceMode    Boolean  @default(false)
+  maintenanceMessage String   @default("PitchUp is down for maintenance. We'll be back shortly.")
+  updatedById        String?
+  updatedAt          DateTime @updatedAt
 }

@@ -50,11 +50,17 @@ export const env = createEnv({
       z.string().regex(/^\+\d{8,15}$/, 'Must be E.164, e.g. +40712345678')
     ),
     FCM_SERVER_KEY: optionalUntilIntegrated(z.string().min(1)),
+    /** E13-02: a Firebase service account, for push. All three, or none. */
+    FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+    FIREBASE_CLIENT_EMAIL: z.string().email().optional(),
+    FIREBASE_PRIVATE_KEY: z.string().min(1).optional(),
 
     ADMIN_PASSWORD: z.string().optional(),
 
     /** E2E only: enables /api/v1/dev/* on a production build. Never set in a real deployment. */
     ALLOW_TEST_HOOKS: z.enum(['1']).optional(),
+    /** Bearer token the nightly auto-complete job must send (E11-10). */
+    CRON_SECRET: z.string().min(16).optional(),
   },
 
   client: {
@@ -85,8 +91,12 @@ export const env = createEnv({
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
     FCM_SERVER_KEY: process.env.FCM_SERVER_KEY,
+    FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || undefined,
+    FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || undefined,
+    FIREBASE_PRIVATE_KEY: process.env.FIREBASE_PRIVATE_KEY || undefined,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
+    CRON_SECRET: process.env.CRON_SECRET || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,

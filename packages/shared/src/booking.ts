@@ -3,7 +3,7 @@
  * Pure functions: no I/O, no clock unless one is passed in.
  */
 import { BOOKING } from './constants/booking'
-import { CANCELLATION_WINDOWS, REFUND_PERCENTAGES } from './constants/cancellation'
+import { DEFAULT_REFUND_POLICY, type RefundPolicy } from './constants/cancellation'
 import { PLATFORM_FEE_PERCENT } from './constants/penalties'
 import type { PitchSize } from './types'
 import type { SlotStatus } from './schemas/detail'
@@ -28,10 +28,17 @@ export interface BookingPrice {
   venuePayout: number
 }
 
-/** Price of a booking. One rate at any time of day (C-2); shirts are free (C-1). */
-export function bookingPrice(hourlyRate: number, minutes: number): BookingPrice {
+/**
+ * Price of a booking. One rate at any time of day (C-2); shirts are free
+ * (C-1). The commission is an admin setting (E15); 8% unless given.
+ */
+export function bookingPrice(
+  hourlyRate: number,
+  minutes: number,
+  feePercent: number = PLATFORM_FEE_PERCENT
+): BookingPrice {
   const total = round2((hourlyRate * minutes) / 60)
-  const platformFee = round2((total * PLATFORM_FEE_PERCENT) / 100)
+  const platformFee = round2((total * feePercent) / 100)
   return { minutes, total, platformFee, venuePayout: round2(total - platformFee) }
 }
 
@@ -42,18 +49,65 @@ export function formatDuration(minutes: number): string {
   return h ? `${h}h ${m}min` : `${minutes}min`
 }
 
-/** Refund for a player who cancels this long before kick-off. PRD §9.2. */
-export function refundPercentFor(hoursBeforeStart: number): number {
-  if (hoursBeforeStart >= CANCELLATION_WINDOWS.FULL_REFUND_HOURS) return REFUND_PERCENTAGES.FULL
-  if (hoursBeforeStart >= CANCELLATION_WINDOWS.PARTIAL_REFUND_HOURS) {
-    return REFUND_PERCENTAGES.PARTIAL
-  }
-  return REFUND_PERCENTAGES.NONE
+/** Refund for a player who cancels this long before kick-off, under a venue's policy (C-10). */
+export function refundPercentFor(
+  hoursBeforeStart: number,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): number {
+  if (hoursBeforeStart >= policy.fullRefundHours) return 100
+  if (hoursBeforeStart >= policy.partialRefundHours) return policy.partialRefundPercent
+  return 0
 }
 
 /** The last moment a cancellation is fully refunded. */
-export const freeCancellationUntil = (start: Date): Date =>
-  new Date(start.getTime() - CANCELLATION_WINDOWS.FULL_REFUND_HOURS * 3_600_000)
+export const freeCancellationUntil = (
+  start: Date,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): Date => new Date(start.getTime() - policy.fullRefundHours * 3_600_000)
+
+/** The last moment a cancellation is partly refunded. */
+export const partialRefundUntil = (
+  start: Date,
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+): Date => new Date(start.getTime() - policy.partialRefundHours * 3_600_000)
+
+/**
+ * A policy as stored (a venue's columns, or a booking's snapshot), or the
+ * default when there is none: bookings made before C-10 have none.
+ */
+export function refundPolicyOf(stored: unknown): RefundPolicy {
+  const p = stored as Partial<RefundPolicy> | null | undefined
+  return p &&
+    typeof p.fullRefundHours === 'number' &&
+    typeof p.partialRefundHours === 'number' &&
+    typeof p.partialRefundPercent === 'number'
+    ? {
+        fullRefundHours: p.fullRefundHours,
+        partialRefundHours: p.partialRefundHours,
+        partialRefundPercent: p.partialRefundPercent,
+      }
+    : DEFAULT_REFUND_POLICY
+}
+
+const hoursText = (h: number) => (h === 1 ? '1 hour' : `${h} hours`)
+
+/**
+ * The policy in one sentence, for the pitch page, the summary and the
+ * settings preview: "Free cancellation up to 12 hours before kick-off; 75%
+ * back up to 2 hours before; nothing after."
+ */
+export function describeRefundPolicy(policy: RefundPolicy = DEFAULT_REFUND_POLICY): string {
+  const {
+    fullRefundHours: full,
+    partialRefundHours: partial,
+    partialRefundPercent: percent,
+  } = policy
+  if (full === 0) return 'Free cancellation until kick-off.'
+  const free = `Free cancellation up to ${hoursText(full)} before kick-off`
+  if (percent === 0 || partial >= full) return `${free}; nothing after.`
+  if (partial === 0) return `${free}; ${percent}% back until kick-off.`
+  return `${free}; ${percent}% back up to ${hoursText(partial)} before; nothing after.`
+}
 
 /** "#AB12CD": a short reference a player can read out over the phone. */
 export const bookingReference = (id: string): string => `#${id.slice(-6).toUpperCase()}`
@@ -67,7 +121,7 @@ export const PLAYERS_FOR_SIZE: Record<PitchSize, number> = {
   CUSTOM: 6,
 }
 
-// ── Choosing a time range on the slot grid ──────────────────────────────────
+// ── Choosing a time: a start, then a duration (C-6) ─────────────────────────
 
 export interface SlotRange {
   /** Indexes into the day's slots, inclusive. */
@@ -82,37 +136,97 @@ interface Slot {
 
 const SLOT = BOOKING.SLOT_MINUTES
 
-/**
- * What a tap on slot `index` does to the current selection. Same rules on web
- * and mobile (E05-03):
- *
- * - nothing selected → the tapped slot starts a selection;
- * - tapping the start again → clears it;
- * - tapping above the start → starts over from there;
- * - tapping below → extends to it, stopping before the first slot that is
- *   not free (booked, past, or a gap in the opening hours) and at the
- *   longest booking allowed.
- */
-export function tapSlot(
-  slots: Slot[],
-  selection: SlotRange | null,
-  index: number,
-  maxMinutes: number
-): SlotRange | null {
-  if (slots[index]?.status !== 'available') return selection
-  if (!selection) return { start: index, end: index }
-  if (index === selection.start) return null
-  if (index < selection.start) return { start: index, end: index }
+export type DayPeriod = 'Morning' | 'Afternoon' | 'Evening'
 
-  const maxSlots = Math.floor(maxMinutes / SLOT)
-  let end = selection.start
-  for (let i = selection.start + 1; i <= index && i - selection.start < maxSlots; i++) {
-    const contiguous = toMinutes(slots[i]!.time) === toMinutes(slots[i - 1]!.time) + SLOT
-    if (slots[i]!.status !== 'available' || !contiguous) break
-    end = i
-  }
-  return { start: selection.start, end }
+/** Morning before 12:00, afternoon 12:00–17:00, evening from 17:00. */
+export function dayPeriod(time: string): DayPeriod {
+  const m = toMinutes(time)
+  return m < 12 * 60 ? 'Morning' : m < 17 * 60 ? 'Afternoon' : 'Evening'
 }
+
+/**
+ * Minutes free from slot `index`: consecutive available slots with no gap in
+ * the opening hours, capped at `maxMinutes`.
+ */
+function freeMinutesFrom(slots: Slot[], index: number, maxMinutes: number): number {
+  let minutes = 0
+  for (let i = index; i < slots.length && minutes < maxMinutes; i++) {
+    if (slots[i]!.status !== 'available') break
+    if (i > index && toMinutes(slots[i]!.time) !== toMinutes(slots[i - 1]!.time) + SLOT) break
+    minutes += SLOT
+  }
+  return minutes
+}
+
+export interface StartOption {
+  time: string
+  /** Index into the day's slots. */
+  index: number
+  period: DayPeriod
+  /** `short`: free, but the shortest booking doesn't fit before the next booking or closing. */
+  state: 'available' | 'booked' | 'past' | 'short'
+}
+
+/** Every half hour of the day as a possible start. Same rules on web and mobile. */
+export function startOptions(slots: Slot[], minMinutes: number): StartOption[] {
+  return slots.map((slot, index) => ({
+    time: slot.time,
+    index,
+    period: dayPeriod(slot.time),
+    state:
+      slot.status !== 'available'
+        ? slot.status
+        : freeMinutesFrom(slots, index, minMinutes) >= minMinutes
+          ? 'available'
+          : 'short',
+  }))
+}
+
+export interface DurationOption {
+  minutes: number
+  /** Ends before the next booking and closing time. */
+  fits: boolean
+}
+
+/** The pitch's minimum to maximum length in half hours, from the start at `index`. */
+export function durationOptions(
+  slots: Slot[],
+  index: number,
+  minMinutes: number,
+  maxMinutes: number
+): DurationOption[] {
+  const free = freeMinutesFrom(slots, index, maxMinutes)
+  const options: DurationOption[] = []
+  for (let m = minMinutes; m <= maxMinutes; m += SLOT) options.push({ minutes: m, fits: m <= free })
+  return options
+}
+
+/**
+ * The duration to keep after picking a start: the previous one if it still
+ * fits, otherwise the longest that fits up to it; with none before, the
+ * shortest.
+ */
+export function keepDuration(options: DurationOption[], previous: number | null): number | null {
+  const fitting = options.filter(o => o.fits).map(o => o.minutes)
+  if (!fitting.length) return null
+  if (previous === null) return fitting[0]!
+  const upTo = fitting.filter(m => m <= previous)
+  return upTo.length ? upTo[upTo.length - 1]! : fitting[0]!
+}
+
+/** "1h", "1h 30", "30 min": the duration chips. */
+export function formatShortDuration(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (!h) return `${m} min`
+  return m ? `${h}h ${m}` : `${h}h`
+}
+
+/** A start and a duration as a range of slots. */
+export const rangeFrom = (index: number, minutes: number): SlotRange => ({
+  start: index,
+  end: index + minutes / SLOT - 1,
+})
 
 /** The selection as venue wall-clock times, e.g. { startTime: "18:00", endTime: "20:00" }. */
 export function rangeTimes(slots: Slot[], range: SlotRange) {
@@ -151,11 +265,16 @@ export function formatDateLong(date: string): string {
 }
 
 /**
- * What cancelling now would refund: PRD §9.2 applied to what was paid.
- * The player pays only the pitch price (E05), so all of it is refundable.
+ * What cancelling now would refund: the booking's policy applied to what was
+ * paid. The player pays only the pitch price (E05), so all of it is refundable.
  */
-export function cancellationRefund(total: number, start: Date, now: Date = new Date()) {
-  const percent = refundPercentFor((start.getTime() - now.getTime()) / 3_600_000)
+export function cancellationRefund(
+  total: number,
+  start: Date,
+  now: Date = new Date(),
+  policy: RefundPolicy = DEFAULT_REFUND_POLICY
+) {
+  const percent = refundPercentFor((start.getTime() - now.getTime()) / 3_600_000, policy)
   return { percent, amount: Math.floor(((total * percent) / 100) * 100) / 100 }
 }
 

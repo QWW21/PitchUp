@@ -14,6 +14,8 @@ export const TRUST_SCORE_DELTAS: Record<TrustScoreReason, number> = {
   NO_SHOW: -20,
   DISPUTE_WON: 10,
   MONTHLY_RECOVERY: 1,
+  /** E15: varies; the admin chooses the points, and the event records them. */
+  ADMIN_ADJUSTMENT: 0,
 }
 
 export const TRUST_SCORE_INITIAL = 100
@@ -120,6 +122,7 @@ export const TRUST_REASON_LABELS: Record<TrustScoreReason, string> = {
   NO_SHOW: 'No-show recorded',
   DISPUTE_WON: 'Dispute resolved in your favour',
   MONTHLY_RECOVERY: 'Monthly recovery',
+  ADMIN_ADJUSTMENT: 'Adjusted by PitchUp',
 }
 
 /** "90–100", or "< 30" for the bottom tier. */

@@ -10,6 +10,7 @@ import 'server-only'
 import { REVIEW } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
+import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
 const HOUR = 3_600_000
 
@@ -48,15 +49,14 @@ export async function createReply(
       reason: 'ALREADY_REPLIED',
     })
   }
-  await prisma.notification.create({
-    data: {
-      userId: review.playerId,
-      type: 'MANAGER_REPLIED',
-      title: `${review.pitch.company.name} replied`,
-      body: `The venue replied to your review of ${review.pitch.name}.`,
-      data: { reviewId },
-    },
+  await notify(prisma, {
+    userId: review.playerId,
+    type: 'MANAGER_REPLIED',
+    title: `${review.pitch.company.name} replied`,
+    body: `The venue replied to your review of ${review.pitch.name}.`,
+    data: { reviewId },
   })
+  deliverSoon([review.playerId])
 }
 
 export async function updateReply(

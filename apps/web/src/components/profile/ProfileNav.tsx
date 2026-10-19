@@ -8,6 +8,7 @@ const LINKS = [
   { href: '/profile/settings', label: 'Account settings' },
   { href: '/profile/change-password', label: 'Change password' },
   { href: '/profile/trust-score', label: 'Trust score' },
+  { href: '/profile/notifications', label: 'Notifications' },
   { href: '/profile/payment-methods', label: 'Payment methods' },
   { href: '/profile/delete-account', label: 'Delete account' },
 ]

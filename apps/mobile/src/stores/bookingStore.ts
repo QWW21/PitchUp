@@ -4,7 +4,13 @@
  * restarts. Nothing here is worth keeping on disk.
  */
 import { create } from 'zustand'
-import { BOOKING, PLAYERS_FOR_SIZE, type PitchSize, type ShirtColour } from '@pitchup/shared'
+import {
+  BOOKING,
+  PLAYERS_FOR_SIZE,
+  type BookingPaymentMethod,
+  type PitchSize,
+  type ShirtColour,
+} from '@pitchup/shared'
 
 export interface BookingPitch {
   id: string
@@ -89,8 +95,13 @@ export const useBookingStore = create<BookingState>(set => ({
 }))
 
 /** The request body for POST /bookings, from the store. */
-export function bookingBody(s: BookingState, paymentMethodId?: string) {
+export function bookingBody(
+  s: BookingState,
+  paymentMethod: BookingPaymentMethod = 'ONLINE',
+  paymentMethodId?: string
+) {
   return {
+    paymentMethod,
     pitchId: s.pitch!.id,
     date: s.date!,
     startTime: s.startTime!,
