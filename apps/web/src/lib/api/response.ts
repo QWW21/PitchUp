@@ -5,6 +5,7 @@
  * rather than inferring success from the shape of the payload.
  */
 import { NextResponse, type NextRequest } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { ApiException, ERROR_CODES, type ErrorCode } from './errors'
 
 export interface ApiSuccess<T> {
@@ -88,6 +89,8 @@ export function withErrorHandling<TArgs extends unknown[]>(
     } catch (caught) {
       if (caught instanceof ApiException) return errFromException(caught)
       console.error('Unhandled API error:', caught)
+      // Answered as a plain 500, so Next never sees it: report it here.
+      Sentry.captureException(caught)
       return err('INTERNAL_ERROR', 'Something went wrong')
     }
   }

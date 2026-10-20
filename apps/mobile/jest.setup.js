@@ -76,3 +76,10 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
   isErrorWithCode: error => error != null && typeof error.code === 'string',
   statusCodes: { IN_PROGRESS: 'IN_PROGRESS', SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
 }))
+
+// Error monitoring (Sentry) has a native SDK; tests never report.
+jest.mock('@sentry/react-native', () => ({
+  init: jest.fn(),
+  wrap: App => App,
+  captureException: jest.fn(),
+}))

@@ -76,6 +76,9 @@ export const env = createEnv({
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: optionalUntilIntegrated(z.string().min(1)),
     // E05 — Stripe.js on the web; the app reads it from /payments/config.
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalUntilIntegrated(z.string().startsWith('pk_')),
+    /** Error monitoring (Sentry). Not a secret: it only lets the app send events. */
+    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.string().optional(),
   },
 
   /**
@@ -112,6 +115,8 @@ export const env = createEnv({
     NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN || undefined,
+    NEXT_PUBLIC_SENTRY_ENVIRONMENT: process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || undefined,
   },
 
   /** Lets `next build` and CI run without a full secret set. */

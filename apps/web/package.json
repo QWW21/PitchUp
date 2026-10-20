@@ -26,6 +26,7 @@
     "@pitchup/shared": "workspace:*",
     "@prisma/client": "^5.22.0",
     "@react-google-maps/api": "^2.20.8",
+    "@sentry/nextjs": "10.75.3",
     "@stripe/react-stripe-js": "3.11.0",
     "@stripe/stripe-js": "7.10.0",
     "@t3-oss/env-nextjs": "^0.13.11",

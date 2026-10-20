@@ -560,6 +560,31 @@ Native changes:
   libraries' documented setup; the first Android build after this change is
   the real check (see "React Native version constraints").
 
+## Error monitoring (Sentry)
+
+Added 2026-10-20. Errors only, no performance tracing, and no personal data
+(`sendDefaultPii: false`; the Sentry organisation should also have IP
+storage off and data scrubbing on).
+
+- **Web:** `@sentry/nextjs` 10.75.3.
+  - `src/instrumentation.ts` covers the server and edge, and reports errors
+    from rendering and routes (`onRequestError`).
+  - `src/instrumentation-client.ts` covers the browser.
+  - `app/global-error.tsx` catches a crash of the root layout.
+  - `withErrorHandling` reports the unhandled errors it turns into a 500,
+    which Next would otherwise never see.
+  - Switched on by `NEXT_PUBLIC_SENTRY_DSN`, and
+    `NEXT_PUBLIC_SENTRY_ENVIRONMENT` labels the environment. The tests
+    blank the DSN.
+- **Mobile:** `@sentry/react-native` 6.22.0, started in `index.js` before the
+  first render, with the root wrapped so render crashes are reported.
+  - Release builds only. Switched on by `SENTRY_DSN` in `src/config.ts`
+    (empty means off).
+  - It's a native module, so iOS needs `pod install`.
+- **Not done:** uploading source maps, which needs a Sentry auth token in CI.
+  Until then, browser and app stack traces show minified code; server
+  traces are readable.
+
 ## Text messages: phone codes only
 
 Decided 2026-10-20: **no text reminders or text notifications** for launch.

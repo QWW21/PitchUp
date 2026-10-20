@@ -87,6 +87,8 @@ export default defineConfig({
       GOOGLE_CLIENT_ID: 'e2e-web.apps.googleusercontent.com',
       GOOGLE_CLIENT_SECRET: 'e2e-not-a-secret',
       GOOGLE_IOS_CLIENT_ID: '',
+      // Test failures are not production errors.
+      NEXT_PUBLIC_SENTRY_DSN: '',
       // The nightly auto-complete job's token (E11-10), known to the tests.
       CRON_SECRET: E2E_CRON_SECRET,
     },
