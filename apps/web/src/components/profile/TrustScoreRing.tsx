@@ -1,5 +1,8 @@
+'use client'
+
 import type { CSSProperties } from 'react'
 import { TRUST_TIER_COLOURS, trustTier } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 /**
  * The score as a ring — E08-08. An SVG circle whose stroke is dashed to
@@ -7,6 +10,7 @@ import { TRUST_TIER_COLOURS, trustTier } from '@pitchup/shared'
  * (`.ring-fill` in globals.css), so no JavaScript runs for the animation.
  */
 export function TrustScoreRing({ score, size = 120 }: { score: number; size?: number }) {
+  const t = useT()
   const tier = trustTier(score)
   const colour = TRUST_TIER_COLOURS[tier.label]
   const stroke = size >= 100 ? 10 : 6
@@ -18,7 +22,7 @@ export function TrustScoreRing({ score, size = 120 }: { score: number; size?: nu
       className="relative inline-flex items-center justify-center"
       style={{ width: size, height: size }}
       role="img"
-      aria-label={`Trust score ${score} out of 100, ${tier.label}`}
+      aria-label={t('profile.trust.ring', { score, tier: t(`trust.tier.${tier.label}`) })}
     >
       <svg width={size} height={size} className="-rotate-90" aria-hidden="true">
         <circle

@@ -83,3 +83,7 @@ jest.mock('@sentry/react-native', () => ({
   wrap: App => App,
   captureException: jest.fn(),
 }))
+
+// The screens' tests were written against the English text; Romanian is
+// checked by the i18n tests, which set the language themselves.
+require('./src/stores/localeStore').useLocaleStore.setState({ locale: 'en' })

@@ -25,4 +25,5 @@ export const GOOGLE_IOS_CLIENT_ID =
  * Error monitoring: the pitchup-mobile project's DSN from Sentry. Public by
  * design (it only lets the app send events). Empty means monitoring is off.
  */
-export const SENTRY_DSN = ''
+export const SENTRY_DSN =
+  'https://8a2795e6e36eb4d99873642558f7e374@o4512287868649472.ingest.de.sentry.io/4512287884247120'

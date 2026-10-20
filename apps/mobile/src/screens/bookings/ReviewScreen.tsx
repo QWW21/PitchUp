@@ -29,25 +29,32 @@ import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
+import { currentT, useLocale, useT } from '../../i18n'
+import type { Locale } from '@pitchup/shared'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Review'>
 
 /** "5 November 2026 at 18:00", venue time, without Intl. */
-const closes = (iso: string) => {
+const closes = (iso: string, locale: Locale) => {
   const c = venueClock(new Date(iso))
-  return `${formatDateLong(c.date)} at ${fromMinutes(c.minutes)}`
+  return currentT()('bookings.detail.at', {
+    date: formatDateLong(c.date, locale),
+    time: fromMinutes(c.minutes),
+  })
 }
 
 const LABELS = [
   null,
-  { text: 'Very poor', color: colors.error[500] },
-  { text: 'Poor', color: colors.warning[500] },
-  { text: 'Average', color: colors.neutral[500] },
-  { text: 'Good', color: colors.primary[500] },
-  { text: 'Excellent!', color: colors.primary[600] },
-]
+  { n: 1, color: colors.error[500] },
+  { n: 2, color: colors.warning[500] },
+  { n: 3, color: colors.neutral[500] },
+  { n: 4, color: colors.primary[500] },
+  { n: 5, color: colors.primary[600] },
+] as const
 
 export function ReviewScreen({ navigation, route }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const id = route.params.bookingId
   const queryClient = useQueryClient()
@@ -76,7 +83,7 @@ export function ReviewScreen({ navigation, route }: Props) {
   const trimmed = text.trim()
   const textError =
     trimmed.length > 0 && trimmed.length < REVIEW.MIN_TEXT_LENGTH
-      ? `Review must be at least ${REVIEW.MIN_TEXT_LENGTH} characters`
+      ? t('bookings.write.tooShort', { n: REVIEW.MIN_TEXT_LENGTH })
       : null
 
   const submit = useMutation({
@@ -119,12 +126,12 @@ export function ReviewScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('bookings.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          {existing ? 'Edit your review' : 'Rate this pitch'}
+          {existing ? t('bookings.write.editTitle') : t('bookings.write.rateTitle')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
@@ -132,17 +139,19 @@ export function ReviewScreen({ navigation, route }: Props) {
           <View style={styles.pitch}>
             <Text style={styles.pitchName}>{b.pitch.name}</Text>
             <Text style={styles.muted}>{b.company.name}</Text>
-            <Text style={styles.muted}>Played {formatDateLong(b.date)}</Text>
+            <Text style={styles.muted}>Played {formatDateLong(b.date, locale)}</Text>
           </View>
         ) : null}
         {existing ? (
-          <Text style={styles.muted}>Edit window closes {closes(existing.editableUntil)}</Text>
+          <Text style={styles.muted}>
+            {t('bookings.write.closes', { when: closes(existing.editableUntil, locale) })}
+          </Text>
         ) : null}
 
         <Animated.View
           style={[styles.stars, { transform: [{ translateX: shake }] }]}
           accessibilityRole="adjustable"
-          accessibilityLabel="Rating"
+          accessibilityLabel={t('bookings.write.rating')}
           accessibilityValue={{ min: 0, max: 5, now: rating }}
         >
           {[1, 2, 3, 4, 5].map(n => (
@@ -150,7 +159,7 @@ export function ReviewScreen({ navigation, route }: Props) {
               key={n}
               onPress={() => setRating(n)}
               accessibilityRole="button"
-              accessibilityLabel={`${n} star${n === 1 ? '' : 's'}`}
+              accessibilityLabel={t('bookings.write.star', { count: n })}
             >
               <Icon
                 name={n <= rating ? 'star' : 'star-outline'}
@@ -161,18 +170,18 @@ export function ReviewScreen({ navigation, route }: Props) {
           ))}
         </Animated.View>
         <Animated.Text style={[styles.label, { opacity: labelOpacity, color: label?.color }]}>
-          {label?.text ?? ' '}
+          {label ? t(`bookings.write.labels.${label.n}`) : ' '}
         </Animated.Text>
 
         <View>
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Share your experience (optional)..."
+            placeholder={t('bookings.write.placeholder')}
             multiline
             maxLength={REVIEW.MAX_TEXT_LENGTH}
             style={styles.input}
-            accessibilityLabel="Your review"
+            accessibilityLabel={t('bookings.write.yours')}
           />
           <View style={styles.inputFoot}>
             <Text style={styles.error}>{textError}</Text>
@@ -184,28 +193,26 @@ export function ReviewScreen({ navigation, route }: Props) {
 
         <View style={styles.anonRow}>
           <View style={styles.flex}>
-            <Text style={styles.anonTitle}>Post anonymously</Text>
-            <Text style={styles.muted}>Your name won&apos;t be shown</Text>
+            <Text style={styles.anonTitle}>{t('bookings.write.anonymous')}</Text>
+            <Text style={styles.muted}>{t('bookings.write.hidden')}</Text>
           </View>
           <Switch
             value={anonymous}
             onValueChange={setAnonymous}
-            accessibilityLabel="Post anonymously"
+            accessibilityLabel={t('bookings.write.anonymous')}
             trackColor={{ true: colors.primary[600], false: colors.neutral[300] }}
           />
         </View>
 
         {submit.isError ? (
           <Text style={styles.error}>
-            {submit.error instanceof ApiError
-              ? submit.error.message
-              : 'Could not submit. Try again.'}
+            {submit.error instanceof ApiError ? submit.error.message : t('bookings.write.failed')}
           </Text>
         ) : null}
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <Button
-          label={existing ? 'Save changes' : 'Submit review'}
+          label={existing ? t('bookings.write.save') : t('bookings.write.submit')}
           onPress={press}
           loading={submit.isPending}
           disabled={!!textError}

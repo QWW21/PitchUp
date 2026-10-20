@@ -4,12 +4,14 @@ import { useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { TextField } from '@/components/ui/TextField'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 /**
  * What deleting does, the password, an optional reason, and a final "are you
  * sure". Afterwards the player is signed out and lands on Discover.
  */
 export function DeleteAccountForm({ signOutAction }: { signOutAction: () => Promise<void> }) {
+  const t = useT()
   const [password, setPassword] = useState('')
   const [reason, setReason] = useState('')
   const [fieldError, setFieldError] = useState<string | undefined>()
@@ -20,11 +22,11 @@ export function DeleteAccountForm({ signOutAction }: { signOutAction: () => Prom
     e.preventDefault()
     setError(null)
     if (!password) {
-      setFieldError('Enter your password')
+      setFieldError(t('profile.delete.enterPassword'))
       return
     }
     setFieldError(undefined)
-    if (!window.confirm('Are you absolutely sure? Your account cannot be recovered.')) return
+    if (!window.confirm(t('profile.delete.sure'))) return
     setBusy(true)
     try {
       await send('/api/v1/profile', 'DELETE', { password, reason })
@@ -44,18 +46,17 @@ export function DeleteAccountForm({ signOutAction }: { signOutAction: () => Prom
         className="rounded-r-md border-l-[3px] border-error-500 bg-error-50 p-4"
       >
         <h2 id="delete-warning" className="font-semibold text-neutral-900">
-          This is permanent and cannot be undone
+          {t('profile.delete.warning')}
         </h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-900">
-          <li>Your name, email, phone and photo are deleted.</li>
-          <li>Upcoming bookings are cancelled, and paid ones refunded in full.</li>
-          <li>Your reviews stay up, shown as &ldquo;Former player&rdquo;.</li>
-          <li>You can&rsquo;t sign in again or recover the account.</li>
+          {([0, 1, 2, 3] as const).map(i => (
+            <li key={i}>{t(`profile.delete.points.${i}`)}</li>
+          ))}
         </ul>
       </section>
       <div className="space-y-5 rounded-xl bg-white p-4 shadow-sm">
         <TextField
-          label="Password"
+          label={t('profile.delete.password')}
           revealable
           value={password}
           onChange={e => setPassword(e.target.value)}
@@ -64,7 +65,7 @@ export function DeleteAccountForm({ signOutAction }: { signOutAction: () => Prom
         />
         <div>
           <label htmlFor="reason" className="mb-1.5 block text-sm font-medium text-neutral-900">
-            Why are you leaving? (optional)
+            {t('profile.delete.reason')}
           </label>
           <textarea
             id="reason"
@@ -81,7 +82,7 @@ export function DeleteAccountForm({ signOutAction }: { signOutAction: () => Prom
           disabled={busy}
           className="h-12 w-full rounded-md bg-error-600 font-semibold text-white hover:opacity-90 disabled:opacity-60"
         >
-          {busy ? 'Deleting…' : 'Permanently delete my account'}
+          {busy ? t('profile.delete.deleting') : t('profile.delete.submit')}
         </button>
       </div>
     </form>

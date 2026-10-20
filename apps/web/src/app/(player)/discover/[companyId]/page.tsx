@@ -8,6 +8,7 @@ import { getCompanyDetail } from '@/lib/venues/company'
 import { RatingLine } from '@/components/venue/bits'
 import { WorkingHours } from '@/components/venue/WorkingHours'
 import { CompanyTabs } from './CompanyTabs'
+import { getT } from '@/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,10 +19,15 @@ const loadCompany = cache((id: string) => getCompanyDetail(id))
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const company = await loadCompany((await params).companyId)
-  if (!company) return { title: 'Company not found · PitchUp' }
+  const t = await getT()
+  if (!company) return { title: t('venue.company.notFoundTitle') }
   const description =
     company.description?.slice(0, 155) ??
-    `${company.pitches.length} football pitches at ${company.name}, ${company.city}. Book online with PitchUp.`
+    t('venue.company.metaDescription', {
+      count: company.pitches.length,
+      company: company.name,
+      city: company.city,
+    })
   return {
     title: `${company.name} — ${company.city} | PitchUp`,
     description,
@@ -38,6 +44,7 @@ export default async function CompanyPage({ params }: Props) {
   const company = await loadCompany((await params).companyId)
   if (!company) notFound()
   const session = await auth()
+  const t = await getT()
 
   const address = [company.addressLine1, company.addressLine2, company.city]
     .filter(Boolean)
@@ -54,14 +61,14 @@ export default async function CompanyPage({ params }: Props) {
         className="inline-flex items-center gap-1 text-sm font-medium text-neutral-500 hover:text-neutral-900"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        Pitches in {company.city}
+        {t('venue.company.back', { city: company.city })}
       </Link>
 
       <header className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start">
         {company.logoUrl ? (
           <img
             src={company.logoUrl}
-            alt={`${company.name} logo`}
+            alt={t('venue.company.logoAlt', { company: company.name })}
             className="h-20 w-20 shrink-0 rounded-xl bg-white object-cover shadow-sm"
           />
         ) : (
@@ -75,7 +82,7 @@ export default async function CompanyPage({ params }: Props) {
             {company.isVerified && (
               <span className="inline-flex items-center gap-1 text-xs font-medium text-primary-600">
                 <BadgeCheck className="h-5 w-5" aria-hidden="true" />
-                Verified
+                {t('venue.company.verified')}
               </span>
             )}
           </h1>

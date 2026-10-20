@@ -5,9 +5,11 @@ import type { CompanyDetail } from '@pitchup/shared'
 import { RatingLine } from '../common/Stars'
 import { WorkingHoursAccordion } from './WorkingHoursAccordion'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 /** Logo, name, contact and hours. UIUX_SPEC §6.1, E04-04. */
 export function CompanyHero({ company }: { company: CompanyDetail }) {
+  const t = useT()
   const address = [company.addressLine1, company.addressLine2, company.city]
     .filter(Boolean)
     .join(', ')
@@ -30,7 +32,7 @@ export function CompanyHero({ company }: { company: CompanyDetail }) {
         {company.isVerified ? (
           <View style={styles.verified}>
             <Icon name="check-decagram" size={18} color={colors.primary[600]} />
-            <Text style={styles.verifiedText}>Verified</Text>
+            <Text style={styles.verifiedText}>{t('discover.company.verified')}</Text>
           </View>
         ) : null}
       </View>
@@ -39,7 +41,7 @@ export function CompanyHero({ company }: { company: CompanyDetail }) {
         onPress={() => void Linking.openURL(mapsUrl)}
         style={styles.line}
         accessibilityRole="link"
-        accessibilityLabel={`Address: ${address}. Open in maps`}
+        accessibilityLabel={t('discover.company.address', { address })}
       >
         <Icon name="map-marker" size={16} color={colors.neutral[400]} />
         <Text style={styles.address}>{address}</Text>

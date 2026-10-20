@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * Amenities and pricing for the pitch page — E04-08, UIUX_SPEC §6.2.
  */
@@ -17,12 +19,12 @@ import {
 } from 'lucide-react'
 import {
   ALL_AMENITIES,
-  AMENITY_LABELS,
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
   formatShortDuration,
 } from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
 const AMENITY_ICONS: Record<AmenityType, LucideIcon> = {
   SHOWERS_FREE: ShowerHead,
@@ -43,6 +45,7 @@ const AMENITY_ICONS: Record<AmenityType, LucideIcon> = {
 
 /** All fourteen, available ones highlighted, the rest struck through. */
 export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities'] }) {
+  const t = useT()
   const have = new Map(amenities.map(a => [a.amenityType, a]))
   return (
     <ul className="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
@@ -56,12 +59,14 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
               aria-hidden="true"
             />
             <span className={a ? 'text-neutral-900' : 'text-neutral-500 line-through'}>
-              {AMENITY_LABELS[type]}
+              {t(`amenity.${type}`)}
               {a?.isPaid && a.price !== null && (
                 <span className="text-neutral-500"> · {a.price} RON</span>
               )}
             </span>
-            <span className="sr-only">{a ? 'available' : 'not available'}</span>
+            <span className="sr-only">
+              {a ? t('venue.amenity.available') : t('venue.amenity.unavailable')}
+            </span>
           </li>
         )
       })}
@@ -71,29 +76,35 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
 
 /** One hourly rate at any time of day; shirts are free. */
 export function PricingCard({ pitch }: { pitch: PitchDetail }) {
-  const colours = formatShirtColours(pitch.shirtInventory)
+  const t = useT()
+  const locale = useLocale()
+  const colours = formatShirtColours(pitch.shirtInventory, locale)
   return (
     <div className="rounded-lg bg-neutral-50 p-3">
       <dl>
         <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-xs text-neutral-500">Any time</dt>
+          <dt className="text-xs text-neutral-500">{t('venue.pricing.anyTime')}</dt>
           <dd className="font-mono text-xl font-bold text-neutral-900">
             {pitch.hourlyRate} RON
-            <span className="font-sans text-sm font-normal text-neutral-500">/h</span>
+            <span className="font-sans text-sm font-normal text-neutral-500">
+              {t('venue.pricing.perHour')}
+            </span>
           </dd>
         </div>
       </dl>
       <p className="mt-2 text-xs text-neutral-500">
-        Min. {formatShortDuration(pitch.minBookingHours * 60)} · Max.{' '}
-        {formatShortDuration(pitch.maxBookingHours * 60)} · Billed per 30 min
+        {t('venue.pricing.limits', {
+          min: formatShortDuration(pitch.minBookingHours * 60),
+          max: formatShortDuration(pitch.maxBookingHours * 60),
+        })}
       </p>
       {pitch.hasShirts && (
         <p className="mt-2 flex items-start gap-2 border-t border-neutral-200 pt-2 text-xs text-neutral-700">
           <Shirt className="mt-0.5 h-4 w-4 shrink-0 text-neutral-500" aria-hidden="true" />
           <span>
-            <strong>Free shirts</strong>
-            {colours && <> in {colours}</>}. Ask for them when you book: one set for every team but
-            one.
+            <strong>{t('venue.pricing.freeShirts')}</strong>
+            {colours && t('venue.pricing.shirtColours', { colours })}
+            {t('venue.pricing.shirtsAsk')}
           </span>
         </p>
       )}

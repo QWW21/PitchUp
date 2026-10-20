@@ -102,7 +102,9 @@ test('verifying the phone: a code on request, typed in here (#163)', async ({ pa
   // Enter verifies; it must not submit the settings form around it.
   await page.getByLabel('Code').press('Enter')
   await expect(page.getByText('Not verified yet.')).toBeHidden()
-  expect((await db.user.findUniqueOrThrow({ where: { id: me.id } })).phoneVerified).toBe(true)
+  await expect
+    .poll(async () => (await db.user.findUniqueOrThrow({ where: { id: me.id } })).phoneVerified)
+    .toBe(true)
 })
 
 test('trust score: the ring, the tiers, and the history in pages', async ({ page }, info) => {

@@ -1,11 +1,11 @@
-/** Right-hand panel on auth pages. UIUX_SPEC §12.1. */
-const FEATURES = [
-  'Real-time booking management',
-  'Automated payments and payouts',
-  'Analytics to grow your business',
-]
+'use client'
 
+import { useT } from '@/i18n/client'
+
+/** Right-hand panel on auth pages. UIUX_SPEC §12.1. */
 export function BrandPanel() {
+  const t = useT()
+  const features = ([0, 1, 2] as const).map(i => t(`auth.brand.features.${i}`))
   return (
     // Hidden below lg: the form is what matters on a phone.
     <div className="hidden bg-primary-600 p-12 lg:flex lg:flex-col lg:items-center lg:justify-center">
@@ -24,11 +24,11 @@ export function BrandPanel() {
         </svg>
 
         <h2 className="mt-8 text-center text-4xl font-bold leading-tight text-white">
-          Everything you need to manage your pitches.
+          {t('auth.brand.heading')}
         </h2>
 
         <ul className="mt-8 space-y-4">
-          {FEATURES.map(feature => (
+          {features.map(feature => (
             <li key={feature} className="flex items-center gap-4 text-lg text-white">
               <svg
                 className="h-5 w-5 shrink-0"

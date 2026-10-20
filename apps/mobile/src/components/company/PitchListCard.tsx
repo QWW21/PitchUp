@@ -1,20 +1,25 @@
 import React from 'react'
 import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { SIZE_LABELS, type PitchSummary } from '@pitchup/shared'
+import type { PitchSummary } from '@pitchup/shared'
 import { RatingLine } from '../common/Stars'
 import { SurfaceChip } from '../common/SurfaceChip'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 /** A pitch on its company's page. UIUX_SPEC §6.1, E04-04. */
 export function PitchListCard({ pitch, onPress }: { pitch: PitchSummary; onPress: () => void }) {
+  const t = useT()
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
       style={styles.card}
       accessibilityRole="button"
-      accessibilityLabel={`${pitch.name}, ${pitch.hourlyRate} RON per hour`}
+      accessibilityLabel={t('discover.card.pitchLabel', {
+        name: pitch.name,
+        price: pitch.hourlyRate,
+      })}
     >
       {pitch.coverPhotoUrl ? (
         <Image source={{ uri: pitch.coverPhotoUrl }} style={styles.thumb} resizeMode="cover" />
@@ -29,7 +34,7 @@ export function PitchListCard({ pitch, onPress }: { pitch: PitchSummary; onPress
         </Text>
         <View style={styles.row}>
           <SurfaceChip surface={pitch.surfaceType} />
-          <Text style={styles.size}>{SIZE_LABELS[pitch.size]}</Text>
+          <Text style={styles.size}>{t(`size.${pitch.size}`)}</Text>
         </View>
         <Text style={styles.price}>
           <Text style={styles.priceBold}>{pitch.hourlyRate} RON</Text>/h

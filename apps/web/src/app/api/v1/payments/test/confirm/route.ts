@@ -32,7 +32,7 @@ export const POST = withErrorHandling(
       booking.paymentProvider !== 'test' ||
       !booking.stripePaymentIntentId
     ) {
-      throw notFound('Booking not found')
+      throw notFound('api.bookingNotFound')
     }
 
     if (parsed.data.outcome === 'succeed') {

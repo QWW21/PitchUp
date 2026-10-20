@@ -2,8 +2,11 @@ import type { Metadata } from 'next'
 import { Suspense } from 'react'
 import { DiscoverClient } from './DiscoverClient'
 import { AccountDeletedNotice } from './AccountDeletedNotice'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Discover pitches · PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('discover.title') }
+}
 
 /**
  * Player Discover — E03-08. Public: browsing needs no account. The page is a

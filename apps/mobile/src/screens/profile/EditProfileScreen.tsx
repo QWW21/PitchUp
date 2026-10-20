@@ -24,6 +24,7 @@ import { Input } from '../../components/ui/Input'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
 import { PROFILE_KEY, ProfileAvatar, useProfile } from './ProfileScreen'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'EditProfile'>
 type Field = 'name' | 'phone' | 'city'
@@ -50,6 +51,7 @@ function Form({
   onDone: () => void
   onBack: () => void
 }) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const [name, setName] = useState(profile.name)
@@ -78,7 +80,7 @@ function Form({
       const next: Partial<Record<Field, string>> = {}
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as Field | undefined
-        if (key && !next[key]) next[key] = issue.message
+        if (key && !next[key]) next[key] = t.text(issue.message)
       }
       setErrors(next)
       return
@@ -94,21 +96,21 @@ function Form({
           onPress={onBack}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Edit profile
+          {t('profile.edit.title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.center}>
           <ProfileAvatar profile={profile} />
-          <Text style={styles.muted}>Change your photo on the PitchUp website.</Text>
+          <Text style={styles.muted}>{t('profile.edit.photoOnWeb')}</Text>
         </View>
         <Input
-          label="Full name"
+          label={t('profile.edit.fullName')}
           value={name}
           onChangeText={setName}
           autoComplete="name"
@@ -116,25 +118,27 @@ function Form({
         />
         <View style={styles.gap}>
           <Input
-            label="Phone"
+            label={t('profile.edit.phone')}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
             autoComplete="tel"
             {...(errors.phone ? { error: errors.phone } : {})}
           />
-          {changes.phone ? (
-            <Text style={styles.muted}>A new number has to be verified again.</Text>
-          ) : null}
+          {changes.phone ? <Text style={styles.muted}>{t('profile.edit.reverify')}</Text> : null}
         </View>
         <View style={styles.gap}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('profile.edit.email')}</Text>
           <Text style={styles.value}>{profile.email}</Text>
-          <Text style={styles.muted}>Email cannot be changed.</Text>
+          <Text style={styles.muted}>{t('profile.edit.emailFixed')}</Text>
         </View>
         <View style={styles.gap}>
-          <Text style={styles.label}>City</Text>
-          <View style={styles.cities} accessibilityRole="radiogroup" accessibilityLabel="City">
+          <Text style={styles.label}>{t('profile.edit.city')}</Text>
+          <View
+            style={styles.cities}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t('profile.edit.city')}
+          >
             {CITY_NAMES.map(c => (
               <Pressable
                 key={c}
@@ -151,13 +155,13 @@ function Form({
         </View>
         {save.isError ? (
           <Text style={styles.error}>
-            {save.error instanceof ApiError ? save.error.message : 'Could not save. Try again.'}
+            {save.error instanceof ApiError ? save.error.message : t('profile.edit.failed')}
           </Text>
         ) : null}
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <Button
-          label="Save changes"
+          label={t('profile.edit.save')}
           onPress={submit}
           disabled={!changed}
           loading={save.isPending}

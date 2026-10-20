@@ -89,6 +89,9 @@ export default defineConfig({
       GOOGLE_IOS_CLIENT_ID: '',
       // Test failures are not production errors.
       NEXT_PUBLIC_SENTRY_DSN: '',
+      // The suites were written against the English text; a Romanian check
+      // sets the language cookie itself.
+      DEFAULT_LOCALE: 'en',
       // The nightly auto-complete job's token (E11-10), known to the tests.
       CRON_SECRET: E2E_CRON_SECRET,
     },

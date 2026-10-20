@@ -15,7 +15,7 @@ export async function getPreferences(userId: string): Promise<NotificationPrefer
     prisma.user.findUnique({ where: { id: userId }, select: { deletedAt: true } }),
     prisma.notificationPreference.findUnique({ where: { userId } }),
   ])
-  if (!user || user.deletedAt) throw notFound('Account not found')
+  if (!user || user.deletedAt) throw notFound('api.accountNotFound')
   const p = prefs ?? DEFAULTS
   return {
     pushEnabled: p.pushEnabled,

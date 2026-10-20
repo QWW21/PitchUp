@@ -63,6 +63,8 @@ export const env = createEnv({
     GOOGLE_IOS_CLIENT_ID: z.string().endsWith('.apps.googleusercontent.com').optional(),
 
     ADMIN_PASSWORD: z.string().optional(),
+    /** The language when nobody has chosen one. Romanian; the tests run in English. */
+    DEFAULT_LOCALE: z.enum(['ro', 'en']).optional(),
 
     /** E2E only: enables /api/v1/dev/* on a production build. Never set in a real deployment. */
     ALLOW_TEST_HOOKS: z.enum(['1']).optional(),
@@ -109,6 +111,7 @@ export const env = createEnv({
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || undefined,
     GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID || undefined,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+    DEFAULT_LOCALE: process.env.DEFAULT_LOCALE || undefined,
     ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
     CRON_SECRET: process.env.CRON_SECRET || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

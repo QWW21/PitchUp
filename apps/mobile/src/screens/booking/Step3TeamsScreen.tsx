@@ -30,11 +30,12 @@ import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
-
-const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
+import { useT } from '../../i18n'
 
 export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeams'>) {
+  const t = useT()
   const insets = useSafeAreaInsets()
+  const TEAM_NAMES = ([0, 1, 2] as const).map(i => t(`booking.teams.names.${i}`))
   const s = useBookingStore()
   const pitch = s.pitch!
   const sets = shirtSetsFor(s.teamCount, true)
@@ -50,7 +51,9 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
         onClose={() => navigation.getParent()?.goBack()}
       />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>{pitch.hasShirts ? 'Teams and shirts' : 'Teams'}</Text>
+        <Text style={styles.heading}>
+          {pitch.hasShirts ? t('booking.teams.headingShirts') : t('booking.teams.heading')}
+        </Text>
 
         <View style={styles.segment} accessibilityRole="radiogroup">
           {([2, 3] as const).map(n => (
@@ -62,25 +65,25 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
               accessibilityState={{ checked: s.teamCount === n }}
             >
               <Text style={[styles.segmentText, s.teamCount === n && styles.segmentTextOn]}>
-                {n} Teams
+                {t('booking.teams.count', { n })}
               </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text style={styles.label}>Players per team (optional)</Text>
+        <Text style={styles.label}>{t('booking.teams.players')}</Text>
         <View style={styles.card}>
-          {TEAM_NAMES.slice(0, s.teamCount).map((name, t) => {
-            const count = s.players[t]!
+          {TEAM_NAMES.slice(0, s.teamCount).map((name, ti) => {
+            const count = s.players[ti]!
             return (
               <View key={name} style={styles.stepRow}>
                 <Text style={styles.teamName}>{name}</Text>
                 <Pressable
-                  onPress={() => s.setPlayers(t, count - 1)}
+                  onPress={() => s.setPlayers(ti, count - 1)}
                   disabled={count <= 1}
                   style={styles.stepButton}
                   accessibilityRole="button"
-                  accessibilityLabel={`Fewer players in ${name}`}
+                  accessibilityLabel={t('booking.teams.fewer', { team: name })}
                 >
                   <Icon
                     name="minus"
@@ -88,15 +91,18 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
                     color={count <= 1 ? colors.neutral[300] : colors.neutral[700]}
                   />
                 </Pressable>
-                <Text style={styles.count} accessibilityLabel={`${count} players`}>
+                <Text
+                  style={styles.count}
+                  accessibilityLabel={t('booking.teams.playersCount', { n: count })}
+                >
                   {count}
                 </Text>
                 <Pressable
-                  onPress={() => s.setPlayers(t, count + 1)}
+                  onPress={() => s.setPlayers(ti, count + 1)}
                   disabled={count >= BOOKING.MAX_PLAYERS_PER_TEAM}
                   style={styles.stepButton}
                   accessibilityRole="button"
-                  accessibilityLabel={`More players in ${name}`}
+                  accessibilityLabel={t('booking.teams.more', { team: name })}
                 >
                   <Icon
                     name="plus"
@@ -117,10 +123,8 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
           <View style={styles.card}>
             <View style={styles.shirtsRow}>
               <View style={styles.flex}>
-                <Text style={styles.teamName}>Free shirts</Text>
-                <Text style={styles.muted}>
-                  One set for every team but one: {sets} {sets === 1 ? 'set' : 'sets'}.
-                </Text>
+                <Text style={styles.teamName}>{t('booking.teams.freeShirts')}</Text>
+                <Text style={styles.muted}>{t('booking.teams.oneSetEach', { count: sets })}</Text>
               </View>
               <Switch
                 value={s.wantsShirts}
@@ -129,31 +133,35 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
                   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
                   s.setWantsShirts(v)
                 }}
-                accessibilityLabel="Free shirts"
+                accessibilityLabel={t('booking.teams.freeShirts')}
                 trackColor={{ true: colors.primary[600], false: colors.neutral[300] }}
               />
             </View>
             {totalSets < sets ? (
               <Text style={styles.muted}>
-                This pitch has {totalSets} {totalSets === 1 ? 'set' : 'sets'}, not enough for{' '}
-                {s.teamCount} teams.
+                {t('booking.teams.notEnough', { count: totalSets, teams: s.teamCount })}
               </Text>
             ) : null}
             {s.wantsShirts
-              ? TEAM_NAMES.slice(0, sets).map((name, t) => (
+              ? TEAM_NAMES.slice(0, sets).map((name, ti) => (
                   <View key={name} style={styles.colourRow}>
-                    <Text style={styles.colourLabel}>{name} colour (optional)</Text>
+                    <Text style={styles.colourLabel}>
+                      {t('booking.teams.colourOf', { team: name })}
+                    </Text>
                     <View style={styles.swatches}>
                       {stock.map(({ colour }) => {
-                        const on = s.colours[t] === colour
+                        const on = s.colours[ti] === colour
                         return (
                           <Pressable
                             key={colour}
-                            onPress={() => s.setColour(t, on ? null : colour)}
+                            onPress={() => s.setColour(ti, on ? null : colour)}
                             style={[styles.ring, on && styles.ringOn]}
                             accessibilityRole="radio"
                             accessibilityState={{ checked: on }}
-                            accessibilityLabel={`${name}: ${colour.toLowerCase()}`}
+                            accessibilityLabel={t('booking.teams.colourLabel', {
+                              team: name,
+                              colour: t(`shirt.${colour}`),
+                            })}
                           >
                             <View
                               style={[
@@ -171,26 +179,26 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
                 ))
               : null}
             {s.wantsShirts ? (
-              <Text style={styles.muted}>{TEAM_NAMES[s.teamCount - 1]} plays in its own kit.</Text>
+              <Text style={styles.muted}>
+                {t('booking.teams.ownKit', { team: TEAM_NAMES[s.teamCount - 1]! })}
+              </Text>
             ) : null}
           </View>
         ) : (
           // C-7: say so, rather than leave a gap that looks like a bug.
           <View style={styles.card}>
-            <Text style={styles.muted}>
-              This pitch doesn&apos;t lend shirts. Bring your own bibs or colours.
-            </Text>
+            <Text style={styles.muted}>{t('booking.teams.noShirts')}</Text>
           </View>
         )}
 
-        <Text style={styles.label}>Note to the venue (optional)</Text>
+        <Text style={styles.label}>{t('booking.teams.note')}</Text>
         <TextInput
           value={s.note}
           onChangeText={s.setNote}
           maxLength={BOOKING.MAX_NOTE_LENGTH}
           multiline
           style={styles.note}
-          accessibilityLabel="Note to the venue"
+          accessibilityLabel={t('booking.teams.noteLabel')}
         />
         <Text style={styles.counter}>
           {s.note.length} / {BOOKING.MAX_NOTE_LENGTH}
@@ -199,24 +207,27 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
         <View style={styles.card}>
           <View style={styles.priceRow}>
             <Text style={styles.muted}>
-              Pitch ({formatDuration(s.minutes)} × {pitch.hourlyRate} RON/h)
+              {t('booking.teams.pitchLine', {
+                duration: formatDuration(s.minutes),
+                rate: pitch.hourlyRate,
+              })}
             </Text>
             <Text style={styles.muted}>{price.total} RON</Text>
           </View>
           {s.wantsShirts ? (
             <View style={styles.priceRow}>
-              <Text style={styles.muted}>Shirts</Text>
-              <Text style={styles.muted}>Free</Text>
+              <Text style={styles.muted}>{t('booking.teams.shirts')}</Text>
+              <Text style={styles.muted}>{t('booking.teams.free')}</Text>
             </View>
           ) : null}
           <View style={[styles.priceRow, styles.total]}>
-            <Text style={styles.bold}>Total</Text>
+            <Text style={styles.bold}>{t('booking.teams.total')}</Text>
             <Text style={styles.bold}>{price.total} RON</Text>
           </View>
         </View>
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <Button label="Next" onPress={() => navigation.navigate('BookingSummary')} />
+        <Button label={t('booking.next')} onPress={() => navigation.navigate('BookingSummary')} />
       </View>
     </View>
   )

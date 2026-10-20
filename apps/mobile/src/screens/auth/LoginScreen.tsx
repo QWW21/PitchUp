@@ -20,10 +20,13 @@ import { ApiError } from '../../lib/apiClient'
 import { googleIdToken } from '../../lib/google'
 import { useAuthStore } from '../../stores/authStore'
 import { colors, spacing } from '../../theme/tokens'
+import { LanguageToggle } from '../../components/common/LanguageToggle'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>
 
 export function LoginScreen({ navigation }: Props) {
+  const t = useT()
   const setUser = useAuthStore(s => s.setUser)
 
   const [email, setEmail] = useState('')
@@ -37,7 +40,7 @@ export function LoginScreen({ navigation }: Props) {
     setError('')
     const trimmedEmail = email.trim().toLowerCase()
     if (!trimmedEmail || !password) {
-      setError('Email and password are required.')
+      setError(t('auth.login.required'))
       return
     }
     setLoading(true)
@@ -47,13 +50,9 @@ export function LoginScreen({ navigation }: Props) {
       // Navigation happens automatically: App.tsx watches status and swaps to AppNavigator.
     } catch (e) {
       if (e instanceof ApiError) {
-        setError(
-          e.code === 'RATE_LIMITED'
-            ? 'Too many attempts. Try again in a few minutes.'
-            : 'Incorrect email or password.'
-        )
+        setError(e.code === 'RATE_LIMITED' ? t('auth.tooMany') : t('auth.login.wrong'))
       } else {
-        setError('Could not connect. Check your internet and try again.')
+        setError(t('auth.connection'))
       }
     } finally {
       setLoading(false)
@@ -74,11 +73,11 @@ export function LoginScreen({ navigation }: Props) {
       setError(
         e instanceof ApiError
           ? e.code === 'FORBIDDEN'
-            ? 'This account is not available.'
+            ? t('auth.login.unavailable')
             : e.code === 'RATE_LIMITED'
-              ? 'Too many attempts. Try again in a few minutes.'
-              : 'Google sign-in did not work. Try again, or use your email.'
-          : 'Could not reach Google. Check your internet and try again.'
+              ? t('auth.tooMany')
+              : t('auth.login.googleFailed')
+          : t('auth.login.googleUnreachable')
       )
     } finally {
       setGoogleLoading(false)
@@ -91,13 +90,14 @@ export function LoginScreen({ navigation }: Props) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <LanguageToggle />
         <Text style={styles.wordmark}>PitchUp</Text>
-        <Text style={styles.heading}>Welcome back</Text>
-        <Text style={styles.sub}>Sign in to your account</Text>
+        <Text style={styles.heading}>{t('auth.login.welcome')}</Text>
+        <Text style={styles.sub}>{t('auth.login.sub')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
@@ -108,7 +108,7 @@ export function LoginScreen({ navigation }: Props) {
             textContentType="emailAddress"
           />
           <Input
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
@@ -118,7 +118,7 @@ export function LoginScreen({ navigation }: Props) {
             textContentType="password"
             rightElement={
               <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={8}>
-                <Text style={styles.toggle}>{showPassword ? 'Hide' : 'Show'}</Text>
+                <Text style={styles.toggle}>{showPassword ? t('auth.hide') : t('auth.show')}</Text>
               </Pressable>
             }
           />
@@ -126,20 +126,20 @@ export function LoginScreen({ navigation }: Props) {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Pressable onPress={() => navigation.push('ForgotPassword')}>
-            <Text style={styles.forgot}>Forgot password?</Text>
+            <Text style={styles.forgot}>{t('auth.login.forgot')}</Text>
           </Pressable>
         </View>
 
-        <Button label="Sign in" onPress={handleLogin} loading={loading} />
+        <Button label={t('auth.login.signIn')} onPress={handleLogin} loading={loading} />
 
         <View style={styles.dividerRow}>
           <View style={styles.line} />
-          <Text style={styles.or}>or</Text>
+          <Text style={styles.or}>{t('auth.login.or')}</Text>
           <View style={styles.line} />
         </View>
 
         <Button
-          label="Continue with Google"
+          label={t('auth.login.google')}
           variant="secondary"
           onPress={handleGoogle}
           loading={googleLoading}
@@ -147,7 +147,8 @@ export function LoginScreen({ navigation }: Props) {
 
         <Pressable onPress={() => navigation.push('Register1')} style={styles.registerRow}>
           <Text style={styles.registerText}>
-            Don't have an account? <Text style={styles.registerLink}>Sign up</Text>
+            {t('auth.login.noAccount', { link: '\u0000' }).split('\u0000')[0]}
+            <Text style={styles.registerLink}>{t('auth.login.signUp')}</Text>
           </Text>
         </Pressable>
       </ScrollView>

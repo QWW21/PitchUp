@@ -16,10 +16,12 @@ import { ApiError } from '../../lib/apiClient'
 import { profileApi } from '../../lib/profileApi'
 import { colors, spacing } from '../../theme/tokens'
 import { PROFILE_KEY } from './ProfileScreen'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'VerifyPhone'>
 
 export function VerifyPhoneScreen({ navigation, route }: Props) {
+  const t = useT()
   const { phone } = route.params
   const queryClient = useQueryClient()
   const [sent, setSent] = useState(false)
@@ -28,7 +30,7 @@ export function VerifyPhoneScreen({ navigation, route }: Props) {
   const [busy, setBusy] = useState(false)
 
   const message = (e: unknown) =>
-    e instanceof ApiError ? e.message : 'Could not connect. Check your internet and try again.'
+    e instanceof ApiError ? e.message : t('profile.phone.connection')
 
   async function sendCode() {
     setError('')
@@ -51,7 +53,7 @@ export function VerifyPhoneScreen({ navigation, route }: Props) {
 
   async function verify() {
     if (code.length !== 6) {
-      setError('Enter the 6-digit code from the text.')
+      setError(t('profile.phone.enterCode'))
       return
     }
     setError('')
@@ -73,37 +75,40 @@ export function VerifyPhoneScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Verify phone number
+          {t('profile.phone.title')}
         </Text>
       </View>
       <View style={styles.body}>
         {!sent ? (
           <>
-            <Text style={styles.text}>
-              We&apos;ll text a 6-digit code to {phone}. Standard text rates may apply.
-            </Text>
-            <Button label="Text me a code" onPress={sendCode} loading={busy} />
+            <Text style={styles.text}>{t('profile.phone.willText', { phone })}</Text>
+            <Button label={t('profile.phone.textMe')} onPress={sendCode} loading={busy} />
           </>
         ) : (
           <>
             <Text style={styles.text}>We texted a code to {phone}.</Text>
             <Input
-              label="Code"
+              label={t('profile.phone.code')}
               value={code}
-              onChangeText={t => setCode(t.replace(/\D/g, '').slice(0, 6))}
+              onChangeText={text => setCode(text.replace(/\D/g, '').slice(0, 6))}
               keyboardType="number-pad"
               textContentType="oneTimeCode"
               autoComplete="sms-otp"
               returnKeyType="done"
               onSubmitEditing={verify}
             />
-            <Button label="Verify" onPress={verify} loading={busy} />
-            <Button label="Send a new code" variant="ghost" onPress={sendCode} disabled={busy} />
+            <Button label={t('profile.phone.verify')} onPress={verify} loading={busy} />
+            <Button
+              label={t('profile.phone.sendNew')}
+              variant="ghost"
+              onPress={sendCode}
+              disabled={busy}
+            />
           </>
         )}
         {error ? <Text style={styles.error}>{error}</Text> : null}

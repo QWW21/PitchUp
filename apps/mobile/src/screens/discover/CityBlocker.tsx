@@ -8,6 +8,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { Button } from '../../components/ui/Button'
 import { useLocation } from '../../hooks/useLocation'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface CityBlockerProps {
   onSelectManually: () => void
@@ -21,6 +22,7 @@ export function CityBlocker({
   permissionBlocked,
   onPermissionBlocked,
 }: CityBlockerProps) {
+  const t = useT()
   const { requestAndDetect } = useLocation()
   const [detecting, setDetecting] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -37,21 +39,20 @@ export function CityBlocker({
   return (
     <View style={styles.root}>
       <Icon name="map-marker" size={64} color={colors.primary[600]} />
-      <Text style={styles.title}>Where are you playing?</Text>
-      <Text style={styles.body}>Select your city to find pitches near you.</Text>
-      {failed ? (
-        <Text style={styles.error}>
-          Couldn&apos;t find a supported city near you. Select one manually.
-        </Text>
-      ) : null}
+      <Text style={styles.title}>{t('discover.city.where')}</Text>
+      <Text style={styles.body}>{t('discover.city.selectToFind')}</Text>
+      {failed ? <Text style={styles.error}>{t('discover.city.notFound')}</Text> : null}
       <View style={styles.buttons}>
         {permissionBlocked ? (
           // "Don't ask again": the app can no longer prompt, only the settings can.
-          <Button label="Allow location in Settings" onPress={() => void Linking.openSettings()} />
+          <Button
+            label={t('discover.city.allowSettings')}
+            onPress={() => void Linking.openSettings()}
+          />
         ) : (
-          <Button label="Detect my location" onPress={detect} loading={detecting} />
+          <Button label={t('discover.city.detect')} onPress={detect} loading={detecting} />
         )}
-        <Button label="Select city manually" variant="secondary" onPress={onSelectManually} />
+        <Button label={t('discover.city.manual')} variant="secondary" onPress={onSelectManually} />
       </View>
     </View>
   )

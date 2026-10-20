@@ -1,24 +1,27 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { DAY_SHORT, normalizeWeek } from '@pitchup/shared'
+import { INTL_LOCALE, normalizeWeek, weekdayShort } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { changeLines } from '@/lib/manager/venue'
 import { CompanyStatusBadge } from '@/components/admin/CompanyStatusBadge'
 import { CompanyStatusActions } from '@/components/admin/CompanyStatusActions'
 import { CompanyDecision } from '@/components/admin/CompanyDecision'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Venue | PitchUp admin' }
-
-const when = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'Europe/Bucharest',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('admin.company.title') }
+}
 
 /** One venue — E15-06: its details, its manager, and what can be done with it. */
 export default async function AdminCompanyPage({ params }: { params: Promise<{ id: string }> }) {
+  const [t, locale] = [await getT(), await getLocale()]
+  const when = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  })
   const { id } = await params
   const c = await prisma.company.findUnique({
     where: { id },
@@ -34,7 +37,7 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
     _count: { _all: true },
   })
   const count = (s: string) => bookings.find(b => b.status === s)?._count._all ?? 0
-  const lines = c.changesSubmittedAt ? changeLines(c) : []
+  const lines = c.changesSubmittedAt ? changeLines(c, locale) : []
   const row = (label: string, value: React.ReactNode) => (
     <div className="flex flex-col gap-0.5 sm:flex-row sm:gap-3">
       <dt className="w-40 shrink-0 text-neutral-500">{label}</dt>
@@ -45,22 +48,26 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
   return (
     <>
       <Link href="/admin/companies" className="text-sm text-neutral-700 hover:underline">
-        ← Venues
+        {t('admin.company.back')}
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold text-neutral-900">{c.name}</h1>
         <CompanyStatusBadge status={c.status} />
       </div>
       {c.status === 'SUSPENDED' && c.suspensionReason && (
-        <p className="mt-2 text-sm text-error-600">Suspended: {c.suspensionReason}</p>
+        <p className="mt-2 text-sm text-error-600">
+          {t('admin.company.suspended', { reason: c.suspensionReason })}
+        </p>
       )}
       {c.status === 'DRAFT' && c.rejectionReason && (
-        <p className="mt-2 text-sm text-neutral-700">Sent back: {c.rejectionReason}</p>
+        <p className="mt-2 text-sm text-neutral-700">
+          {t('admin.company.sentBack', { reason: c.rejectionReason })}
+        </p>
       )}
 
       <section aria-labelledby="actions" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="actions" className="text-lg font-semibold text-neutral-900">
-          Status
+          {t('admin.company.status')}
         </h2>
         {c.status === 'PENDING' ? (
           <CompanyDecision companyId={c.id} companyName={c.name} />
@@ -72,7 +79,7 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
       {lines.length > 0 && (
         <section aria-labelledby="changes" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
           <h2 id="changes" className="text-lg font-semibold text-neutral-900">
-            Changes waiting for approval
+            {t('admin.company.changes')}
           </h2>
           <ul className="mt-2 space-y-1 text-sm">
             {lines.map(l => (
@@ -88,46 +95,56 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
 
       <section aria-labelledby="details" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="details" className="text-lg font-semibold text-neutral-900">
-          Details
+          {t('admin.company.details')}
         </h2>
         <dl className="mt-3 space-y-2 text-sm">
           {row(
-            'Address',
+            t('admin.company.address'),
             [c.addressLine1, c.addressLine2, c.postalCode, c.city, c.county]
               .filter(Boolean)
               .join(', ') || '—'
           )}
-          {row('Contact', [c.phone, c.email].filter(Boolean).join(' · ') || '—')}
-          {row('Website', c.websiteUrl ?? '—')}
-          {row('Payouts', c.stripeAccountId ? 'Stripe connected' : 'Not connected')}
+          {row(t('admin.company.contact'), [c.phone, c.email].filter(Boolean).join(' · ') || '—')}
+          {row(t('admin.company.website'), c.websiteUrl ?? '—')}
           {row(
-            'Opening hours',
+            t('admin.company.payouts'),
+            c.stripeAccountId ? t('admin.companies.stripe') : t('admin.companies.notConnected')
+          )}
+          {row(
+            t('admin.company.hours'),
             c.workingHours
               ? normalizeWeek(c.workingHours)
                   .map(
                     d =>
-                      `${DAY_SHORT[d.day]} ${d.isClosed ? 'closed' : `${d.openTime}–${d.closeTime}`}`
+                      `${weekdayShort(d.day, locale)} ${d.isClosed ? t('hours.closed').toLowerCase() : `${d.openTime}–${d.closeTime}`}`
                   )
                   .join(', ')
               : '—'
           )}
-          {row('Created', when.format(c.createdAt))}
+          {row(t('admin.company.created'), when.format(c.createdAt))}
           {row(
-            'Pitches',
+            t('admin.company.pitches'),
             c.pitches.length
-              ? c.pitches.map(p => `${p.name}${p.isActive ? '' : ' (inactive)'}`).join(', ')
-              : 'None yet'
+              ? c.pitches
+                  .map(p => `${p.name}${p.isActive ? '' : t('admin.company.inactive')}`)
+                  .join(', ')
+              : t('admin.company.noneYet')
           )}
           {row(
-            'Bookings',
-            `${count('COMPLETED')} played · ${count('CONFIRMED') + count('AWAITING_APPROVAL')} upcoming · ${count('CANCELLED')} cancelled · ${count('NO_SHOW')} no-shows`
+            t('admin.company.bookings'),
+            t('admin.company.bookingsLine', {
+              played: count('COMPLETED'),
+              upcoming: count('CONFIRMED') + count('AWAITING_APPROVAL'),
+              cancelled: count('CANCELLED'),
+              noShows: count('NO_SHOW'),
+            })
           )}
         </dl>
       </section>
 
       <section aria-labelledby="manager" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="manager" className="text-lg font-semibold text-neutral-900">
-          Manager
+          {t('admin.company.manager')}
         </h2>
         <p className="mt-2 text-sm">
           <Link
@@ -137,7 +154,10 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
             {c.owner.name}
           </Link>{' '}
           <span className="text-neutral-700">
-            · {c.owner.email} · joined {when.format(c.owner.createdAt)}
+            {t('admin.company.joined', {
+              email: c.owner.email,
+              when: when.format(c.owner.createdAt),
+            })}
           </span>
         </p>
       </section>

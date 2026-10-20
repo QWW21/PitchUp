@@ -6,6 +6,7 @@ import { ChevronRight, ImageOff } from 'lucide-react'
 import type { CompanyDetail } from '@pitchup/shared'
 import { RatingLine, SurfaceChip, sizeLabel } from '@/components/venue/bits'
 import { ReviewsList } from '@/components/venue/Reviews'
+import { useLocale, useT } from '@/i18n/client'
 
 type Tab = 'pitches' | 'reviews'
 
@@ -21,6 +22,8 @@ export function CompanyTabs({
   company: CompanyDetail
   signedIn?: boolean
 }) {
+  const t = useT()
+  const locale = useLocale()
   const pathname = usePathname()
   const params = useSearchParams()
   const tab: Tab = params.get('tab') === 'reviews' ? 'reviews' : 'pitches'
@@ -43,27 +46,27 @@ export function CompanyTabs({
     <section className="mt-8">
       <div
         role="tablist"
-        aria-label="Company sections"
+        aria-label={t('venue.company.sections')}
         className="sticky top-16 z-10 flex h-12 gap-6 border-b border-neutral-200 bg-neutral-50"
       >
-        {(['pitches', 'reviews'] as const).map(t => (
+        {(['pitches', 'reviews'] as const).map(tabName => (
           <button
-            key={t}
+            key={tabName}
             type="button"
             role="tab"
-            id={`tab-${t}`}
-            aria-selected={tab === t}
-            aria-controls={`panel-${t}`}
-            onClick={() => select(t)}
+            id={`tab-${tabName}`}
+            aria-selected={tab === tabName}
+            aria-controls={`panel-${tabName}`}
+            onClick={() => select(tabName)}
             className={`-mb-px border-b-2 px-1 text-base font-semibold ${
-              tab === t
+              tab === tabName
                 ? 'border-primary-600 text-neutral-900'
                 : 'border-transparent text-neutral-500 hover:text-neutral-700'
             }`}
           >
-            {t === 'pitches'
-              ? `Pitches (${company.pitches.length})`
-              : `Reviews (${company.reviewCount})`}
+            {tabName === 'pitches'
+              ? t('venue.company.pitchesTab', { count: company.pitches.length })
+              : t('venue.company.reviewsTab', { count: company.reviewCount })}
           </button>
         ))}
       </div>
@@ -71,7 +74,9 @@ export function CompanyTabs({
       <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="pt-6">
         {tab === 'pitches' ? (
           company.pitches.length === 0 ? (
-            <p className="py-12 text-center text-sm text-neutral-500">No pitches available</p>
+            <p className="py-12 text-center text-sm text-neutral-500">
+              {t('venue.company.noPitches')}
+            </p>
           ) : (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               {company.pitches.map(p => (
@@ -95,10 +100,11 @@ export function CompanyTabs({
                     <h3 className="truncate font-semibold text-neutral-900">{p.name}</h3>
                     <div className="flex items-center gap-2">
                       <SurfaceChip surface={p.surfaceType} />
-                      <span className="text-xs text-neutral-500">{sizeLabel(p.size)}</span>
+                      <span className="text-xs text-neutral-500">{sizeLabel(p.size, locale)}</span>
                     </div>
                     <p className="text-xs text-neutral-700">
-                      <strong className="text-primary-700">{p.hourlyRate} RON</strong>/h
+                      <strong className="text-primary-700">{p.hourlyRate} RON</strong>
+                      {t('venue.pricing.perHour')}
                     </p>
                     <RatingLine avgRating={p.avgRating} reviewCount={p.reviewCount} />
                   </div>

@@ -14,6 +14,7 @@ import { send } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/upload-client'
 import { Avatar } from './Avatar'
 import { PhoneVerification } from './PhoneVerification'
+import { useT } from '@/i18n/client'
 
 type Field = 'name' | 'phone' | 'city'
 
@@ -24,6 +25,7 @@ export function SettingsForm({
   profile: Profile
   photosEnabled: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const [name, setName] = useState(profile.name)
   const [phone, setPhone] = useState(profile.phone)
@@ -64,7 +66,7 @@ export function SettingsForm({
       const next: Partial<Record<Field, string>> = {}
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as Field | undefined
-        if (key && !next[key]) next[key] = issue.message
+        if (key && !next[key]) next[key] = t.text(issue.message)
       }
       setErrors(next)
       return
@@ -88,7 +90,11 @@ export function SettingsForm({
         <div className="space-y-1 text-sm">
           {photosEnabled ? (
             <label className="inline-block cursor-pointer rounded-md border border-neutral-200 px-3 py-1.5 font-medium text-neutral-900 focus-within:ring-2 focus-within:ring-primary-600 hover:bg-neutral-50">
-              {uploading ? 'Uploading…' : avatar ? 'Change photo' : 'Add a photo'}
+              {uploading
+                ? t('profile.settings.uploading')
+                : avatar
+                  ? t('profile.settings.changePhoto')
+                  : t('profile.settings.addPhoto')}
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
@@ -97,7 +103,7 @@ export function SettingsForm({
               />
             </label>
           ) : (
-            <p className="text-neutral-500">Photo uploads are not set up yet.</p>
+            <p className="text-neutral-500">{t('profile.settings.noPhotos')}</p>
           )}
           {avatar && (
             <button
@@ -105,27 +111,27 @@ export function SettingsForm({
               onClick={() => setAvatar(null)}
               className="block font-medium text-error-600 hover:underline"
             >
-              Remove photo
+              {t('profile.settings.removePhoto')}
             </button>
           )}
         </div>
       </div>
 
       <TextField
-        label="Full name"
+        label={t('profile.settings.fullName')}
         value={name}
         onChange={e => setName(e.target.value)}
         error={errors.name}
         autoComplete="name"
       />
       <div>
-        <p className="mb-1.5 text-sm font-medium text-neutral-900">Email</p>
+        <p className="mb-1.5 text-sm font-medium text-neutral-900">{t('profile.settings.email')}</p>
         <p className="text-base text-neutral-700">{profile.email}</p>
-        <p className="mt-1 text-sm text-neutral-500">Email cannot be changed.</p>
+        <p className="mt-1 text-sm text-neutral-500">{t('profile.settings.emailFixed')}</p>
       </div>
       <div>
         <TextField
-          label="Phone"
+          label={t('profile.settings.phone')}
           type="tel"
           value={phone}
           onChange={e => setPhone(e.target.value)}
@@ -134,12 +140,12 @@ export function SettingsForm({
         />
         {!profile.phoneVerified && !changes.phone && <PhoneVerification phone={profile.phone} />}
         {changes.phone && (
-          <p className="mt-1 text-sm text-neutral-500">A new number has to be verified again.</p>
+          <p className="mt-1 text-sm text-neutral-500">{t('profile.settings.reverify')}</p>
         )}
       </div>
       <div>
         <label htmlFor="city" className="mb-1.5 block text-sm font-medium text-neutral-900">
-          City
+          {t('profile.settings.city')}
         </label>
         <select
           id="city"
@@ -147,7 +153,7 @@ export function SettingsForm({
           onChange={e => setCity(e.target.value)}
           className="h-12 w-full rounded-md border border-neutral-200 bg-white px-3 text-base"
         >
-          {!profile.city && <option value="">Choose a city</option>}
+          {!profile.city && <option value="">{t('profile.settings.chooseCity')}</option>}
           {CITY_NAMES.map(c => (
             <option key={c} value={c}>
               {c}
@@ -159,7 +165,7 @@ export function SettingsForm({
       {error && <Alert>{error}</Alert>}
       {saved && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Your changes are saved.
+          {t('profile.settings.saved')}
         </p>
       )}
       <button
@@ -167,7 +173,7 @@ export function SettingsForm({
         disabled={!changed || busy || uploading}
         className="h-12 w-full rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {busy ? 'Saving…' : 'Save changes'}
+        {busy ? t('profile.settings.saving') : t('profile.settings.save')}
       </button>
     </form>
   )

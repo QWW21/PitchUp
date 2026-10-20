@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function DisputeDecision({ bookingId }: { bookingId: string }) {
+  const t = useT()
   const router = useRouter()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
@@ -28,8 +30,8 @@ export function DisputeDecision({ bookingId }: { bookingId: string }) {
   return (
     <div className="mt-4 border-t border-neutral-100 pt-4">
       <label htmlFor={`note-${bookingId}`} className="block text-sm font-medium text-neutral-700">
-        Decision note{' '}
-        <span className="font-normal text-neutral-500">(the player and venue see it)</span>
+        {t('admin.disputes.note')}{' '}
+        <span className="font-normal text-neutral-500">{t('admin.disputes.noteHint')}</span>
       </label>
       <textarea
         id={`note-${bookingId}`}
@@ -51,7 +53,7 @@ export function DisputeDecision({ bookingId }: { bookingId: string }) {
           onClick={() => void decide('RESOLVED_PLAYER')}
           className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
         >
-          The player was right
+          {t('admin.disputes.playerRight')}
         </button>
         <button
           type="button"
@@ -59,7 +61,7 @@ export function DisputeDecision({ bookingId }: { bookingId: string }) {
           onClick={() => void decide('RESOLVED_MANAGER')}
           className="h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-50"
         >
-          The venue was right
+          {t('admin.disputes.venueRight')}
         </button>
       </div>
     </div>

@@ -9,9 +9,8 @@ import {
   MIN_TRUST_OPTIONS,
   PITCH_DEFAULT_DIMENSIONS,
   PITCH_LIMITS,
-  SIZE_INFO,
-  SIZE_LABELS,
-  SURFACE_LABELS,
+  minTrustLabel,
+  sharedEn,
   UpdatePitchBasicInfoSchema,
   type ManagerPitch,
   type PitchSize,
@@ -20,11 +19,20 @@ import {
 import { send } from '@/lib/http'
 import { SaveBar } from './SaveBar'
 import { useEditorForm } from './useForm'
+import { useLocale, useT } from '@/i18n/client'
 
-const SURFACES = Object.keys(SURFACE_LABELS) as SurfaceType[]
-const SIZES = Object.keys(SIZE_LABELS) as PitchSize[]
+const SURFACES = Object.keys(sharedEn.surface) as SurfaceType[]
+const SIZES = [
+  'FIVE_A_SIDE',
+  'SIX_A_SIDE',
+  'SEVEN_A_SIDE',
+  'ELEVEN_A_SIDE',
+  'CUSTOM',
+] as PitchSize[]
 
 export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
+  const t = useT()
+  const locale = useLocale()
   const f = useEditorForm({
     name: pitch.name,
     surfaceType: pitch.surfaceType,
@@ -55,12 +63,13 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       ...(v.width ? { widthMeters: Number(v.width) } : {}),
       ...(v.length ? { lengthMeters: Number(v.length) } : {}),
     })
-    if (!parsed.success) return f.setError(parsed.error.issues[0]?.message ?? 'Check the form')
+    if (!parsed.success)
+      return f.setError(t.text(parsed.error.issues[0]?.message ?? t('editor.basic.checkForm')))
     if (custom && (!v.width || !v.length)) {
-      return f.setError('A custom size needs its width and length')
+      return f.setError(t('editor.basic.customNeedsSize'))
     }
     if (v.isActive && !pitch.isActive && noPhotos) {
-      return f.setError('Add at least one photo before activating')
+      return f.setError(t('editor.basic.needPhoto'))
     }
     // The status has its own endpoint, with its own rules (a photo, a price).
     if (v.isActive !== pitch.isActive) {
@@ -77,7 +86,7 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
     <div className="mt-4 space-y-6 rounded-xl bg-white p-5 shadow-sm">
       <div>
         <label htmlFor="pitch-name" className="block text-sm font-medium text-neutral-900">
-          Pitch name
+          {t('editor.basic.name')}
         </label>
         <input
           id="pitch-name"
@@ -92,7 +101,9 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       </div>
 
       <fieldset>
-        <legend className="text-sm font-medium text-neutral-900">Surface</legend>
+        <legend className="text-sm font-medium text-neutral-900">
+          {t('editor.basic.surface')}
+        </legend>
         <div className="mt-2 flex flex-wrap gap-2">
           {SURFACES.map(s => (
             <Choice
@@ -101,19 +112,19 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
               checked={v.surfaceType === s}
               onChange={() => set({ surfaceType: s })}
             >
-              {SURFACE_LABELS[s]}
+              {t(`surface.${s}`)}
             </Choice>
           ))}
         </div>
       </fieldset>
 
       <fieldset>
-        <legend className="text-sm font-medium text-neutral-900">Size</legend>
-        <p className="text-xs text-neutral-500">{SIZE_INFO}</p>
+        <legend className="text-sm font-medium text-neutral-900">{t('editor.basic.size')}</legend>
+        <p className="text-xs text-neutral-500">{t('size.info')}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {SIZES.map(s => (
             <Choice key={s} name="size" checked={v.size === s} onChange={() => pickSize(s)}>
-              {SIZE_LABELS[s]}
+              {t(`size.${s}`)}
             </Choice>
           ))}
         </div>
@@ -122,8 +133,8 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       <div className="grid grid-cols-2 gap-4">
         {(
           [
-            ['width', 'Width (m)'],
-            ['length', 'Length (m)'],
+            ['width', t('editor.basic.width')],
+            ['length', t('editor.basic.length')],
           ] as const
         ).map(([key, label]) => (
           <div key={key}>
@@ -145,14 +156,15 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
         ))}
         {!custom && (
           <p className="col-span-2 -mt-2 text-xs text-neutral-500">
-            The usual size for {SIZE_LABELS[v.size]}. Choose Custom to enter your own.
+            {t('editor.basic.usual', { size: t(`size.${v.size}`) })}
           </p>
         )}
       </div>
 
       <div>
         <label htmlFor="pitch-description" className="block text-sm font-medium text-neutral-900">
-          Description <span className="font-normal text-neutral-500">(optional)</span>
+          {t('editor.basic.description')}{' '}
+          <span className="font-normal text-neutral-500">{t('editor.basic.optional')}</span>
         </label>
         <textarea
           id="pitch-description"
@@ -168,10 +180,10 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       </div>
 
       <fieldset>
-        <legend className="text-sm font-medium text-neutral-900">Who can book</legend>
-        <p className="text-xs text-neutral-500">
-          Players below this trust score can&rsquo;t book this pitch. Everyone else can.
-        </p>
+        <legend className="text-sm font-medium text-neutral-900">
+          {t('editor.basic.whoCanBook')}
+        </legend>
+        <p className="text-xs text-neutral-500">{t('editor.basic.whoHint')}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {MIN_TRUST_OPTIONS.map(o => (
             <Choice
@@ -180,28 +192,24 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
               checked={v.minTrustScore === o.score}
               onChange={() => set({ minTrustScore: o.score })}
             >
-              {o.label}
+              {minTrustLabel(o.score, locale)}
             </Choice>
           ))}
         </div>
         {v.minTrustScore >= 90 && (
-          <p className="mt-2 text-sm text-amber-800">
-            Very few players qualify: one no-show takes anyone below Excellent.
-          </p>
+          <p className="mt-2 text-sm text-amber-800">{t('editor.basic.fewQualify')}</p>
         )}
       </fieldset>
 
       <div className="flex items-start justify-between gap-4 rounded-lg bg-neutral-50 p-4">
         <div>
           <p id="active-label" className="text-sm font-medium text-neutral-900">
-            Active
+            {t('editor.basic.active')}
           </p>
-          <p className="text-sm text-neutral-500">
-            Players can see and book an active pitch. It needs a photo and a price.
-          </p>
+          <p className="text-sm text-neutral-500">{t('editor.basic.activeHint')}</p>
           {v.isActive && !pitch.isActive && noPhotos && (
             <p className="mt-1 text-sm font-medium text-error-600">
-              Add at least one photo before activating.
+              {t('editor.basic.needPhotoDot')}
             </p>
           )}
         </div>
@@ -220,7 +228,7 @@ export function BasicInfoForm({ pitch }: { pitch: ManagerPitch }) {
       </div>
 
       <SaveBar
-        label="Save changes"
+        label={t('editor.basic.save')}
         dirty={f.dirty}
         busy={f.busy}
         saved={f.saved}

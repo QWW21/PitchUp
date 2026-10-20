@@ -23,10 +23,7 @@ import 'server-only'
 import {
   cancellationRefund,
   refundPolicyOf,
-  formatDateLong,
-  fromMinutes,
   lateCancelReason,
-  venueClock,
   type CancelBookingResult,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
@@ -35,6 +32,7 @@ import { providerFor } from '@/lib/payments'
 import { chargedOnline } from './charged'
 import { applyTrustEvent } from '@/lib/trust/apply'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
+import { slotText } from '@/lib/notifications/text'
 import { getBookingForViewer } from './read'
 import { recordStatus } from './status'
 
@@ -66,7 +64,7 @@ export async function cancelBooking(
           pitch: { select: { name: true, company: { select: { ownerId: true, name: true } } } },
         },
       })
-      if (!b || b.playerId !== viewer.id) throw notFound('Booking not found')
+      if (!b || b.playerId !== viewer.id) throw notFound('api.bookingNotFound')
       // The same per-pitch lock as booking and payment confirmation.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${b.pitchId}))`
       const current = await tx.booking.findUniqueOrThrow({
@@ -75,12 +73,12 @@ export async function cancelBooking(
       })
       const request = current.status === 'AWAITING_APPROVAL'
       if (current.status !== 'PENDING' && current.status !== 'CONFIRMED' && !request) {
-        throw new ApiException('VALIDATION_ERROR', 'This booking can no longer be cancelled', {
+        throw new ApiException('VALIDATION_ERROR', 'api.cantCancel', {
           reason: 'NOT_CANCELLABLE',
         })
       }
       if (b.startTime <= now) {
-        throw new ApiException('VALIDATION_ERROR', 'This booking has already started', {
+        throw new ApiException('VALIDATION_ERROR', 'api.alreadyStarted', {
           reason: 'NOT_CANCELLABLE',
         })
       }
@@ -96,7 +94,7 @@ export async function cancelBooking(
 
       if (paid && refund.amount > 0) {
         if (!provider) {
-          throw new ApiException('SERVICE_UNAVAILABLE', 'Refunds are unavailable right now')
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundsDown')
         }
         try {
           refundId = (await provider.refund(b.stripePaymentIntentId!, refund.amount)).refundId
@@ -105,10 +103,7 @@ export async function cancelBooking(
             `[bookings] Refund for ${b.id} failed:`,
             caught instanceof Error ? caught.message : 'unknown error'
           )
-          throw new ApiException(
-            'SERVICE_UNAVAILABLE',
-            'The refund could not be made right now. Your booking is unchanged; please try again.'
-          )
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundFailedBooking')
         }
       } else if (!paid && b.stripePaymentIntentId) {
         // An unpaid checkout: make sure it can no longer be paid.
@@ -136,20 +131,38 @@ export async function cancelBooking(
       // E13-05: both sides hear about a real booking being cancelled; not an
       // unpaid checkout, nor the cancellations of an account being deleted.
       if ((current.status === 'CONFIRMED' || request) && !options.refundAll) {
-        const at = venueClock(b.startTime)
-        const slot = `${formatDateLong(at.date)} at ${fromMinutes(at.minutes)}`
         await notify(tx, {
           userId: b.playerId,
           type: 'BOOKING_CANCELLED_PLAYER',
-          title: request ? 'Booking request withdrawn' : 'Booking cancelled',
-          body: `${b.pitch.name}, ${slot}. ${paid && refund.amount > 0 ? `${refund.amount} RON is refunded to your card.` : 'No refund is due.'}`,
+          title: t =>
+            t(request ? 'notify.playerCancelled.withdrawnTitle' : 'notify.playerCancelled.title'),
+          body: (t, locale) =>
+            t('notify.playerCancelled.body', {
+              pitch: b.pitch.name,
+              slot: slotText(b.startTime, locale),
+              refund:
+                paid && refund.amount > 0
+                  ? t('notify.refundedToCard', { amount: refund.amount })
+                  : t('notify.playerCancelled.noRefund'),
+            }),
           data: { bookingId: b.id },
         })
         await notify(tx, {
           userId: b.pitch.company.ownerId,
           type: 'BOOKING_CANCELLED_PLAYER',
-          title: request ? 'A booking request was withdrawn' : 'A booking was cancelled',
-          body: `${b.player.name} ${request ? 'withdrew their request for' : 'cancelled'} ${b.pitch.name}, ${slot}.`,
+          title: t =>
+            t(
+              request
+                ? 'notify.playerCancelledVenue.withdrawnTitle'
+                : 'notify.playerCancelledVenue.title'
+            ),
+          body: (t, locale) =>
+            t(
+              request
+                ? 'notify.playerCancelledVenue.withdrawnBody'
+                : 'notify.playerCancelledVenue.body',
+              { player: b.player.name, pitch: b.pitch.name, slot: slotText(b.startTime, locale) }
+            ),
           data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
         })
         told.push(b.playerId, b.pitch.company.ownerId)

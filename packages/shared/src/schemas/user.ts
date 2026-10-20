@@ -15,7 +15,7 @@ export const UpdateUserSchema = z
   })
   .partial()
   .refine(data => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided',
+    message: 'v.oneField',
   })
 
 export const UserProfileSchema = z.object({

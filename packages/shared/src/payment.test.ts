@@ -38,19 +38,19 @@ describe('paymentSplit and the words for it', () => {
   it('online: everything now', () => {
     const s = paymentSplit(270, 'ONLINE', 20)
     expect(s).toMatchObject({ payNow: 270, deposit: null, dueAtVenue: 0 })
-    expect(describePayment(s)).toBe('Pay 270 RON now')
+    expect(describePayment(s, 'en')).toBe('Pay 270 RON now')
   })
 
   it('(b) the deposit counts: the rest at the venue', () => {
     const s = paymentSplit(270, 'VENUE_DEPOSIT_TOWARDS', 20)
     expect(s).toMatchObject({ payNow: 54, deposit: 54, dueAtVenue: 216, depositRefunded: false })
-    expect(describePayment(s)).toBe('Pay 54 RON deposit now · 216 RON at the venue')
+    expect(describePayment(s, 'en')).toBe('Pay 54 RON deposit now · 216 RON at the venue')
   })
 
   it('(a) deposit back: the full price at the venue', () => {
     const s = paymentSplit(270, 'VENUE_REFUND_DEPOSIT', 20)
     expect(s).toMatchObject({ payNow: 54, deposit: 54, dueAtVenue: 270, depositRefunded: true })
-    expect(describePayment(s)).toBe(
+    expect(describePayment(s, 'en')).toBe(
       '54 RON deposit now, refunded after the game · 270 RON at the venue'
     )
   })
@@ -58,7 +58,7 @@ describe('paymentSplit and the words for it', () => {
   it('no deposit: nothing now, and nothing to refund', () => {
     const s = paymentSplit(270, 'VENUE_REFUND_DEPOSIT', 0)
     expect(s).toMatchObject({ method: 'VENUE_DEPOSIT_TOWARDS', payNow: 0, dueAtVenue: 270 })
-    expect(describePayment(s)).toBe('Nothing to pay now · 270 RON at the venue')
+    expect(describePayment(s, 'en')).toBe('Nothing to pay now · 270 RON at the venue')
   })
 
   it('rounds the deposit to bani', () => {
@@ -72,26 +72,32 @@ describe('paymentSplit and the words for it', () => {
 describe('paymentStatusLine', () => {
   const base = { total: 270, deposit: 54, dueAtVenue: 216 }
   it('says what was paid and what is still due', () => {
-    expect(paymentStatusLine({ ...base, paymentMethod: 'ONLINE', deposit: null })).toBe(
+    expect(paymentStatusLine({ ...base, paymentMethod: 'ONLINE', deposit: null }, 'en')).toBe(
       'Total paid: 270 RON'
     )
-    expect(paymentStatusLine({ ...base, paymentMethod: 'VENUE_DEPOSIT_TOWARDS' })).toBe(
+    expect(paymentStatusLine({ ...base, paymentMethod: 'VENUE_DEPOSIT_TOWARDS' }, 'en')).toBe(
       'Deposit paid: 54 RON · To pay at the venue: 216 RON'
     )
     expect(
-      paymentStatusLine({ ...base, paymentMethod: 'VENUE_REFUND_DEPOSIT', dueAtVenue: 270 })
+      paymentStatusLine({ ...base, paymentMethod: 'VENUE_REFUND_DEPOSIT', dueAtVenue: 270 }, 'en')
     ).toBe('Deposit paid: 54 RON (refunded after the game) · To pay at the venue: 270 RON')
     expect(
-      paymentStatusLine({
-        ...base,
-        paymentMethod: 'VENUE_DEPOSIT_TOWARDS',
-        deposit: 0,
-        dueAtVenue: 270,
-      })
+      paymentStatusLine(
+        {
+          ...base,
+          paymentMethod: 'VENUE_DEPOSIT_TOWARDS',
+          deposit: 0,
+          dueAtVenue: 270,
+        },
+        'en'
+      )
     ).toBe('To pay at the venue: 270 RON')
     expect(
-      paymentStatusLine({ ...base, paymentMethod: 'VENUE_DEPOSIT_TOWARDS', attendedAt: 'x' })
+      paymentStatusLine({ ...base, paymentMethod: 'VENUE_DEPOSIT_TOWARDS', attendedAt: 'x' }, 'en')
     ).toBe('Paid at the venue: 216 RON')
+    expect(paymentStatusLine({ ...base, paymentMethod: 'VENUE_DEPOSIT_TOWARDS' }, 'ro')).toBe(
+      'Avans plătit: 54 RON · De plătit la teren: 216 RON'
+    )
   })
 })
 

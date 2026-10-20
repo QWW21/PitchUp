@@ -19,10 +19,12 @@ import type { AuthStackParamList } from '../../../App'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { colors, radius, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register1'>
 
 export function RegisterStep1Screen({ navigation }: Props) {
+  const t = useT()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -32,11 +34,10 @@ export function RegisterStep1Screen({ navigation }: Props) {
 
   function validate() {
     const e: Record<string, string> = {}
-    if (name.trim().length < 2) e.name = 'Full name must be at least 2 characters.'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = 'Enter a valid email address.'
-    if (!/^\+\d{9,15}$/.test(phone.trim()))
-      e.phone = 'Enter a phone in E.164 format, e.g. +40712345678.'
-    if (!city) e.city = 'Select your city.'
+    if (name.trim().length < 2) e.name = t('auth.register.nameShort')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) e.email = t('auth.register.badEmail')
+    if (!/^\+\d{9,15}$/.test(phone.trim())) e.phone = t('auth.register.badPhone')
+    if (!city) e.city = t('auth.register.noCity')
     return e
   }
 
@@ -59,18 +60,18 @@ export function RegisterStep1Screen({ navigation }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.wordmark}>PitchUp</Text>
-        <Text style={styles.heading}>Create your account</Text>
+        <Text style={styles.heading}>{t('auth.register.heading')}</Text>
 
         <View style={styles.stepRow}>
           {[1, 2].map(n => (
             <View key={n} style={[styles.stepDot, n === 1 && styles.stepDotActive]} />
           ))}
         </View>
-        <Text style={styles.stepLabel}>Step 1 of 2 — Your info</Text>
+        <Text style={styles.stepLabel}>{t('auth.register.step1')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Full name"
+            label={t('auth.register.fullName')}
             value={name}
             onChangeText={setName}
             placeholder="Ion Popescu"
@@ -78,7 +79,7 @@ export function RegisterStep1Screen({ navigation }: Props) {
             error={errors.name}
           />
           <Input
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             placeholder="ion@example.ro"
@@ -88,7 +89,7 @@ export function RegisterStep1Screen({ navigation }: Props) {
             error={errors.email}
           />
           <Input
-            label="Phone"
+            label={t('auth.register.phone')}
             value={phone}
             onChangeText={setPhone}
             placeholder="+40712345678"
@@ -98,13 +99,13 @@ export function RegisterStep1Screen({ navigation }: Props) {
 
           {/* City picker */}
           <View style={styles.fieldWrapper}>
-            <Text style={styles.fieldLabel}>City</Text>
+            <Text style={styles.fieldLabel}>{t('auth.register.city')}</Text>
             <Pressable
               onPress={() => setCityPickerOpen(true)}
               style={[styles.picker, !!errors.city && styles.pickerError]}
             >
               <Text style={city ? styles.pickerValue : styles.pickerPlaceholder}>
-                {city || 'Select your city'}
+                {city || t('auth.register.selectCity')}
               </Text>
               <Text style={styles.pickerChevron}>›</Text>
             </Pressable>
@@ -112,11 +113,12 @@ export function RegisterStep1Screen({ navigation }: Props) {
           </View>
         </View>
 
-        <Button label="Continue" onPress={handleNext} />
+        <Button label={t('auth.register.continue')} onPress={handleNext} />
 
         <Pressable onPress={() => navigation.navigate('Login')} style={styles.loginRow}>
           <Text style={styles.loginText}>
-            Already have an account? <Text style={styles.loginLink}>Sign in</Text>
+            {t('auth.register.haveAccount', { link: '\u0000' }).split('\u0000')[0]}
+            <Text style={styles.loginLink}>{t('auth.register.signIn')}</Text>
           </Text>
         </Pressable>
       </ScrollView>
@@ -125,7 +127,7 @@ export function RegisterStep1Screen({ navigation }: Props) {
       <Modal visible={cityPickerOpen} transparent animationType="slide">
         <View style={styles.modalBackdrop}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Select city</Text>
+            <Text style={styles.modalTitle}>{t('auth.register.cityTitle')}</Text>
             <ScrollView>
               {CITY_NAMES.map(c => (
                 <Pressable
@@ -142,7 +144,7 @@ export function RegisterStep1Screen({ navigation }: Props) {
               ))}
             </ScrollView>
             <Pressable onPress={() => setCityPickerOpen(false)} style={styles.modalCancel}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
+              <Text style={styles.modalCancelText}>{t('auth.register.cancel')}</Text>
             </Pressable>
           </View>
         </View>

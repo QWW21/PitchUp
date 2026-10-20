@@ -10,7 +10,6 @@ import {
   type APIRequestContext,
 } from '@playwright/test'
 import {
-  DAY_SHORT,
   addDays,
   dayOfWeek,
   venueClock,
@@ -335,7 +334,7 @@ test.describe('hours and blocked dates (E10-04)', () => {
     const v = await newVenue()
     const id = await livePitch(v.ctx)
     const week = (patchDay: (day: number) => object) => ({
-      workingHours: DAY_SHORT.map((_, day) => ({
+      workingHours: [0, 1, 2, 3, 4, 5, 6].map(day => ({
         day,
         openTime: '10:00',
         closeTime: '14:00',

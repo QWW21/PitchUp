@@ -1,9 +1,12 @@
+'use client'
+
 /**
  * The five headline numbers — E14-06, each against the same length of time
  * just before. Up is good, except for no-shows.
  */
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { AnalyticsSummary, Kpi } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 import { ron } from './format'
 
 function KpiCard({
@@ -19,6 +22,7 @@ function KpiCard({
   note?: string
   invertGood?: boolean
 }) {
+  const t = useT()
   const { change } = kpi
   const good = change !== null && change !== 0 && (invertGood ? change < 0 : change > 0)
   const bad = change !== null && change !== 0 && !good
@@ -28,7 +32,7 @@ function KpiCard({
       <p className="mt-1 text-2xl font-semibold text-neutral-900">{value}</p>
       {note && <p className="text-xs text-neutral-500">{note}</p>}
       {change === null ? (
-        <p className="mt-1 text-sm text-neutral-500">No earlier data</p>
+        <p className="mt-1 text-sm text-neutral-500">{t('analytics.kpi.noEarlier')}</p>
       ) : (
         <p
           className={`mt-1 flex items-center gap-1 text-sm font-medium ${
@@ -41,8 +45,10 @@ function KpiCard({
             <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
           ) : null}
           <span>
-            {change > 0 ? '+' : change < 0 ? '−' : ''}
-            {Math.abs(change)}% vs previous period
+            {t('analytics.kpi.vsPrevious', {
+              sign: change > 0 ? '+' : change < 0 ? '−' : '',
+              n: Math.abs(change),
+            })}
           </span>
         </p>
       )}
@@ -51,32 +57,40 @@ function KpiCard({
 }
 
 export function KpiCards({ summary: s }: { summary: AnalyticsSummary }) {
+  const t = useT()
   return (
     <section
-      aria-label="Key figures"
+      aria-label={t('analytics.kpi.label')}
       className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5"
     >
       <KpiCard
-        label="Revenue"
+        label={t('analytics.kpi.revenue')}
         value={ron(s.revenue.value ?? 0)}
         kpi={s.revenue}
-        note={`${ron(s.revenue.online)} online · ${ron(s.revenue.atVenue)} at the venue`}
+        note={t('analytics.kpi.split', {
+          online: ron(s.revenue.online),
+          venue: ron(s.revenue.atVenue),
+        })}
       />
-      <KpiCard label="Bookings played" value={String(s.bookings.value ?? 0)} kpi={s.bookings} />
       <KpiCard
-        label="Occupancy"
+        label={t('analytics.kpi.played')}
+        value={String(s.bookings.value ?? 0)}
+        kpi={s.bookings}
+      />
+      <KpiCard
+        label={t('analytics.kpi.occupancy')}
         value={s.occupancy.value === null ? '—' : `${s.occupancy.value}%`}
         kpi={s.occupancy}
-        note="Share of open time booked"
+        note={t('analytics.kpi.occupancyNote')}
       />
       <KpiCard
-        label="Average rating"
+        label={t('analytics.kpi.rating')}
         value={s.avgRating.value === null ? '—' : `★ ${s.avgRating.value.toFixed(1)}`}
         kpi={s.avgRating}
-        note="Reviews written in the period"
+        note={t('analytics.kpi.ratingNote')}
       />
       <KpiCard
-        label="No-show rate"
+        label={t('analytics.kpi.noShowRate')}
         value={s.noShowRate.value === null ? '—' : `${s.noShowRate.value}%`}
         kpi={s.noShowRate}
         invertGood

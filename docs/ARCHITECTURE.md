@@ -1518,6 +1518,50 @@ stores; verifying OIDC ID tokens (JWKS, `aud`, `iss`); account linking by
 verified email and its risks; push token lifecycles; which "config" is
 secret.
 
+## 30. Two languages without a framework (i18n)
+
+### A catalog is a typed object
+
+The text is plain nested objects, English first. The Romanian object is
+declared as `CatalogShape<typeof en>`, so the compiler rejects a missing key,
+an extra one, or a plural given as a string. `MessageKey<T>` turns the shape
+into the union of dotted keys, so `t('booking.summray.heading')` is a type
+error, not a blank on screen. A small translator (`createTranslator`) does
+the rest: `{param}` interpolation and plural choice through
+`Intl.PluralRules`, which gives Romanian its three forms ("1 rezervare",
+"3 rezervări", "20 de rezervări"). No library was needed for this, and none
+has to be loaded on the phone.
+
+### One vocabulary, three places
+
+Statuses, trust tiers, payment wording and validation messages are said by
+the web, the app and the server (emails, pushes). They live in the shared
+catalog and every app merges it with its own. The shared Zod schemas carry
+keys (`v.passwordUpper`) instead of sentences; a form shows a message with
+`t.text(message)`, which translates a key and passes anything else through.
+
+### The language travels with the request
+
+A page reads the cookie, the app sends a header, and code with no request
+at hand (a cron job, an email) reads the account's saved choice. Library
+code asks `getLocale()` instead of being handed a language through every
+call, which kept the change from rewriting every signature. Errors are
+thrown as keys and translated once, at the edge (`withErrorHandling`), in
+the language of the request that caused them; clients branch on codes and
+reasons, which no translation touches.
+
+### Server and client components
+
+A server component awaits `getT()`; a client component calls `useT()`,
+which reads the language a provider in the root layout received from the
+server. The two always agree, because the server decides and the client
+only repeats it, so nothing renders in one language and hydrates in the
+other.
+
+**What to learn:** message catalogs and plural rules (CLDR); type-level
+string paths; where locale negotiation belongs (cookie, header, profile);
+translating errors at the boundary rather than at the source.
+
 ---
 
 ## Things deliberately left incomplete

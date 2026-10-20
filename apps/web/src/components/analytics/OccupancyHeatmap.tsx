@@ -1,10 +1,13 @@
+'use client'
+
 /**
  * When the venue is busy — E14-08. Days across (Monday first, as in
  * Romania), hours down; each cell is the share of open time that was booked.
  * Hours the pitches were never open are hatched, not white, so "closed" and
  * "empty" read differently. Every cell carries its figure for screen readers.
  */
-import { DAY_SHORT } from '@pitchup/shared'
+import { weekdayShort } from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
 const ORDER = [1, 2, 3, 4, 5, 6, 0]
 const SCALE = [
@@ -18,6 +21,8 @@ const SCALE = [
 const colorOf = (pct: number) => SCALE.find(s => pct < s.below)!.color
 
 export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
+  const t = useT()
+  const locale = useLocale()
   // The hours anyone was open, or 07–23 when nothing is known yet.
   const open = Array.from({ length: 24 }, (_, h) => h).filter(h =>
     grid.some(day => day[h] !== null && day[h] !== undefined)
@@ -30,15 +35,15 @@ export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
   return (
     <section aria-labelledby="occupancy-heading" className="rounded-xl bg-white p-4 shadow-sm">
       <h2 id="occupancy-heading" className="text-base font-semibold text-neutral-900">
-        Occupancy by time
+        {t('analytics.heatmap.heading')}
       </h2>
-      <p className="text-xs text-neutral-700">Share of open time booked, by day and hour</p>
+      <p className="text-xs text-neutral-700">{t('analytics.heatmap.intro')}</p>
       <div className="mt-3 overflow-x-auto">
         <table className="border-separate border-spacing-0.5 text-xs">
           <thead>
             <tr>
               <th scope="col" className="w-12">
-                <span className="sr-only">Hour</span>
+                <span className="sr-only">{t('analytics.heatmap.hour')}</span>
               </th>
               {ORDER.map(d => (
                 <th
@@ -46,7 +51,7 @@ export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
                   scope="col"
                   className="w-10 pb-1 text-center font-medium text-neutral-700"
                 >
-                  {DAY_SHORT[d]}
+                  {weekdayShort(d, locale)}
                 </th>
               ))}
             </tr>
@@ -61,8 +66,13 @@ export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
                   const pct = grid[d]?.[h] ?? null
                   const text =
                     pct === null
-                      ? `${DAY_SHORT[d]} ${label(h)}: closed`
-                      : `${DAY_SHORT[d]} ${label(h)}: ${pct}% booked`
+                      ? t('analytics.heatmap.closedCell', {
+                          when: `${weekdayShort(d, locale)} ${label(h)}`,
+                        })
+                      : t('analytics.heatmap.bookedCell', {
+                          when: `${weekdayShort(d, locale)} ${label(h)}`,
+                          pct,
+                        })
                   return (
                     <td
                       key={d}
@@ -88,7 +98,7 @@ export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
       </div>
       <ul
         className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-700"
-        aria-label="Colour key"
+        aria-label={t('analytics.heatmap.key')}
       >
         {SCALE.map(s => (
           <li key={s.label} className="flex items-center gap-1">
@@ -108,7 +118,7 @@ export function OccupancyHeatmap({ grid }: { grid: (number | null)[][] }) {
               backgroundImage: 'repeating-linear-gradient(45deg, #F3F4F6 0 3px, #FFFFFF 3px 6px)',
             }}
           />
-          Closed
+          {t('analytics.heatmap.closed')}
         </li>
       </ul>
     </section>

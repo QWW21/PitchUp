@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export const STEP_COUNT = 5
 
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function BookingHeader({ step, onBack, onClose }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const progress = useRef(new Animated.Value((step - 1) / STEP_COUNT)).current
   const [confirming, setConfirming] = useState(false)
@@ -38,7 +40,7 @@ export function BookingHeader({ step, onBack, onClose }: Props) {
       <View
         style={styles.track}
         accessibilityRole="progressbar"
-        accessibilityLabel="Booking progress"
+        accessibilityLabel={t('booking.header.progress')}
         accessibilityValue={{ min: 1, max: STEP_COUNT, now: step }}
       >
         <Animated.View
@@ -54,7 +56,7 @@ export function BookingHeader({ step, onBack, onClose }: Props) {
             onPress={onBack}
             style={styles.icon}
             accessibilityRole="button"
-            accessibilityLabel="Back"
+            accessibilityLabel={t('booking.header.back')}
           >
             <Icon name="chevron-left" size={26} color={colors.neutral[700]} />
           </Pressable>
@@ -69,7 +71,7 @@ export function BookingHeader({ step, onBack, onClose }: Props) {
             onPress={close}
             style={styles.icon}
             accessibilityRole="button"
-            accessibilityLabel="Cancel booking"
+            accessibilityLabel={t('booking.header.cancel')}
           >
             <Icon name="close" size={24} color={colors.neutral[700]} />
           </Pressable>
@@ -86,11 +88,15 @@ export function BookingHeader({ step, onBack, onClose }: Props) {
       >
         <Pressable style={styles.backdrop} onPress={() => setConfirming(false)} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-          <Text style={styles.sheetTitle}>Are you sure?</Text>
-          <Text style={styles.sheetBody}>Your booking details will be lost.</Text>
-          <Button label="Keep editing" variant="secondary" onPress={() => setConfirming(false)} />
+          <Text style={styles.sheetTitle}>{t('booking.header.sure')}</Text>
+          <Text style={styles.sheetBody}>{t('booking.header.lost')}</Text>
           <Button
-            label="Discard"
+            label={t('booking.header.keep')}
+            variant="secondary"
+            onPress={() => setConfirming(false)}
+          />
+          <Button
+            label={t('booking.header.discard')}
             variant="ghost"
             onPress={() => {
               // The flow resets the store when it unmounts, not here: the

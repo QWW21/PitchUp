@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { RegisterManagerSchema, RegisterPlayerSchema } from './auth'
 import { passwordSchema, phoneSchema } from './common'
+import { sharedT } from '../i18n'
 
 const player = (patch: Record<string, unknown> = {}) =>
   RegisterPlayerSchema.safeParse({
@@ -50,7 +51,9 @@ describe('RegisterPlayerSchema', () => {
   it('explains a too-short name in plain words', () => {
     const r = player({ name: 'A' })
     expect(r.success).toBe(false)
-    expect(r.error?.flatten().fieldErrors.name?.[0]).toBe('Enter your full name')
+    const message = r.error!.flatten().fieldErrors.name![0]!
+    expect(sharedT('en').text(message)).toBe('Enter your full name')
+    expect(sharedT('ro').text(message)).toBe('Introdu numele complet')
   })
 })
 

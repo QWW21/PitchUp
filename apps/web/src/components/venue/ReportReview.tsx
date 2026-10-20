@@ -6,12 +6,8 @@
  */
 import { useRef, useState } from 'react'
 import { Flag } from 'lucide-react'
-import {
-  REPORT_CATEGORIES,
-  REPORT_CATEGORY_LABELS,
-  REVIEW,
-  type ReportCategory,
-} from '@pitchup/shared'
+import { REPORT_CATEGORIES, REVIEW, type ReportCategory } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
 
@@ -24,6 +20,7 @@ export function ReportReview({
   onReported?: () => void
   initiallyReported?: boolean
 }) {
+  const t = useT()
   const dialog = useRef<HTMLDialogElement>(null)
   const [category, setCategory] = useState<ReportCategory | null>(null)
   const [detail, setDetail] = useState('')
@@ -34,7 +31,7 @@ export function ReportReview({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!category) {
-      setError('Choose a reason.')
+      setError(t('venue.report.chooseReason'))
       return
     }
     setBusy(true)
@@ -53,7 +50,7 @@ export function ReportReview({
   if (done) {
     return (
       <p role="status" className="text-xs text-neutral-500">
-        Reported. Thanks, we&rsquo;ll take a look.
+        {t('venue.report.reported')}
       </p>
     )
   }
@@ -66,7 +63,7 @@ export function ReportReview({
         className="inline-flex items-center gap-1 text-xs font-medium text-neutral-500 hover:text-neutral-700"
       >
         <Flag className="h-3.5 w-3.5" aria-hidden="true" />
-        Report
+        {t('venue.report.button')}
       </button>
       <dialog
         ref={dialog}
@@ -76,11 +73,13 @@ export function ReportReview({
       >
         <form onSubmit={submit} noValidate>
           <h2 id={`report-title-${reviewId}`} className="text-lg font-semibold text-neutral-900">
-            Report this review
+            {t('venue.report.title')}
           </h2>
-          <p className="mt-1 text-sm text-neutral-700">It stays up while an admin looks at it.</p>
+          <p className="mt-1 text-sm text-neutral-700">{t('venue.report.staysUp')}</p>
           <fieldset className="mt-4">
-            <legend className="text-sm font-medium text-neutral-700">Reason</legend>
+            <legend className="text-sm font-medium text-neutral-700">
+              {t('venue.report.reason')}
+            </legend>
             <div className="mt-2 space-y-2">
               {REPORT_CATEGORIES.map(c => (
                 <label key={c} className="flex items-center gap-2 text-sm text-neutral-900">
@@ -92,7 +91,7 @@ export function ReportReview({
                     onChange={() => setCategory(c)}
                     className="h-4 w-4 accent-primary-600"
                   />
-                  {REPORT_CATEGORY_LABELS[c]}
+                  {t(`reportCategory.${c}`)}
                 </label>
               ))}
             </div>
@@ -101,7 +100,7 @@ export function ReportReview({
             htmlFor={`report-detail-${reviewId}`}
             className="mt-4 block text-sm font-medium text-neutral-700"
           >
-            Anything to add? (optional)
+            {t('venue.report.detail')}
           </label>
           <textarea
             id={`report-detail-${reviewId}`}
@@ -122,14 +121,14 @@ export function ReportReview({
               onClick={() => dialog.current?.close()}
               className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               disabled={busy}
               className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
             >
-              {busy ? 'Sending…' : 'Send report'}
+              {busy ? t('venue.report.sending') : t('venue.report.send')}
             </button>
           </div>
         </form>

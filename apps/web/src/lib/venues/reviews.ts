@@ -6,11 +6,14 @@ import 'server-only'
 import type { Prisma } from '@prisma/client'
 import {
   playerDisplayName,
+  sharedT,
+  type Locale,
   type ReviewItem,
   type ReviewPage,
   type ReviewSort,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { companyRating, pitchStats, publicRating } from './ratings'
 
 export const reviewInclude = {
@@ -23,12 +26,15 @@ type ReviewRow = Prisma.ReviewGetPayload<{ include: typeof reviewInclude }>
 /** "Alexandru D.", "Anonymous player", or "Former player" once the account is deleted (E08-03). */
 export const reviewerName = (
   player: { name: string; deletedAt: Date | null },
-  isAnonymous: boolean
+  isAnonymous: boolean,
+  locale: Locale
 ): string =>
-  player.deletedAt && !isAnonymous ? 'Former player' : playerDisplayName(player.name, isAnonymous)
+  player.deletedAt && !isAnonymous
+    ? sharedT(locale)('player.former')
+    : playerDisplayName(player.name, isAnonymous, locale)
 
 /** An anonymous review exposes neither name nor photo. */
-export function toReviewItem(r: ReviewRow): ReviewItem {
+export function toReviewItem(r: ReviewRow, locale: Locale): ReviewItem {
   const photoUrls = Array.isArray(r.photoUrls)
     ? r.photoUrls.filter((u): u is string => typeof u === 'string')
     : []
@@ -39,7 +45,7 @@ export function toReviewItem(r: ReviewRow): ReviewItem {
     rating: r.rating,
     text: r.text?.trim() || null,
     isAnonymous: r.isAnonymous,
-    playerName: reviewerName(r.player, r.isAnonymous),
+    playerName: reviewerName(r.player, r.isAnonymous, locale),
     playerAvatarUrl: r.isAnonymous ? null : r.player.profilePhotoUrl,
     photoUrls,
     managerReply: r.managerReply,
@@ -75,6 +81,7 @@ export const REVIEW_ORDER: Record<ReviewSort, Prisma.ReviewOrderByWithRelationIn
  * pitch or company is not publicly visible.
  */
 export async function listReviews(q: ReviewQuery): Promise<ReviewPage | null> {
+  const locale = await getLocale()
   // Only reviews on venues the public can see.
   const pitchWhere: Prisma.PitchWhereInput = {
     company: { status: 'ACTIVE' },
@@ -114,7 +121,7 @@ export async function listReviews(q: ReviewQuery): Promise<ReviewPage | null> {
     : companyRating([...stats.values()]).avgRating
 
   return {
-    reviews: rows.map(toReviewItem),
+    reviews: rows.map(r => toReviewItem(r, locale)),
     page: q.page,
     limit: q.limit,
     total,

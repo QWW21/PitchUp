@@ -1,39 +1,39 @@
 import { describe, expect, it } from 'vitest'
-import {
-  ALL_AMENITIES,
-  AMENITY_LABELS,
-  formatPitchSize,
-  formatShirtColours,
-  playerDisplayName,
-} from './format'
+import { ALL_AMENITIES, formatPitchSize, formatShirtColours, playerDisplayName } from './format'
 import { trustTier } from './constants/trust'
+import { sharedT } from './i18n'
 
 describe('playerDisplayName', () => {
   it('shows first name and last initial', () => {
-    expect(playerDisplayName('Alexandru David Serea', false)).toBe('Alexandru S.')
+    expect(playerDisplayName('Alexandru David Serea', false, 'en')).toBe('Alexandru S.')
   })
   it('keeps a single name as is', () => {
-    expect(playerDisplayName('Ion', false)).toBe('Ion')
+    expect(playerDisplayName('Ion', false, 'en')).toBe('Ion')
   })
   it('collapses extra spaces', () => {
-    expect(playerDisplayName('  Maria   popescu ', false)).toBe('Maria P.')
+    expect(playerDisplayName('  Maria   popescu ', false, 'en')).toBe('Maria P.')
   })
   it('hides everything for an anonymous review', () => {
-    expect(playerDisplayName('Alexandru Serea', true)).toBe('Anonymous player')
+    expect(playerDisplayName('Alexandru Serea', true, 'en')).toBe('Anonymous player')
+    expect(playerDisplayName('Alexandru Serea', true, 'ro')).toBe('Jucător anonim')
   })
 })
 
 describe('formatPitchSize', () => {
   it('adds dimensions when known', () => {
-    expect(formatPitchSize('5v5', 25, 40)).toBe('5v5 (25×40m)')
-    expect(formatPitchSize('5v5', null, 40)).toBe('5v5')
+    expect(formatPitchSize('5v5', 25, 40, 'en')).toBe('5v5 (25×40m)')
+    expect(formatPitchSize('5v5', 25, 40, 'ro')).toBe('5v5 (25×40 m)')
+    expect(formatPitchSize('5v5', null, 40, 'en')).toBe('5v5')
   })
 })
 
-describe('AMENITY_LABELS', () => {
-  it('labels all fourteen amenity types', () => {
+describe('amenity names', () => {
+  it('names all fourteen amenity types in both languages', () => {
     expect(ALL_AMENITIES).toHaveLength(14)
-    expect(ALL_AMENITIES.every(a => AMENITY_LABELS[a].length > 0)).toBe(true)
+    for (const locale of ['en', 'ro'] as const) {
+      const t = sharedT(locale)
+      expect(ALL_AMENITIES.every(a => t.has(`amenity.${a}`))).toBe(true)
+    }
   })
 })
 
@@ -55,13 +55,25 @@ describe('trustTier', () => {
 describe('formatShirtColours', () => {
   it('lists the colours a pitch can lend, skipping empty ones', () => {
     expect(
-      formatShirtColours([
-        { colour: 'BLUE', quantity: 2 },
-        { colour: 'RED', quantity: 0 },
-        { colour: 'YELLOW', quantity: 1 },
-      ])
+      formatShirtColours(
+        [
+          { colour: 'BLUE', quantity: 2 },
+          { colour: 'RED', quantity: 0 },
+          { colour: 'YELLOW', quantity: 1 },
+        ],
+        'en'
+      )
     ).toBe('blue and yellow')
-    expect(formatShirtColours([{ colour: 'RED', quantity: 1 }])).toBe('red')
-    expect(formatShirtColours([])).toBe('')
+    expect(formatShirtColours([{ colour: 'RED', quantity: 1 }], 'en')).toBe('red')
+    expect(formatShirtColours([], 'en')).toBe('')
+    expect(
+      formatShirtColours(
+        [
+          { colour: 'BLUE', quantity: 2 },
+          { colour: 'YELLOW', quantity: 1 },
+        ],
+        'ro'
+      )
+    ).toBe('albastru și galben')
   })
 })

@@ -63,7 +63,7 @@ const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
 export async function activeCompany(ownerId: string) {
   const company = await managerCompany(ownerId)
   if (company?.status !== 'ACTIVE') {
-    throw new ApiException('FORBIDDEN', 'Your venue is not approved yet', { reason: 'NOT_ACTIVE' })
+    throw new ApiException('FORBIDDEN', 'api.venueNotApproved', { reason: 'NOT_ACTIVE' })
   }
   return company
 }
@@ -285,7 +285,7 @@ export async function managerBookingDetail(
     select: { id: true },
   })
   // Another venue's booking is "not found", like a pitch: ids can't be probed.
-  if (!owned) throw notFound('Booking not found')
+  if (!owned) throw notFound('api.bookingNotFound')
 
   const [b, colours] = await Promise.all([
     prisma.booking.findUniqueOrThrow({
@@ -405,7 +405,7 @@ async function lockOwn(tx: Prisma.TransactionClient, companyId: string, bookingI
     where: { id: bookingId },
     select: { pitchId: true, pitch: { select: { companyId: true } } },
   })
-  if (!found || found.pitch.companyId !== companyId) throw notFound('Booking not found')
+  if (!found || found.pitch.companyId !== companyId) throw notFound('api.bookingNotFound')
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${found.pitchId}))`
   return tx.booking.findUniqueOrThrow({
     where: { id: bookingId },
@@ -462,7 +462,7 @@ export async function confirmAttended(
       if (refund) {
         const provider = providerFor(b.paymentProvider)
         if (!provider) {
-          throw new ApiException('SERVICE_UNAVAILABLE', 'Refunds are unavailable right now')
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundsDown')
         }
         try {
           refundId = (await provider.refund(b.stripePaymentIntentId!, deposit)).refundId
@@ -471,10 +471,7 @@ export async function confirmAttended(
             `[manager] Deposit refund for ${b.id} failed:`,
             caught instanceof Error ? caught.message : 'unknown error'
           )
-          throw new ApiException(
-            'SERVICE_UNAVAILABLE',
-            'The deposit could not be refunded right now. Nothing changed; please try again.'
-          )
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.depositRefundFailed')
         }
       }
       await tx.booking.update({
@@ -488,8 +485,8 @@ export async function confirmAttended(
         await notify(tx, {
           userId: b.playerId,
           type: 'REFUND_PROCESSED',
-          title: 'Your deposit is on its way back',
-          body: `${b.pitch.name} confirmed you played: ${deposit} RON is refunded to your card.`,
+          title: t => t('notify.depositRefunded.title'),
+          body: t => t('notify.depositRefunded.body', { pitch: b.pitch.name, amount: deposit }),
           data: { bookingId: b.id },
         })
       }
@@ -537,8 +534,12 @@ export async function reportNoShow(
     await notify(tx, {
       userId: b.playerId,
       type: 'NO_SHOW_REPORTED',
-      title: 'A no-show was reported',
-      body: `${b.pitch.name} reported that you didn't come. Your trust score went down by 20; you can dispute it within ${NO_SHOW_DISPUTE_WINDOW_HOURS} hours.`,
+      title: t => t('notify.noShowReported.title'),
+      body: t =>
+        t('notify.noShowReported.body', {
+          pitch: b.pitch.name,
+          hours: NO_SHOW_DISPUTE_WINDOW_HOURS,
+        }),
       data: { bookingId: b.id },
     })
     return false
@@ -605,7 +606,7 @@ export async function availabilityGaps(
     where: { id: pitchId, companyId, deletedAt: null },
     select: { id: true },
   })
-  if (!pitch) throw notFound('Pitch not found')
+  if (!pitch) throw notFound('api.pitchNotFound')
   // The manager sees the pitch's hours whether or not players can book it now.
   const schedule = { ...(await loadSchedule(pitchId)), isActive: true }
   const intervals = dayIntervals(schedule, date, await exceptionDates(pitchId, date, date))

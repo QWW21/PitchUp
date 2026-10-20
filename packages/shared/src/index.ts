@@ -17,6 +17,7 @@ export * from './trust-engine'
 export * from './venue-settings'
 export * from './analytics'
 export * from './admin'
+export * from './i18n'
 
 export * from './constants/auth'
 export * from './constants/booking'

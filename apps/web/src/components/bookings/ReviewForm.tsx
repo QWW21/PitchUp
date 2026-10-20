@@ -14,8 +14,7 @@ import { ImagePlus, Star, X } from 'lucide-react'
 import { REVIEW, type BookingDetail } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { uploadToCloudinary } from '@/lib/upload-client'
-
-const LABELS = ['', 'Very poor', 'Poor', 'Average', 'Good', 'Excellent!']
+import { useT } from '@/i18n/client'
 
 interface Props {
   bookingId: string
@@ -26,6 +25,8 @@ interface Props {
 }
 
 export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Props) {
+  const t = useT()
+  const label = (n: number) => (n ? t(`myBookings.review.labels.${n as 1 | 2 | 3 | 4 | 5}`) : '')
   const router = useRouter()
   const [rating, setRating] = useState(existing?.rating ?? 0)
   const [hover, setHover] = useState(0)
@@ -40,7 +41,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
   const trimmed = text.trim()
   const textError =
     trimmed.length > 0 && trimmed.length < REVIEW.MIN_TEXT_LENGTH
-      ? `Write at least ${REVIEW.MIN_TEXT_LENGTH} characters, or leave it empty`
+      ? t('myBookings.review.minText', { min: REVIEW.MIN_TEXT_LENGTH })
       : null
   const shown = hover || rating
 
@@ -53,7 +54,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
         const url = await uploadToCloudinary('REVIEW', bookingId, file)
         setPhotos(p => [...p, url])
       } catch {
-        setError('A photo could not be uploaded. Try another one.')
+        setError(t('myBookings.review.photoFailed'))
       }
     }
     setUploading(false)
@@ -81,7 +82,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
     })
     const json = await res.json().catch(() => null)
     if (!res.ok || json?.error) {
-      setError(json?.error?.message ?? 'Your review could not be saved. Try again.')
+      setError(json?.error?.message ?? t('myBookings.review.saveFailed'))
       setBusy(false)
       return
     }
@@ -92,10 +93,12 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
   return (
     <form onSubmit={submit} noValidate className="mt-6 space-y-6">
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-neutral-700">Your rating</legend>
+        <legend className="mb-2 text-sm font-medium text-neutral-700">
+          {t('myBookings.review.yourRating')}
+        </legend>
         <div
           role="radiogroup"
-          aria-label="Rating"
+          aria-label={t('myBookings.review.rating')}
           className="flex gap-1"
           onMouseLeave={() => setHover(0)}
         >
@@ -112,7 +115,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
                 checked={rating === n}
                 onChange={() => setRating(n)}
                 className="sr-only"
-                aria-label={`${n} star${n === 1 ? '' : 's'}, ${LABELS[n]}`}
+                aria-label={t('myBookings.review.stars', { count: n, label: label(n) })}
               />
               <Star
                 aria-hidden="true"
@@ -122,24 +125,25 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
           ))}
         </div>
         <p aria-live="polite" className="mt-1 h-5 text-sm font-medium text-neutral-700">
-          {LABELS[shown]}
+          {label(shown)}
         </p>
         {tried && !rating && (
           <p role="alert" className="text-sm text-error-600">
-            Choose a rating from 1 to 5 stars.
+            {t('myBookings.review.chooseRating')}
           </p>
         )}
       </fieldset>
 
       <div>
         <label htmlFor="review-text" className="mb-1 block text-sm font-medium text-neutral-700">
-          Your review <span className="font-normal text-neutral-500">(optional)</span>
+          {t('myBookings.review.yourReview')}{' '}
+          <span className="font-normal text-neutral-500">{t('myBookings.review.optional')}</span>
         </label>
         <textarea
           id="review-text"
           rows={5}
           maxLength={REVIEW.MAX_TEXT_LENGTH}
-          placeholder="Share your experience…"
+          placeholder={t('myBookings.review.placeholder')}
           value={text}
           onChange={e => setText(e.target.value)}
           aria-invalid={!!textError}
@@ -157,15 +161,22 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
       {photosEnabled && (
         <div>
           <p className="mb-2 text-sm font-medium text-neutral-700">
-            Photos <span className="font-normal text-neutral-500">(up to {REVIEW.MAX_PHOTOS})</span>
+            {t('myBookings.review.photos')}{' '}
+            <span className="font-normal text-neutral-500">
+              {t('myBookings.review.upTo', { count: REVIEW.MAX_PHOTOS })}
+            </span>
           </p>
           <div className="flex gap-2">
             {photos.map(url => (
               <span key={url} className="relative">
-                <img src={url} alt="Your photo" className="h-20 w-20 rounded-md object-cover" />
+                <img
+                  src={url}
+                  alt={t('myBookings.review.yourPhoto')}
+                  className="h-20 w-20 rounded-md object-cover"
+                />
                 <button
                   type="button"
-                  aria-label="Remove photo"
+                  aria-label={t('myBookings.review.removePhoto')}
                   onClick={() => setPhotos(p => p.filter(x => x !== url))}
                   className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-neutral-900 text-white"
                 >
@@ -183,7 +194,7 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
                   disabled={uploading}
                   onChange={e => addPhotos(e.target.files)}
                 />
-                <span className="sr-only">Add photos</span>
+                <span className="sr-only">{t('myBookings.review.addPhotos')}</span>
                 {uploading ? (
                   <span className="h-6 w-6 animate-pulse rounded-full bg-neutral-200" />
                 ) : (
@@ -197,8 +208,12 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
 
       <label className="flex cursor-pointer items-start justify-between gap-4">
         <span>
-          <span className="block text-sm font-medium text-neutral-900">Post anonymously</span>
-          <span className="block text-sm text-neutral-700">Your name won&rsquo;t be shown.</span>
+          <span className="block text-sm font-medium text-neutral-900">
+            {t('myBookings.review.anonymous')}
+          </span>
+          <span className="block text-sm text-neutral-700">
+            {t('myBookings.review.anonymousHint')}
+          </span>
         </span>
         <input
           type="checkbox"
@@ -217,7 +232,11 @@ export function ReviewForm({ bookingId, existing, photosEnabled, returnTo }: Pro
         aria-busy={busy || undefined}
         className="h-12 w-full rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : existing ? 'Save changes' : 'Submit review'}
+        {busy
+          ? t('myBookings.review.saving')
+          : existing
+            ? t('myBookings.review.saveChanges')
+            : t('myBookings.review.submit')}
       </button>
     </form>
   )

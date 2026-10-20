@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { CITY_NAMES } from '../constants/cities'
 import type { TrustScoreReason, TrustTierLabel, UserRole } from '../types'
 import { passwordSchema, phoneSchema } from './common'
+import { LOCALES } from '../i18n/core'
 
 /** Where profile photos may live: only our Cloudinary account's delivery host. */
 export const AVATAR_URL_PREFIX = 'https://res.cloudinary.com/'
@@ -12,38 +13,36 @@ export const AVATAR_URL_PREFIX = 'https://res.cloudinary.com/'
  */
 export const UpdateProfileSchema = z
   .object({
-    name: z
-      .string()
-      .trim()
-      .min(2, 'Enter your full name')
-      .max(100, 'Name must be 100 characters or fewer'),
+    name: z.string().trim().min(2, 'v.fullName').max(100, 'v.nameTooLong'),
     phone: phoneSchema,
-    city: z.string().refine(c => CITY_NAMES.includes(c), 'Choose a city from the list'),
+    city: z.string().refine(c => CITY_NAMES.includes(c), 'v.cityFromList'),
     avatarUrl: z
       .string()
       .url()
-      .refine(u => u.startsWith(AVATAR_URL_PREFIX), 'Upload the photo through PitchUp')
+      .refine(u => u.startsWith(AVATAR_URL_PREFIX), 'v.photoUpload')
       .nullable(),
+    /** The language emails and pushes come in; the switch on web and mobile sets it. */
+    locale: z.enum(LOCALES),
   })
   .partial()
   .refine(data => Object.keys(data).length > 0, {
-    message: 'Change at least one field',
+    message: 'v.changeOneField',
   })
 
 /** POST /profile/change-password — E08-03. */
 export const ChangeOwnPasswordSchema = z
   .object({
-    currentPassword: z.string().min(1, 'Enter your current password'),
+    currentPassword: z.string().min(1, 'v.currentPassword'),
     newPassword: passwordSchema,
   })
   .refine(d => d.newPassword !== d.currentPassword, {
-    message: 'Choose a password different from the current one',
+    message: 'v.passwordDifferent',
     path: ['newPassword'],
   })
 
 /** DELETE /profile — E08-03. */
 export const DeleteAccountSchema = z.object({
-  password: z.string().min(1, 'Enter your password'),
+  password: z.string().min(1, 'v.enterPassword'),
   reason: z.preprocess(
     v => (typeof v === 'string' && v.trim() === '' ? undefined : v),
     z.string().trim().max(300).optional()

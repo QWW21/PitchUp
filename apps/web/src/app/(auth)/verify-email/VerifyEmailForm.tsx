@@ -6,8 +6,10 @@ import { AUTH } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
+import { useT } from '@/i18n/client'
 
 export function VerifyEmailForm({ email }: { email: string }) {
+  const t = useT()
   const router = useRouter()
   const [code, setCode] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +32,7 @@ export function VerifyEmailForm({ email }: { email: string }) {
       })
     } catch {
       // A dropped connection rejects; without this the button spins for good.
-      setError('Could not connect. Check your connection and try again.')
+      setError(t('common.connectionError'))
       setLoading(false)
       return
     }
@@ -44,8 +46,8 @@ export function VerifyEmailForm({ email }: { email: string }) {
     const remaining = body?.error?.details?.attemptsRemaining
     setError(
       typeof remaining === 'number' && remaining > 0
-        ? `${body.error.message}. ${remaining} ${remaining === 1 ? 'attempt' : 'attempts'} left.`
-        : (body?.error?.message ?? 'Could not verify that code.')
+        ? t('auth.verify.attemptsLeft', { message: body.error.message, count: remaining })
+        : (body?.error?.message ?? t('auth.verify.failed'))
     )
     setLoading(false)
   }
@@ -61,9 +63,9 @@ export function VerifyEmailForm({ email }: { email: string }) {
       })
       // The endpoint answers identically whether or not the address exists,
       // so this message cannot confirm one either.
-      setNotice('If that account needs verifying, a new code is on its way.')
+      setNotice(t('auth.verify.resent'))
     } catch {
-      setError('Could not connect. Check your connection and try again.')
+      setError(t('common.connectionError'))
     } finally {
       setResending(false)
     }
@@ -73,7 +75,7 @@ export function VerifyEmailForm({ email }: { email: string }) {
     <>
       <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
         <TextField
-          label="Verification code"
+          label={t('auth.verify.code')}
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -90,19 +92,19 @@ export function VerifyEmailForm({ email }: { email: string }) {
         {notice && <Alert tone="success">{notice}</Alert>}
 
         <Button type="submit" size="lg" loading={loading} disabled={code.length < AUTH.OTP_LENGTH}>
-          {loading ? 'Verifying…' : 'Verify email'}
+          {loading ? t('auth.verify.verifying') : t('auth.verify.verify')}
         </Button>
       </form>
 
       <p className="mt-6 text-center text-sm text-neutral-500">
-        Didn&apos;t get it?{' '}
+        {t('auth.verify.noCode')}{' '}
         <button
           type="button"
           onClick={handleResend}
           disabled={resending}
           className="font-medium text-primary-600 hover:text-primary-700 disabled:opacity-60"
         >
-          Send a new code
+          {t('auth.verify.sendNew')}
         </button>
       </p>
     </>

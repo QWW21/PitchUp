@@ -58,12 +58,12 @@ export function onboardingStatus(company: Company | null): OnboardingStatus {
 async function editable(ownerId: string): Promise<Company> {
   const company = await managerCompany(ownerId)
   if (!company) {
-    throw new ApiException('VALIDATION_ERROR', 'Start with your company details', {
+    throw new ApiException('VALIDATION_ERROR', 'api.startWithCompany', {
       reason: 'NO_COMPANY',
     })
   }
   if (company.status !== 'DRAFT' && company.status !== 'PENDING') {
-    throw new ApiException('CONFLICT', 'Your company is already approved; edit it in Settings', {
+    throw new ApiException('CONFLICT', 'api.alreadyApproved', {
       reason: 'ALREADY_ACTIVE',
     })
   }
@@ -100,7 +100,7 @@ export async function saveInfo(
   } catch (caught) {
     // Two first submits at once: the unique owner wins once.
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
-      throw new ApiException('CONFLICT', 'You already have a company', { reason: 'COMPANY_EXISTS' })
+      throw new ApiException('CONFLICT', 'api.hasCompany', { reason: 'COMPANY_EXISTS' })
     }
     throw caught
   }
@@ -188,7 +188,7 @@ export async function readyForPayouts(ownerId: string): Promise<Company> {
     s => !status.completedSteps.includes(s)
   )
   if (missing.length) {
-    throw new ApiException('VALIDATION_ERROR', 'Finish the earlier steps first', {
+    throw new ApiException('VALIDATION_ERROR', 'api.earlierSteps', {
       reason: 'STEPS_INCOMPLETE',
       missing,
     })
@@ -202,7 +202,7 @@ export async function readyForPayouts(ownerId: string): Promise<Company> {
  */
 export async function submitForApproval(companyId: string): Promise<void> {
   const company = await prisma.company.findUnique({ where: { id: companyId } })
-  if (!company) throw notFound('Company not found')
+  if (!company) throw notFound('api.companyNotFound')
   if (company.status !== 'DRAFT') return
   const admins = await prisma.user.findMany({
     where: { role: 'ADMIN', deletedAt: null },
@@ -217,8 +217,8 @@ export async function submitForApproval(companyId: string): Promise<void> {
       await notify(tx, {
         userId: a.id,
         type: 'COMPANY_SUBMITTED',
-        title: 'New venue to review',
-        body: `${company.name} finished onboarding and waits for approval.`,
+        title: t => t('notify.venueSubmitted.title'),
+        body: t => t('notify.venueSubmitted.body', { company: company.name }),
         data: { companyId, link: '/admin/companies' },
       })
     }

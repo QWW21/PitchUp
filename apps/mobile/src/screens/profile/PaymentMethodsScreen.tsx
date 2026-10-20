@@ -25,6 +25,7 @@ import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PaymentMethods'>
 
@@ -48,6 +49,7 @@ export function PaymentMethodsScreen(props: Props) {
 }
 
 function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
+  const t = useT()
   const queryClient = useQueryClient()
   const cards = useQuery({ queryKey: CARDS_KEY, queryFn: profileApi.cards })
   const [adding, setAdding] = useState(false)
@@ -63,16 +65,24 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
     },
     onError: (e, _id, context) => {
       queryClient.setQueryData(CARDS_KEY, context?.before)
-      show(e instanceof ApiError ? e.message : 'Could not remove the card. Try again.')
+      show(e instanceof ApiError ? e.message : t('profile.payment.removeFailed'))
     },
-    onSuccess: () => show('Card removed'),
+    onSuccess: () => show(t('profile.payment.removed')),
   })
 
   const confirmRemove = (card: SavedCard) =>
-    Alert.alert('Remove this card?', `${brandName(card.brand)} ending ${card.last4}`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => remove.mutate(card.id) },
-    ])
+    Alert.alert(
+      t('profile.payment.removeTitle'),
+      t('profile.payment.ending', { brand: brandName(card.brand), last4: card.last4 }),
+      [
+        { text: t('profile.cancel'), style: 'cancel' },
+        {
+          text: t('profile.payment.remove'),
+          style: 'destructive',
+          onPress: () => remove.mutate(card.id),
+        },
+      ]
+    )
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -81,20 +91,15 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Payment methods
+          {t('profile.payment.title')}
         </Text>
       </View>
-      {!canAdd ? (
-        <Text style={styles.note}>
-          Saving cards needs Stripe, which isn&apos;t set up yet. Bookings use test payments for
-          now.
-        </Text>
-      ) : null}
+      {!canAdd ? <Text style={styles.note}>{t('profile.payment.noStripe')}</Text> : null}
       {cards.isError ? (
         <ErrorState onRetry={() => cards.refetch()} />
       ) : cards.isPending ? (
@@ -109,8 +114,8 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
               illustration={
                 <Icon name="credit-card-off-outline" size={48} color={colors.neutral[300]} />
               }
-              title="No saved cards"
-              description="Add a card to book faster"
+              title={t('profile.payment.none')}
+              description={t('profile.payment.noneHint')}
             />
           }
           renderItem={({ item }) => (
@@ -127,10 +132,13 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
               <Pressable
                 onPress={() => confirmRemove(item)}
                 accessibilityRole="button"
-                accessibilityLabel={`Remove ${brandName(item.brand)} ending ${item.last4}`}
+                accessibilityLabel={t('profile.payment.removeLabel', {
+                  brand: brandName(item.brand),
+                  last4: item.last4,
+                })}
                 style={styles.remove}
               >
-                <Text style={styles.removeText}>Remove</Text>
+                <Text style={styles.removeText}>{t('profile.payment.remove')}</Text>
               </Pressable>
             </View>
           )}
@@ -140,7 +148,7 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
                 <AddCard
                   onDone={() => {
                     setAdding(false)
-                    show('Card saved')
+                    show(t('profile.payment.saved'))
                     void queryClient.invalidateQueries({ queryKey: CARDS_KEY })
                   }}
                   onCancel={() => setAdding(false)}
@@ -152,7 +160,7 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
                   accessibilityRole="button"
                 >
                   <Icon name="plus" size={20} color={colors.primary[600]} />
-                  <Text style={styles.addText}>Add new card</Text>
+                  <Text style={styles.addText}>{t('profile.payment.add')}</Text>
                 </Pressable>
               )
             ) : null
@@ -165,6 +173,7 @@ function Cards({ navigation, canAdd }: Props & { canAdd: boolean }) {
 }
 
 function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const t = useT()
   const { confirmSetupIntent } = useStripe()
   const [complete, setComplete] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -179,7 +188,7 @@ function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => voi
       if (result.error) throw new Error(result.error.message)
       onDone()
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'The card could not be saved')
+      setError(caught instanceof Error ? caught.message : t('profile.payment.notSaved'))
     }
     setBusy(false)
   }
@@ -190,11 +199,16 @@ function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => voi
         postalCodeEnabled={false}
         style={styles.cardField}
         onCardChange={c => setComplete(c.complete)}
-        accessibilityLabel="Card details"
+        accessibilityLabel={t('profile.payment.details')}
       />
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Button label="Save card" onPress={() => void save()} disabled={!complete} loading={busy} />
-      <Button label="Cancel" variant="ghost" onPress={onCancel} />
+      <Button
+        label={t('profile.payment.save')}
+        onPress={() => void save()}
+        disabled={!complete}
+        loading={busy}
+      />
+      <Button label={t('profile.cancel')} variant="ghost" onPress={onCancel} />
     </View>
   )
 }

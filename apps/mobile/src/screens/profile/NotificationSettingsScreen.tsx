@@ -30,20 +30,22 @@ import { useAuthStore } from '../../stores/authStore'
 import { ApiError } from '../../lib/apiClient'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'NotificationSettings'>
 const KEY = ['notification-preferences'] as const
 
 const CHANNELS: {
   key: 'pushEnabled' | 'emailEnabled'
-  label: string
-  hint: string
+  label: 'push' | 'email'
+  hint: 'pushHint' | 'emailHint'
 }[] = [
-  { key: 'pushEnabled', label: 'Push notifications', hint: 'On this phone' },
-  { key: 'emailEnabled', label: 'Email', hint: 'To the address on your account' },
+  { key: 'pushEnabled', label: 'push', hint: 'pushHint' },
+  { key: 'emailEnabled', label: 'email', hint: 'emailHint' },
 ]
 
 export function NotificationSettingsScreen({ navigation }: Props) {
+  const t = useT()
   const role = useAuthStore(s => s.user?.role ?? 'PLAYER')
   const queryClient = useQueryClient()
   const prefs = useQuery({ queryKey: KEY, queryFn: () => profileApi.notificationPreferences() })
@@ -58,7 +60,10 @@ export function NotificationSettingsScreen({ navigation }: Props) {
     },
     onError: (e, _patch, context) => {
       if (context?.previous) queryClient.setQueryData(KEY, context.previous)
-      Alert.alert('Not saved', e instanceof ApiError ? e.message : 'Try again.')
+      Alert.alert(
+        t('profile.notifySettings.notSaved'),
+        e instanceof ApiError ? e.message : t('profile.notifySettings.tryAgain')
+      )
     },
     onSuccess: data => queryClient.setQueryData(KEY, data),
   })
@@ -84,40 +89,40 @@ export function NotificationSettingsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Notification settings
+          {t('profile.notifySettings.title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body}>
-        <Text style={styles.section}>CHANNELS</Text>
+        <Text style={styles.section}>{t('profile.notifySettings.channels')}</Text>
         <View style={styles.card}>
           {CHANNELS.map(c => (
             <Row
               key={c.key}
-              label={c.label}
-              hint={c.hint}
+              label={t(`profile.notifySettings.${c.label}`)}
+              hint={t(`profile.notifySettings.${c.hint}`)}
               value={p[c.key]}
               onChange={() => toggleChannel(c.key)}
             />
           ))}
         </View>
-        <Text style={styles.section}>WHAT WE TELL YOU ABOUT</Text>
+        <Text style={styles.section}>{t('profile.notifySettings.what')}</Text>
         <View style={styles.card}>
           {preferenceGroupsFor(role).map(g => (
             <Row
               key={g.key}
-              label={g.label}
-              hint={g.description}
+              label={t(`notifyPref.${g.key}.label`)}
+              hint={t(`notifyPref.${g.key}.description`)}
               value={!muted(g.types)}
               onChange={() => toggleGroup(g.types)}
             />
           ))}
         </View>
-        <Text style={styles.note}>Venue approval and security messages are always sent.</Text>
+        <Text style={styles.note}>{t('profile.notifySettings.always')}</Text>
       </ScrollView>
     </SafeAreaView>
   )

@@ -32,6 +32,7 @@ import type { ReviewSort } from '@pitchup/shared'
 import { SkeletonBox } from '../../components/common/SkeletonBox'
 import { EmptyState } from '../../components/common/EmptyState'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'CompanyDetail'>
 type Tab = 'pitches' | 'reviews'
@@ -40,6 +41,7 @@ const HERO_HEIGHT = 200
 export const SHARE_BASE_URL = 'https://pitchup.ro/discover'
 
 export function CompanyDetailScreen({ route, navigation }: Props) {
+  const t = useT()
   const { id, initialTab, pitchId } = route.params
   const company = useCompany(id)
   const [tab, setTab] = useState<Tab>(initialTab ?? 'pitches')
@@ -86,9 +88,9 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
         {header}
         <EmptyState
           illustration={<Icon name="wifi-off" size={64} color={colors.neutral[300]} />}
-          title="Couldn't load company"
-          description="Check your connection and try again"
-          ctaLabel="Retry"
+          title={t('discover.company.loadFailed')}
+          description={t('discover.checkConnection')}
+          ctaLabel={t('discover.retry')}
           ctaVariant="primary"
           onCta={() => void company.refetch()}
         />
@@ -141,16 +143,16 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
         </View>
 
         <View style={styles.tabs} accessibilityRole="tablist">
-          {(['pitches', 'reviews'] as const).map(t => (
+          {(['pitches', 'reviews'] as const).map(key => (
             <Pressable
-              key={t}
-              onPress={() => setTab(t)}
-              style={[styles.tab, tab === t && styles.tabActive]}
+              key={key}
+              onPress={() => setTab(key)}
+              style={[styles.tab, tab === key && styles.tabActive]}
               accessibilityRole="tab"
-              accessibilityState={{ selected: tab === t }}
+              accessibilityState={{ selected: tab === key }}
             >
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-                {t === 'pitches' ? 'Pitches' : 'Reviews'}
+              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>
+                {t(`discover.company.${key}`)}
               </Text>
             </Pressable>
           ))}
@@ -159,7 +161,7 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
         {tab === 'pitches' ? (
           <View style={styles.list}>
             {c.pitches.length === 0 ? (
-              <Text style={styles.empty}>No pitches available</Text>
+              <Text style={styles.empty}>{t('discover.company.noPitches')}</Text>
             ) : (
               c.pitches.map(p => (
                 <PitchListCard
@@ -189,17 +191,17 @@ export function CompanyDetailScreen({ route, navigation }: Props) {
             ) : reviews.isError ? (
               <EmptyState
                 illustration={<Icon name="wifi-off" size={64} color={colors.neutral[300]} />}
-                title="Couldn't load reviews"
-                description="Check your connection and try again"
-                ctaLabel="Retry"
+                title={t('discover.company.reviewsFailed')}
+                description={t('discover.checkConnection')}
+                ctaLabel={t('discover.retry')}
                 ctaVariant="primary"
                 onCta={() => void reviews.refetch()}
               />
             ) : firstPage && firstPage.total === 0 ? (
               <EmptyState
                 illustration={<Icon name="message-outline" size={64} color={colors.neutral[300]} />}
-                title="No reviews yet"
-                description="Be the first to review after your booking"
+                title={t('discover.company.noReviews')}
+                description={t('discover.company.beFirst')}
               />
             ) : (
               <>

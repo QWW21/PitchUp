@@ -31,6 +31,8 @@ import { useAuthStore } from '../../stores/authStore'
 import { ErrorState } from '../../components/common/ErrorState'
 import { TrustBadge } from '../../components/profile/TrustBadge'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
+import { LanguageToggle } from '../../components/common/LanguageToggle'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>
 
@@ -57,6 +59,8 @@ export function ProfileAvatar({ profile, size = 80 }: { profile: Profile; size?:
 }
 
 export function ProfileScreen({ navigation }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
   const profile = useProfile()
@@ -68,10 +72,10 @@ export function ProfileScreen({ navigation }: Props) {
   )
 
   const confirmLogout = () =>
-    Alert.alert('Log out?', 'You can sign in again any time.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t('profile.home.logoutTitle'), t('profile.home.logoutBody'), [
+      { text: t('profile.cancel'), style: 'cancel' },
       {
-        text: 'Log out',
+        text: t('profile.home.logout'),
         style: 'destructive',
         onPress: async () => {
           await logout()
@@ -95,12 +99,12 @@ export function ProfileScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Profile
+          {t('profile.home.title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body}>
@@ -114,7 +118,7 @@ export function ProfileScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('VerifyPhone', { phone: p.phone })}
               accessibilityRole="link"
             >
-              <Text style={styles.link}>Verify phone number →</Text>
+              <Text style={styles.link}>{t('profile.home.verifyPhone')}</Text>
             </Pressable>
           ) : null}
           {p.city ? (
@@ -128,108 +132,118 @@ export function ProfileScreen({ navigation }: Props) {
             style={styles.editButton}
             accessibilityRole="button"
           >
-            <Text style={styles.editText}>Edit profile</Text>
+            <Text style={styles.editText}>{t('profile.home.edit')}</Text>
           </Pressable>
         </View>
 
         <View style={[styles.card, styles.trustCard]}>
           <View style={styles.trustLeft}>
             <TrustBadge score={p.trustScore} />
-            <Text style={styles.tierLabel}>{tier.label}</Text>
+            <Text style={styles.tierLabel}>{t(`trust.tier.${tier.label}`)}</Text>
           </View>
           <View style={styles.flex}>
-            <Text style={styles.cardTitle}>Your trust score</Text>
-            <Text style={styles.body2}>{tierDescription(tier)}</Text>
+            <Text style={styles.cardTitle}>{t('profile.home.trust')}</Text>
+            <Text style={styles.body2}>{tierDescription(tier, locale)}</Text>
             <Pressable onPress={() => navigation.navigate('TrustScore')} accessibilityRole="link">
-              <Text style={styles.link}>View history →</Text>
+              <Text style={styles.link}>{t('profile.home.history')}</Text>
             </Pressable>
           </View>
         </View>
 
-        <Section title="Account">
+        <Section title={t('profile.home.language')}>
+          <View style={styles.languageRow}>
+            <LanguageToggle />
+          </View>
+        </Section>
+        <Section title={t('profile.home.sections.account')}>
           <Item
             icon="account-edit"
-            label="Edit profile"
+            label={t('profile.home.items.edit')}
             onPress={() => navigation.navigate('EditProfile')}
           />
           <Item
             icon="lock-reset"
-            label="Change password"
+            label={t('profile.home.items.password')}
             onPress={() => navigation.navigate('ChangePassword')}
           />
           <Item
             icon="credit-card-outline"
-            label="Payment methods"
+            label={t('profile.home.items.payment')}
             onPress={() => navigation.navigate('PaymentMethods')}
           />
           <Item
             icon="calendar-check"
-            label="My bookings"
+            label={t('profile.home.items.bookings')}
             onPress={() => navigation.navigate('MyBookings')}
           />
           <Item
             icon="star-outline"
-            label="My reviews"
+            label={t('profile.home.items.reviews')}
             onPress={() => navigation.navigate('MyReviews')}
           />
           <Item
             icon="bell-outline"
-            label="Notifications"
+            label={t('profile.home.items.notifications')}
             onPress={() => navigation.navigate('Notifications')}
           />
           <Item
             icon="bell-cog-outline"
-            label="Notification settings"
+            label={t('profile.home.items.notificationSettings')}
             onPress={() => navigation.navigate('NotificationSettings')}
           />
         </Section>
         {p.role === 'MANAGER' ? (
-          <Section title="Your venue">
+          <Section title={t('profile.home.sections.venue')}>
             <Item
               icon="calendar-multiple"
-              label="Venue bookings"
+              label={t('profile.home.items.venueBookings')}
               onPress={() => navigation.navigate('ManagerBookings')}
             />
             <Item
               icon="chart-bar"
-              label="Analytics"
+              label={t('profile.home.items.analytics')}
               onPress={() => navigation.navigate('ManagerAnalytics')}
             />
           </Section>
         ) : null}
-        <Section title="Legal">
+        <Section title={t('profile.home.sections.legal')}>
           <Item
             icon="file-document-outline"
-            label="Terms of Service"
+            label={t('profile.home.items.terms')}
             onPress={() => void Linking.openURL(LEGAL.terms)}
             external
           />
           <Item
             icon="shield-account-outline"
-            label="Privacy Policy"
+            label={t('profile.home.items.privacy')}
             onPress={() => void Linking.openURL(LEGAL.privacy)}
             external
           />
         </Section>
-        <Section title="Support">
+        <Section title={t('profile.home.sections.support')}>
           <Item
             icon="help-circle-outline"
-            label="Help & FAQ"
+            label={t('profile.home.items.help')}
             onPress={() => void Linking.openURL(LEGAL.help)}
             external
           />
           <Item
             icon="email-outline"
-            label="Contact support"
+            label={t('profile.home.items.contact')}
             onPress={() => void Linking.openURL(`mailto:${LEGAL.supportEmail}`)}
             external
           />
         </Section>
-        <Section title="Danger zone">
-          <Item icon="logout" label="Log out" onPress={confirmLogout} danger />
+        <Section title={t('profile.home.sections.danger')}>
+          <Item
+            icon="logout"
+            label={t('profile.home.items.logout')}
+            onPress={confirmLogout}
+            danger
+          />
           <Item
             icon="account-remove-outline"
-            label="Delete account"
+            label={t('profile.home.items.delete')}
             onPress={() => navigation.navigate('DeleteAccount')}
             danger
           />
@@ -284,6 +298,7 @@ function Item({
 }
 
 const styles = StyleSheet.create({
+  languageRow: { paddingVertical: spacing.sm },
   root: { flex: 1, backgroundColor: colors.neutral[50] },
   loading: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', height: 52, paddingHorizontal: spacing.xs },

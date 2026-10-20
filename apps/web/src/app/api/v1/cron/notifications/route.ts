@@ -14,7 +14,7 @@ import { expireRequests } from '@/lib/bookings/approval'
 export const dynamic = 'force-dynamic'
 
 const run = withErrorHandling(async (request: NextRequest) => {
-  if (!cronAuthorised(request)) return err('UNAUTHORIZED', 'Not authorised', 401)
+  if (!cronAuthorised(request)) return err('UNAUTHORIZED', 'api.notAuthorised', 401)
   const expired = await expireRequests()
   const { reminded } = await queueReminders()
   const { delivered } = await deliverPending()

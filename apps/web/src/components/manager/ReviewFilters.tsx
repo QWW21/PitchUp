@@ -9,12 +9,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
 import { MANAGER_REVIEW_SORTS, type ManagerReviewSort } from '@pitchup/shared'
-
-const LABELS: Record<ManagerReviewSort, string> = {
-  newest: 'Newest',
-  lowest: 'Lowest rated',
-  unanswered: 'Unanswered',
-}
+import { useT } from '@/i18n/client'
 
 export function ReviewFilters({
   pitches,
@@ -27,6 +22,7 @@ export function ReviewFilters({
   sort: ManagerReviewSort
   q?: string | undefined
 }) {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const [text, setText] = useState(q ?? '')
@@ -53,13 +49,13 @@ export function ReviewFilters({
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-xl bg-white p-3 shadow-sm sm:flex-row sm:items-center">
       <label className="flex items-center gap-2 text-sm text-neutral-700">
-        <span className="sr-only">Pitch</span>
+        <span className="sr-only">{t('mVenue.reviews.pitch')}</span>
         <select
           value={pitchId ?? ''}
           onChange={e => go({ pitch: e.target.value })}
           className="h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm"
         >
-          <option value="">All pitches</option>
+          <option value="">{t('mVenue.reviews.allPitches')}</option>
           {pitches.map(p => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -67,7 +63,11 @@ export function ReviewFilters({
           ))}
         </select>
       </label>
-      <div role="group" aria-label="Sort" className="flex flex-wrap gap-1">
+      <div
+        role="group"
+        aria-label={t('mVenue.reviews.sort.label')}
+        className="flex flex-wrap gap-1"
+      >
         {MANAGER_REVIEW_SORTS.map(s => (
           <button
             key={s}
@@ -80,12 +80,12 @@ export function ReviewFilters({
                 : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
             }`}
           >
-            {LABELS[s]}
+            {t(`mVenue.reviews.sort.${s}`)}
           </button>
         ))}
       </div>
       <label className="relative flex-1">
-        <span className="sr-only">Search by player name</span>
+        <span className="sr-only">{t('mVenue.reviews.search')}</span>
         <Search
           className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-500"
           aria-hidden="true"
@@ -97,7 +97,7 @@ export function ReviewFilters({
             typed.current = true
             setText(e.target.value)
           }}
-          placeholder="Player name"
+          placeholder={t('mVenue.reviews.playerName')}
           className="h-9 w-full rounded-md border border-neutral-200 pl-8 pr-2 text-sm"
         />
       </label>

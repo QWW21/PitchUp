@@ -29,42 +29,47 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { useT } from '@/i18n/client'
+
+type NavKey =
+  'overview' | 'calendar' | 'bookings' | 'pitches' | 'reviews' | 'analytics' | 'settings'
 
 interface Item {
-  label: string
+  label: NavKey
   icon: LucideIcon
   href?: string
 }
-const SECTIONS: { title?: string; items: Item[] }[] = [
+const SECTIONS: { title?: 'manage' | 'business' | 'account'; items: Item[] }[] = [
   {
     items: [
-      { label: 'Overview', icon: Home, href: '/manager/overview' },
-      { label: 'Calendar', icon: CalendarDays, href: '/manager/bookings/calendar' },
-      { label: 'Bookings', icon: List, href: '/manager/bookings' },
+      { label: 'overview', icon: Home, href: '/manager/overview' },
+      { label: 'calendar', icon: CalendarDays, href: '/manager/bookings/calendar' },
+      { label: 'bookings', icon: List, href: '/manager/bookings' },
     ],
   },
   {
-    title: 'Manage',
+    title: 'manage',
     items: [
-      { label: 'Pitches', icon: Trophy, href: '/manager/pitches' },
-      { label: 'Reviews', icon: Star, href: '/manager/reviews' },
+      { label: 'pitches', icon: Trophy, href: '/manager/pitches' },
+      { label: 'reviews', icon: Star, href: '/manager/reviews' },
     ],
   },
   {
-    title: 'Business',
-    items: [{ label: 'Analytics', icon: BarChart3, href: '/manager/analytics' }],
+    title: 'business',
+    items: [{ label: 'analytics', icon: BarChart3, href: '/manager/analytics' }],
   },
-  { title: 'Account', items: [{ label: 'Settings', icon: Settings, href: '/manager/settings' }] },
+  { title: 'account', items: [{ label: 'settings', icon: Settings, href: '/manager/settings' }] },
 ]
 
-const TITLES: Record<string, string> = {
-  '/manager/overview': 'Overview',
-  '/manager/reviews': 'Reviews',
-  '/manager/bookings': 'Bookings',
-  '/manager/settings': 'Settings',
-  '/manager/pitches': 'Pitches',
-  '/manager/bookings/calendar': 'Calendar',
-  '/manager/analytics': 'Analytics',
+const TITLES: Record<string, NavKey> = {
+  '/manager/overview': 'overview',
+  '/manager/reviews': 'reviews',
+  '/manager/bookings': 'bookings',
+  '/manager/settings': 'settings',
+  '/manager/pitches': 'pitches',
+  '/manager/bookings/calendar': 'calendar',
+  '/manager/analytics': 'analytics',
 }
 
 /** The section a path belongs to: /manager/pitches/abc/edit is under Pitches. */
@@ -87,6 +92,7 @@ export function ManagerShell({
   signOutAction: () => Promise<void>
   children: ReactNode
 }) {
+  const t = useT()
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
   const [drawer, setDrawer] = useState(false)
@@ -132,12 +138,12 @@ export function ManagerShell({
         <div
           className="fixed inset-0 z-40 md:hidden"
           role="dialog"
-          aria-label="Menu"
+          aria-label={t('manager.shell.menu')}
           aria-modal="true"
         >
           <button
             type="button"
-            aria-label="Close menu"
+            aria-label={t('manager.shell.closeMenu')}
             className="absolute inset-0 bg-black/40"
             onClick={() => setDrawer(false)}
           />
@@ -145,7 +151,7 @@ export function ManagerShell({
             <button
               type="button"
               onClick={() => setDrawer(false)}
-              aria-label="Close menu"
+              aria-label={t('manager.shell.closeMenu')}
               className="absolute right-2 top-4 rounded-md p-2 text-neutral-400 hover:bg-neutral-800"
             >
               <X className="h-5 w-5" aria-hidden="true" />
@@ -160,18 +166,22 @@ export function ManagerShell({
           <button
             type="button"
             onClick={() => setDrawer(true)}
-            aria-label="Open menu"
+            aria-label={t('manager.shell.openMenu')}
             className="-ml-2 flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 md:hidden"
           >
             <Menu className="h-6 w-6" aria-hidden="true" />
           </button>
           <div className="min-w-0">
             <p className="truncate text-lg font-semibold text-neutral-900">
-              {TITLES[sectionOf(pathname) ?? ''] ?? 'Dashboard'}
+              {(() => {
+                const key = TITLES[sectionOf(pathname) ?? '']
+                return key ? t(`manager.shell.nav.${key}`) : t('manager.shell.dashboard')
+              })()}
             </p>
             <p className="truncate text-xs text-neutral-500">{companyName}</p>
           </div>
           <div className="ml-auto flex items-center gap-1">
+            <LanguageSwitch signedIn />
             <NotificationBell />
             <AccountMenu userName={userName} signOutAction={signOutAction} />
           </div>
@@ -196,6 +206,7 @@ function Sidebar({
   userName: string
   onToggle?: () => void
 }) {
+  const t = useT()
   // Labels show on a phone drawer, and on desktop unless collapsed.
   const label = compact === 'tablet' ? (collapsed ? 'hidden' : 'hidden lg:inline') : 'inline'
   const initials = userName
@@ -209,7 +220,7 @@ function Sidebar({
       <Link
         href="/manager/overview"
         className="flex h-16 items-center px-5 text-xl font-bold text-white"
-        aria-label="PitchUp, overview"
+        aria-label={t('manager.shell.home')}
       >
         <span className={label}>PitchUp</span>
         <span
@@ -219,14 +230,14 @@ function Sidebar({
           P
         </span>
       </Link>
-      <nav aria-label="Manager" className="flex-1 overflow-y-auto px-2">
+      <nav aria-label={t('manager.shell.navLabel')} className="flex-1 overflow-y-auto px-2">
         {SECTIONS.map((section, i) => (
           <div key={i} className="mt-2">
             {section.title && (
               <p
                 className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-neutral-400 ${label}`}
               >
-                {section.title}
+                {t(`manager.shell.section.${section.title}`)}
               </p>
             )}
             <ul className="space-y-1">
@@ -236,12 +247,12 @@ function Sidebar({
                 const body = (
                   <>
                     <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                    <span className={label}>{item.label}</span>
+                    <span className={label}>{t(`manager.shell.nav.${item.label}`)}</span>
                     {!item.href && (
                       <span
                         className={`ml-auto rounded-full bg-neutral-800 px-2 py-0.5 text-[10px] font-medium text-neutral-300 ${label}`}
                       >
-                        Soon
+                        {t('manager.shell.soon')}
                       </span>
                     )}
                   </>
@@ -252,7 +263,7 @@ function Sidebar({
                       <Link
                         href={item.href}
                         aria-current={active ? 'page' : undefined}
-                        title={item.label}
+                        title={t(`manager.shell.nav.${item.label}`)}
                         className={`flex h-10 items-center gap-3 rounded-md px-3 text-sm font-medium ${
                           active
                             ? 'bg-primary-600 text-white'
@@ -264,11 +275,13 @@ function Sidebar({
                     ) : (
                       <span
                         aria-disabled="true"
-                        title={`${item.label} (coming soon)`}
+                        title={t('manager.shell.comingSoon', {
+                          label: t(`manager.shell.nav.${item.label}`),
+                        })}
                         className="flex h-10 cursor-not-allowed items-center gap-3 rounded-md px-3 text-sm font-medium text-neutral-400"
                       >
                         {body}
-                        <span className="sr-only">, coming soon</span>
+                        <span className="sr-only">{t('manager.shell.comingSoonSr')}</span>
                       </span>
                     )}
                   </li>
@@ -289,7 +302,7 @@ function Sidebar({
           <span className={`min-w-0 ${label}`}>
             <span className="block truncate text-sm font-medium text-white">{userName}</span>
             <span className="inline-block rounded-full bg-primary-100 px-2 text-[11px] font-medium text-primary-700">
-              Manager
+              {t('manager.shell.role')}
             </span>
           </span>
         </div>
@@ -297,7 +310,7 @@ function Sidebar({
           <button
             type="button"
             onClick={onToggle}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={collapsed ? t('manager.shell.expand') : t('manager.shell.collapse')}
             className="mt-3 hidden w-full items-center justify-center rounded-md py-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-white lg:flex"
           >
             {collapsed ? (
@@ -321,6 +334,7 @@ function AccountMenu({
   userName: string
   signOutAction: () => Promise<void>
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -342,7 +356,7 @@ function AccountMenu({
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`Account menu for ${userName}`}
+        aria-label={t('manager.shell.accountMenu', { name: userName })}
         className="flex h-11 w-11 items-center justify-center rounded-full"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold text-primary-700">
@@ -360,7 +374,7 @@ function AccountMenu({
             href="/discover"
             className="block px-4 py-2 text-sm hover:bg-neutral-50"
           >
-            View Discover
+            {t('manager.shell.discover')}
           </Link>
           <form action={signOutAction}>
             <button
@@ -368,7 +382,7 @@ function AccountMenu({
               type="submit"
               className="block w-full px-4 py-2 text-left text-sm text-error-600 hover:bg-neutral-50"
             >
-              Sign out
+              {t('manager.shell.signOut')}
             </button>
           </form>
         </div>

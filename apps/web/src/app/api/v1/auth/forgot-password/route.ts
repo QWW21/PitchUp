@@ -19,7 +19,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     windowMs: 15 * 60 * 1000,
   })
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many requests, try again shortly', 429, {
+    return err('RATE_LIMITED', 'api.tooManyRequestsShortly', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -30,7 +30,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     if (caught instanceof RecipientThrottledError) {
       // Reported the same way as the per-IP limit. Distinguishing them would
       // reveal that the address has an account worth throttling.
-      return err('RATE_LIMITED', 'Too many requests, try again shortly', 429, {
+      return err('RATE_LIMITED', 'api.tooManyRequestsShortly', 429, {
         retryAfterSeconds: caught.retryAfterSeconds,
       })
     }

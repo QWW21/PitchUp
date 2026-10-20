@@ -61,8 +61,9 @@ describe('buckets', () => {
   })
 
   it('labels', () => {
-    expect(bucketLabel('2026-11-04', 'day')).toBe('4 Nov')
-    expect(bucketLabel('2026-11-01', 'month')).toBe('Nov 2026')
+    expect(bucketLabel('2026-11-04', 'day', 'en')).toBe('4 Nov')
+    expect(bucketLabel('2026-11-01', 'month', 'en')).toBe('Nov 2026')
+    expect(bucketLabel('2026-11-04', 'day', 'ro')).toBe('4 nov.')
   })
 })
 

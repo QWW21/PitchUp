@@ -1,8 +1,9 @@
 import React, { useEffect, useRef } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
-import { DAY_LONG, DAY_SHORT, dayOfWeek, type PitchAvailability } from '@pitchup/shared'
+import { dayOfWeek, weekdayLong, weekdayShort, type PitchAvailability } from '@pitchup/shared'
 import { usePitchWeek } from '../../hooks/useVenue'
 import { colors } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 type DayState = 'loading' | 'available' | 'full' | 'closed'
 
@@ -53,6 +54,8 @@ export function AvailabilityPreview({
   onPickDay,
   onClosedDay,
 }: AvailabilityPreviewProps) {
+  const t = useT()
+  const locale = useLocale()
   const week = usePitchWeek(pitchId, enabled)
   return (
     <View style={styles.row}>
@@ -65,19 +68,22 @@ export function AvailabilityPreview({
             style={styles.column}
             disabled={state === 'loading'}
             accessibilityRole="button"
-            accessibilityLabel={`${DAY_LONG[dow]} ${Number(date.slice(8))}: ${state}`}
+            accessibilityLabel={t('discover.pitch.dayState', {
+              day: `${weekdayLong(dow, locale)} ${Number(date.slice(8))}`,
+              state: t(`discover.pitch.states.${state}`),
+            })}
             onPress={() =>
               state === 'closed'
                 ? onClosedDay(
                     i === 0 && query.data && !query.data.isClosed
-                      ? 'No more slots today'
-                      : `This pitch is closed on ${DAY_LONG[dow]}`
+                      ? t('discover.pitch.noMoreSlots')
+                      : t('discover.pitch.closedOn', { day: weekdayLong(dow, locale) })
                   )
                 : onPickDay(date)
             }
           >
             <Text style={[styles.day, i === 0 && styles.today]}>
-              {i === 0 ? 'Today' : DAY_SHORT[dow]}
+              {i === 0 ? t('discover.pitch.today') : weekdayShort(dow, locale)}
             </Text>
             <Text style={styles.date}>{Number(date.slice(8))}</Text>
             {state === 'loading' ? (

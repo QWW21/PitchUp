@@ -3,16 +3,18 @@ import { StyleSheet, Text, View } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { REVIEW } from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 const STAR = '#FBBF24'
 
 export function Stars({ rating, size = 14 }: { rating: number; size?: number }) {
+  const t = useT()
   const full = Math.round(rating)
   return (
     <View
       style={styles.row}
       accessibilityRole="image"
-      accessibilityLabel={`${rating.toFixed(1)} out of 5`}
+      accessibilityLabel={t('discover.reviews.stars', { rating: rating.toFixed(1) })}
     >
       {[1, 2, 3, 4, 5].map(i => (
         <Icon
@@ -34,8 +36,9 @@ export function RatingLine({
   avgRating: number | null
   reviewCount: number
 }) {
+  const t = useT()
   if (avgRating === null || reviewCount < REVIEW.MIN_FOR_PUBLIC_RATING) {
-    return <Text style={styles.muted}>Not yet rated</Text>
+    return <Text style={styles.muted}>{t('discover.reviews.notYet')}</Text>
   }
   return (
     <View style={styles.line}>

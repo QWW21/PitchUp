@@ -11,12 +11,6 @@ import { emailSchema, phoneSchema } from './common'
 
 export const ONBOARDING_STEPS = ['info', 'location', 'contact-hours', 'stripe'] as const
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number]
-export const ONBOARDING_STEP_LABELS: Record<OnboardingStep, string> = {
-  info: 'Company info',
-  location: 'Location',
-  'contact-hours': 'Contact & hours',
-  stripe: 'Payouts',
-}
 
 /** Blank strings and null count as "not given". */
 const blankToUndefined = (v: unknown) =>
@@ -25,19 +19,19 @@ const optionalText = (max: number) =>
   z.preprocess(blankToUndefined, z.string().trim().max(max).optional())
 const optionalUrl = z.preprocess(
   blankToUndefined,
-  z.string().trim().url('Enter a full address, starting with https://').max(300).optional()
+  z.string().trim().url('v.httpsUrl').max(300).optional()
 )
 
 /** Step 1 — PRD §8.1. The logo is optional: a venue may not have one yet. */
 export const CompanyInfoSchema = z.object({
-  name: z.string().trim().min(2, 'Enter the company name').max(80, 'At most 80 characters'),
+  name: z.string().trim().min(2, 'v.companyName').max(80, 'v.max80'),
   description: optionalText(500),
   logoUrl: z.preprocess(
     blankToUndefined,
     z
       .string()
       .url()
-      .refine(u => u.startsWith('https://res.cloudinary.com/'), 'Upload the logo through PitchUp')
+      .refine(u => u.startsWith('https://res.cloudinary.com/'), 'v.logoUpload')
       .optional()
   ),
   websiteUrl: optionalUrl,
@@ -51,24 +45,20 @@ export const CompanyInfoSchema = z.object({
  */
 export const CompanyLocationSchema = z
   .object({
-    addressLine1: z
-      .string()
-      .trim()
-      .min(5, 'Enter the street and number')
-      .max(100, 'At most 100 characters'),
+    addressLine1: z.string().trim().min(5, 'v.street').max(100, 'v.max100'),
     addressLine2: optionalText(100),
-    city: z.string().refine(c => CITY_NAMES.includes(c), 'Choose a city from the list'),
-    county: z.string().trim().min(2, 'Enter the county').max(60),
-    postalCode: z.string().trim().min(4, 'Enter the postal code').max(10, 'At most 10 characters'),
+    city: z.string().refine(c => CITY_NAMES.includes(c), 'v.cityFromList'),
+    county: z.string().trim().min(2, 'v.county').max(60),
+    postalCode: z.string().trim().min(4, 'v.postalCode').max(10, 'v.max10'),
     lat: z.number().min(-90).max(90).optional(),
     lng: z.number().min(-180).max(180).optional(),
   })
   .refine(d => (d.lat === undefined) === (d.lng === undefined), {
-    message: 'Send both coordinates or neither',
+    message: 'v.bothCoords',
     path: ['lat'],
   })
 
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM')
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'v.useTime')
 
 /**
  * Step 3. Hours are the same shape the rest of the app reads (Discover's
@@ -84,22 +74,22 @@ export const OnboardingHoursSchema = z
       isClosed: z.boolean(),
     })
   )
-  .length(7, 'Give hours for all seven days')
+  .length(7, 'v.sevenDays')
   .superRefine((days, ctx) => {
     if (new Set(days.map(d => d.day)).size !== 7) {
-      ctx.addIssue({ code: 'custom', message: 'Give hours for all seven days' })
+      ctx.addIssue({ code: 'custom', message: 'v.sevenDays' })
     }
     days.forEach((d, i) => {
       if (!d.isClosed && toMinutes(d.openTime) === toMinutes(d.closeTime)) {
         ctx.addIssue({
           code: 'custom',
-          message: 'Closing time must differ from opening time',
+          message: 'v.closeDiffers',
           path: [i, 'closeTime'],
         })
       }
     })
     if (days.every(d => d.isClosed)) {
-      ctx.addIssue({ code: 'custom', message: 'Open on at least one day' })
+      ctx.addIssue({ code: 'custom', message: 'v.openOneDay' })
     }
   })
 
@@ -111,7 +101,7 @@ export const ContactHoursSchema = z.object({
 
 /** What an admin writes when sending a venue back. */
 export const RejectCompanySchema = z.object({
-  reason: z.string().trim().min(5, 'Say what needs fixing').max(500),
+  reason: z.string().trim().min(5, 'v.sayWhatToFix').max(500),
 })
 
 export type CompanyInfoInput = z.infer<typeof CompanyInfoSchema>

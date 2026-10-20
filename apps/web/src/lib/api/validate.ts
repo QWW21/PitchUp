@@ -21,7 +21,7 @@ export async function validateBody<S extends ZodTypeAny>(
 
   if (!result.success) {
     return {
-      error: err('VALIDATION_ERROR', 'Invalid request body', 400, result.error.flatten()),
+      error: err('VALIDATION_ERROR', 'api.invalidBody', 400, result.error.flatten()),
     }
   }
   return { data: result.data }
@@ -37,7 +37,7 @@ export function validateQuery<S extends ZodTypeAny>(
 
   if (!result.success) {
     return {
-      error: err('VALIDATION_ERROR', 'Invalid query parameters', 400, result.error.flatten()),
+      error: err('VALIDATION_ERROR', 'api.invalidQuery', 400, result.error.flatten()),
     }
   }
   return { data: result.data }

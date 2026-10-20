@@ -17,18 +17,20 @@ import { useAuthStore } from '../../stores/authStore'
 import { Button } from '../../components/ui/Button'
 import { Input, InputIconButton } from '../../components/ui/Input'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ChangePassword'>
 
 const LEVELS = [
-  { label: '', colour: colors.neutral[200] },
-  { label: 'Weak', colour: colors.error[500] },
-  { label: 'Fair', colour: colors.warning[500] },
-  { label: 'Good', colour: colors.primary[500] },
-  { label: 'Strong', colour: colors.primary[600] },
+  colors.neutral[200],
+  colors.error[500],
+  colors.warning[500],
+  colors.primary[500],
+  colors.primary[600],
 ]
 
 export function StrengthBar({ password }: { password: string }) {
+  const t = useT()
   if (!password) return null
   const score = scorePassword(password)
   return (
@@ -39,12 +41,16 @@ export function StrengthBar({ password }: { password: string }) {
             key={n}
             style={[
               styles.segment,
-              { backgroundColor: n <= score ? LEVELS[score]!.colour : colors.neutral[200] },
+              { backgroundColor: n <= score ? LEVELS[score]! : colors.neutral[200] },
             ]}
           />
         ))}
       </View>
-      <Text style={styles.muted}>Password strength: {LEVELS[score]!.label || 'Weak'}</Text>
+      <Text style={styles.muted}>
+        {t('profile.password.strength', {
+          level: t(`profile.password.levels.${(score || 1) as 1 | 2 | 3 | 4}`),
+        })}
+      </Text>
     </View>
   )
 }
@@ -86,6 +92,7 @@ function Secret({
 }
 
 export function ChangePasswordScreen({ navigation }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
@@ -97,9 +104,9 @@ export function ChangePasswordScreen({ navigation }: Props) {
   const change = useMutation({
     mutationFn: () => profileApi.changePassword({ currentPassword: current, newPassword: next }),
     onSuccess: () =>
-      Alert.alert('Password updated', "You'll be logged out. Sign in with the new password.", [
+      Alert.alert(t('profile.password.updated'), t('profile.password.loggedOut'), [
         {
-          text: 'OK',
+          text: t('profile.ok'),
           onPress: async () => {
             await logout()
             queryClient.clear()
@@ -118,13 +125,13 @@ export function ChangePasswordScreen({ navigation }: Props) {
 
   const submit = () => {
     const found: typeof errors = {}
-    if (!current) found.current = 'Enter your current password'
+    if (!current) found.current = t('profile.password.enterCurrent')
     const strong = passwordSchema.safeParse(next)
     if (!strong.success)
-      found.next = strong.error.issues[0]?.message ?? 'Choose a stronger password'
-    else if (next === current) found.next = 'Choose a password different from the current one'
-    if (confirm && confirm !== next) found.confirm = 'Passwords do not match'
-    if (!confirm) found.confirm = 'Confirm the new password'
+      found.next = t.text(strong.error.issues[0]?.message ?? t('profile.password.stronger'))
+    else if (next === current) found.next = t('profile.password.different')
+    if (confirm && confirm !== next) found.confirm = t('profile.password.mismatch')
+    if (!confirm) found.confirm = t('profile.password.confirmIt')
     setErrors(found)
     if (!Object.keys(found).length) change.mutate()
   }
@@ -133,7 +140,7 @@ export function ChangePasswordScreen({ navigation }: Props) {
     change.isError && !errors.current
       ? change.error instanceof ApiError
         ? change.error.message
-        : 'Could not change the password. Try again.'
+        : t('profile.password.failed')
       : null
 
   return (
@@ -143,33 +150,38 @@ export function ChangePasswordScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Change password
+          {t('profile.password.title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Secret
-          label="Current password"
+          label={t('profile.password.current')}
           value={current}
           onChange={setCurrent}
           error={errors.current}
         />
         <View>
-          <Secret label="New password" value={next} onChange={setNext} error={errors.next} />
+          <Secret
+            label={t('profile.password.new')}
+            value={next}
+            onChange={setNext}
+            error={errors.next}
+          />
           <StrengthBar password={next} />
         </View>
         <Secret
-          label="Confirm new password"
+          label={t('profile.password.confirm')}
           value={confirm}
           onChange={v => {
             setConfirm(v)
             setErrors(e => ({
               ...e,
-              confirm: v && v !== next ? 'Passwords do not match' : undefined,
+              confirm: v && v !== next ? t('profile.password.mismatch') : undefined,
             }))
           }}
           error={errors.confirm}
@@ -177,7 +189,7 @@ export function ChangePasswordScreen({ navigation }: Props) {
         {otherError ? <Text style={styles.error}>{otherError}</Text> : null}
       </ScrollView>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <Button label="Change password" onPress={submit} loading={change.isPending} />
+        <Button label={t('profile.password.submit')} onPress={submit} loading={change.isPending} />
       </View>
     </SafeAreaView>
   )

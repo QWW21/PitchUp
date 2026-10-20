@@ -10,6 +10,7 @@ import React, { useEffect, useRef } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native'
 import { TRUST_TIER_COLOURS, trustTier } from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export function TrustBadge({
   score,
@@ -21,6 +22,7 @@ export function TrustBadge({
   /** 600 ms on the profile card, 800 ms on the detail screen (the tickets). */
   duration?: number
 }) {
+  const t = useT()
   const tier = trustTier(score)
   const colour = TRUST_TIER_COLOURS[tier.label]
   const fill = useRef(new Animated.Value(0)).current
@@ -41,7 +43,7 @@ export function TrustBadge({
       style={styles.root}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Trust score ${score} out of 100, ${tier.label}`}
+      accessibilityLabel={t('profile.trust.badge', { score, tier: t(`trust.tier.${tier.label}`) })}
     >
       <View
         style={[

@@ -17,7 +17,7 @@ export const GET = withErrorHandling(
     const query = validateQuery(request, ReviewListQuerySchema)
     if (query.error) return query.error
     const page = await listReviews({ pitchId: (await params).id, ...query.data })
-    if (!page) return err('NOT_FOUND', 'Pitch not found', 404)
+    if (!page) return err('NOT_FOUND', 'api.pitchNotFound', 404)
     return ok(page)
   }
 )

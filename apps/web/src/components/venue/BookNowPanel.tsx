@@ -4,13 +4,14 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useQueries } from '@tanstack/react-query'
 import {
-  DAY_LONG,
-  DAY_SHORT,
   addDays,
   dayOfWeek,
   venueClock,
+  weekdayLong,
+  weekdayShort,
   type PitchAvailability,
 } from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
 /** Why Book Now is not offered, if it is not. UIUX_SPEC §6.2, PRD §7.4. */
 export type BookingBlock = null | 'unavailable' | 'restricted'
@@ -23,14 +24,6 @@ const DOT: Record<DayState, string> = {
   full: 'bg-error-500',
   closed: 'bg-neutral-300',
   error: 'bg-neutral-200',
-}
-
-const LABEL: Record<DayState, string> = {
-  loading: 'checking',
-  available: 'slots available',
-  full: 'fully booked',
-  closed: 'closed',
-  error: 'unknown',
 }
 
 function stateOf(a: PitchAvailability | undefined, isError: boolean): DayState {
@@ -46,7 +39,7 @@ function stateOf(a: PitchAvailability | undefined, isError: boolean): DayState {
 async function fetchDay(pitchId: string, date: string): Promise<PitchAvailability> {
   const res = await fetch(`/api/v1/pitches/${pitchId}/availability?date=${date}`)
   const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Request failed')
+  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? res.statusText)
   return body.data as PitchAvailability
 }
 
@@ -79,6 +72,8 @@ export function BookNowPanel({
   refundPolicy,
   confirmsByHand,
 }: BookNowPanelProps) {
+  const t = useT()
+  const locale = useLocale()
   // The venue's today, not the browser's: a visitor abroad still sees Romanian dates.
   const today = venueClock(new Date()).date
   const dates = Array.from({ length: 7 }, (_, i) => addDays(today, i))
@@ -102,18 +97,21 @@ export function BookNowPanel({
   return (
     <aside className="rounded-xl bg-white p-5 shadow-sm lg:sticky lg:top-24">
       <p className="text-sm text-neutral-500">
-        <span className="font-mono text-xl font-bold text-neutral-900">{hourlyRate} RON</span>/h
+        <span className="font-mono text-xl font-bold text-neutral-900">{hourlyRate} RON</span>
+        {t('venue.pricing.perHour')}
       </p>
 
       {block !== 'unavailable' && (
         <>
-          <h2 className="mt-5 text-base font-semibold text-neutral-900">Availability</h2>
+          <h2 className="mt-5 text-base font-semibold text-neutral-900">
+            {t('venue.bookNow.availability')}
+          </h2>
           <ol className="mt-3 grid grid-cols-7 gap-1">
             {dates.map((date, i) => {
               const q = days[i]!
               const state = stateOf(q.data, q.isError)
               const dow = dayOfWeek(date)
-              const label = i === 0 ? 'Today' : DAY_SHORT[dow]
+              const label = i === 0 ? t('venue.bookNow.today') : weekdayShort(dow, locale)
               const content = (
                 <>
                   <span
@@ -127,7 +125,7 @@ export function BookNowPanel({
               )
               const cls =
                 'flex flex-col items-center gap-1 rounded-md py-2 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600'
-              const aria = `${DAY_LONG[dow]} ${date}: ${LABEL[state]}`
+              const aria = `${weekdayLong(dow, locale)} ${date}: ${t(`venue.bookNow.state.${state}`)}`
               return (
                 <li key={date}>
                   {state === 'closed' || block === 'restricted' ? (
@@ -138,10 +136,12 @@ export function BookNowPanel({
                       onClick={() =>
                         setClosedNote(
                           block === 'restricted'
-                            ? (blockNote ?? 'Your account cannot make bookings right now.')
+                            ? (blockNote ?? t('venue.bookNow.cannotBook'))
                             : i === 0 && q.data && !q.data.isClosed
-                              ? 'No more slots today.'
-                              : `This pitch is closed on ${DAY_LONG[dow]}.`
+                              ? t('venue.bookNow.noMoreToday')
+                              : t('venue.bookNow.closedOn', {
+                                  day: weekdayLong(dow, locale).toLowerCase(),
+                                })
                         )
                       }
                     >
@@ -157,9 +157,9 @@ export function BookNowPanel({
             })}
           </ol>
           <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-neutral-500">
-            <Legend dot="bg-primary-600" label="Available" />
-            <Legend dot="bg-error-500" label="Full" />
-            <Legend dot="bg-neutral-300" label="Closed" />
+            <Legend dot="bg-primary-600" label={t('venue.bookNow.legendAvailable')} />
+            <Legend dot="bg-error-500" label={t('venue.bookNow.legendFull')} />
+            <Legend dot="bg-neutral-300" label={t('venue.bookNow.legendClosed')} />
           </p>
           {closedNote && (
             <p role="status" className="mt-2 text-xs text-neutral-700">
@@ -172,17 +172,17 @@ export function BookNowPanel({
       <div className="mt-5">
         {block === 'unavailable' ? (
           <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-700">
-            Not available
+            {t('venue.bookNow.notAvailable')}
           </span>
         ) : block === 'restricted' ? (
           <>
             <span className="flex h-12 w-full items-center justify-center rounded-md bg-neutral-200 font-semibold text-neutral-700">
-              Can&rsquo;t book here
+              {t('venue.bookNow.cantBookHere')}
             </span>
             <p className="mt-2 text-sm text-neutral-700">
-              {blockNote ?? 'Your account cannot make bookings right now.'}{' '}
+              {blockNote ?? t('venue.bookNow.cannotBook')}{' '}
               <Link href="/profile/trust-score" className="font-medium text-primary-700 underline">
-                Your trust score
+                {t('venue.bookNow.trustScoreLink')}
               </Link>
             </p>
           </>
@@ -191,20 +191,17 @@ export function BookNowPanel({
             href={hrefFor()}
             className="flex h-12 w-full items-center justify-center rounded-md bg-accent-600 font-semibold text-white hover:bg-accent-700"
           >
-            {signedIn ? 'Book Now' : 'Sign in to book'}
+            {signedIn ? t('venue.bookNow.book') : t('venue.bookNow.signInToBook')}
           </Link>
         )}
       </div>
       {minTier && (
         <p className="mt-3 text-xs text-neutral-700">
-          For players with a {minTier} trust score or better.
+          {t('venue.bookNow.minTier', { tier: minTier })}
         </p>
       )}
       {confirmsByHand && (
-        <p className="mt-3 text-xs text-neutral-700">
-          This venue confirms each booking. You pay when you book, and get it all back if they
-          decline.
-        </p>
+        <p className="mt-3 text-xs text-neutral-700">{t('venue.bookNow.confirmsByHand')}</p>
       )}
       <p className="mt-3 text-xs text-neutral-500">{refundPolicy}</p>
     </aside>

@@ -32,9 +32,11 @@ import {
   venueTimeToUtc,
   type CreateBookingInput,
   type CreateBookingResult,
+  sharedT,
 } from '@pitchup/shared'
 import { env } from '@/lib/env'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { ApiException, conflict, notFound, unauthorized, validationError } from '@/lib/api/errors'
 import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
@@ -54,7 +56,7 @@ export async function createBooking(
   now: Date = new Date()
 ): Promise<CreateBookingResult> {
   const provider = getPaymentProvider()
-  if (!provider) throw new ApiException('SERVICE_UNAVAILABLE', 'Payments are not set up yet')
+  if (!provider) throw new ApiException('SERVICE_UNAVAILABLE', 'api.paymentsNotSetUp')
 
   const [user, pitch] = await Promise.all([
     prisma.user.findUnique({
@@ -83,22 +85,25 @@ export async function createBooking(
   ])
   if (!user || user.deletedAt) throw unauthorized()
   if (!pitch || pitch.deletedAt || pitch.company.status !== 'ACTIVE') {
-    throw notFound('Pitch not found')
+    throw notFound('api.pitchNotFound')
   }
-  if (!pitch.isActive) throw forbidden('This pitch is not taking bookings', 'PITCH_INACTIVE')
+  if (!pitch.isActive) throw forbidden('api.notTakingBookings', 'PITCH_INACTIVE')
   // E12-06: suspended players can't book, Poor ones hold one upcoming booking,
   // and a pitch may ask for a better trust score.
-  const gate = bookingTrustGate({
-    score: user.trustScore,
-    pitchMinScore: pitch.minTrustScore,
-    activeBookings: await prisma.booking.count({
-      where: {
-        playerId: userId,
-        status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
-        endTime: { gt: now },
-      },
-    }),
-  })
+  const gate = bookingTrustGate(
+    {
+      score: user.trustScore,
+      pitchMinScore: pitch.minTrustScore,
+      activeBookings: await prisma.booking.count({
+        where: {
+          playerId: userId,
+          status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+          endTime: { gt: now },
+        },
+      }),
+    },
+    await getLocale()
+  )
   if (gate) {
     throw new ApiException('FORBIDDEN', gate.message, {
       reason: gate.reason,
@@ -124,17 +129,27 @@ export async function createBooking(
   const endMin = toMinutes(input.endTime)
   const minutes = endMin - startMin
   if (minutes < pitch.minBookingHours * 60 || minutes > pitch.maxBookingHours * 60) {
-    throw validationError(
-      `This pitch is booked for ${formatShortDuration(pitch.minBookingHours * 60)} to ${formatShortDuration(pitch.maxBookingHours * 60)} at a time`,
-      { field: 'endTime' }
+    throw new ApiException(
+      'VALIDATION_ERROR',
+      'api.bookingLength',
+      { field: 'endTime' },
+      {
+        min: formatShortDuration(pitch.minBookingHours * 60),
+        max: formatShortDuration(pitch.maxBookingHours * 60),
+      }
     )
   }
 
   // The date and the opening hours, on the venue's calendar.
   const today = venueClock(now).date
-  if (input.date < today) throw validationError('That date has passed', { field: 'date' })
+  if (input.date < today) throw validationError('api.datePassed', { field: 'date' })
   if (input.date > addDays(today, pitch.advanceBookingDays)) {
-    throw validationError(`Bookings open ${pitch.advanceBookingDays} days ahead`, { field: 'date' })
+    throw new ApiException(
+      'VALIDATION_ERROR',
+      'api.advanceDays',
+      { field: 'date' },
+      { n: pitch.advanceBookingDays }
+    )
   }
   const schedule = {
     id: pitch.id,
@@ -149,28 +164,35 @@ export async function createBooking(
     await exceptionDates(pitch.id, input.date, input.date)
   )
   if (!intervals.some(([open, close]) => startMin >= open && endMin <= close)) {
-    throw validationError('The pitch is not open for all of that time', {
+    throw validationError('api.pitchNotOpen', {
       reason: 'OUTSIDE_OPENING_HOURS',
     })
   }
   const startTime = venueTimeToUtc(input.date, startMin)
   const endTime = venueTimeToUtc(input.date, endMin)
-  if (startTime <= now) throw validationError('That time has passed', { field: 'startTime' })
+  if (startTime <= now) throw validationError('api.timePassed', { field: 'startTime' })
 
   // Free shirts (C-1): one set per team but one, from this pitch's stock.
   // Only one booking uses a pitch at a time, so the stock is never shared.
   const sets = shirtSetsFor(input.teamCount, input.wantsShirts)
   const stock = new Map(pitch.shirtInventory.map(s => [s.colour as string, s.quantity]))
-  if (sets && !pitch.hasShirts) throw validationError('This pitch does not lend shirts')
+  if (sets && !pitch.hasShirts) throw validationError('api.noShirts')
   const totalSets = [...stock.values()].reduce((a, b) => a + b, 0)
   if (sets > totalSets) {
-    throw conflict(`This pitch has ${totalSets} set${totalSets === 1 ? '' : 's'} of shirts`, {
-      reason: 'SHIRTS_UNAVAILABLE',
-    })
+    throw new ApiException(
+      'CONFLICT',
+      'api.shirtSets',
+      { reason: 'SHIRTS_UNAVAILABLE' },
+      { count: totalSets }
+    )
   }
   for (const team of input.teamsData) {
     if (team.colour && !(stock.get(team.colour)! > 0)) {
-      throw validationError(`There are no ${team.colour.toLowerCase()} shirts here`)
+      const st = sharedT(await getLocale())
+      const key = `shirt.${team.colour}` as 'shirt.RED'
+      throw new ApiException('VALIDATION_ERROR', 'api.noColourShirts', undefined, {
+        colour: st.has(key) ? st(key) : team.colour.toLowerCase(),
+      })
     }
   }
 
@@ -208,7 +230,7 @@ export async function createBooking(
     // replaced by this one rather than blocking it.
     const own = overlapping.filter(b => b.playerId === userId && b.status === 'PENDING')
     if (overlapping.length > own.length) {
-      throw conflict('Someone has just booked that time', { reason: 'SLOT_CONFLICT' })
+      throw conflict('api.justBooked', { reason: 'SLOT_CONFLICT' })
     }
     if (own.length) {
       await tx.booking.updateMany({
@@ -315,10 +337,7 @@ export async function createBooking(
       }),
       recordStatus(prisma, booking.id, 'CANCELLED'),
     ])
-    throw new ApiException(
-      'SERVICE_UNAVAILABLE',
-      'Payments are unavailable right now. Nothing was charged; please try again shortly.'
-    )
+    throw new ApiException('SERVICE_UNAVAILABLE', 'api.paymentsDown')
   }
 
   await prisma.booking.update({

@@ -21,11 +21,14 @@ import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack'
 import type { AppStackParamList } from '../../../App'
+import { useLocale, useT } from '../../i18n'
 
 export function Step5ConfirmationScreen({
   navigation,
   route,
 }: BookingScreenProps<'BookingConfirmation'>) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const booking = useQuery({
     queryKey: ['booking', route.params.bookingId],
@@ -74,12 +77,14 @@ export function Step5ConfirmationScreen({
         {!b || b.status === 'PENDING' ? (
           <View style={styles.center} accessibilityLiveRegion="polite">
             <ActivityIndicator color={colors.primary[600]} />
-            <Text style={styles.sub}>Confirming your payment…</Text>
+            <Text style={styles.sub}>{t('booking.done.confirming')}</Text>
           </View>
         ) : !confirmed ? (
           <View style={styles.center}>
-            <Text style={styles.title}>The payment didn&apos;t go through</Text>
-            <Text style={styles.sub}>{b.cancellationReason ?? 'Nothing was booked.'}</Text>
+            <Text style={styles.title}>{t('booking.done.failed')}</Text>
+            <Text style={styles.sub}>
+              {b.cancellationReason ?? t('booking.done.nothingBooked')}
+            </Text>
           </View>
         ) : (
           <>
@@ -89,33 +94,32 @@ export function Step5ConfirmationScreen({
               </Animated.View>
             </Animated.View>
             <Text style={styles.title} accessibilityRole="header">
-              {waiting ? 'Sent to the venue' : 'Booking confirmed!'}
+              {waiting ? t('booking.done.sent') : t('booking.done.confirmed')}
             </Text>
             <Text style={styles.sub}>
               {waiting
-                ? `${b.company.name} confirms each booking. You'll be told when they answer; if they decline, all your money comes back.`
-                : 'Get ready to play!'}
+                ? t('booking.done.waiting', { venue: b.company.name })
+                : t('booking.done.ready')}
             </Text>
             <View style={styles.card}>
               <Text style={styles.reference}>{b.reference}</Text>
               <Text style={styles.pitch}>{b.pitch.name}</Text>
               <Text style={styles.sub}>{b.company.name}</Text>
               <Text style={styles.when}>
-                {formatDateLong(b.date)}, {b.startTime}–{b.endTime} ({formatDuration(b.minutes)})
+                {formatDateLong(b.date, locale)}, {b.startTime}–{b.endTime} (
+                {formatDuration(b.minutes)})
               </Text>
               {b.shirtSets > 0 ? (
-                <Text style={styles.when}>
-                  Free shirts: {b.shirtSets} {b.shirtSets === 1 ? 'set' : 'sets'}
-                </Text>
+                <Text style={styles.when}>{t('booking.done.shirts', { count: b.shirtSets })}</Text>
               ) : null}
-              <Text style={styles.paid}>{paymentStatusLine(b)}</Text>
+              <Text style={styles.paid}>{paymentStatusLine(b, locale)}</Text>
             </View>
           </>
         )}
       </View>
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-        <Button label="View my booking" onPress={viewBooking} disabled={!confirmed} />
-        <Button label="Back to Discover" variant="ghost" onPress={close} />
+        <Button label={t('booking.done.view')} onPress={viewBooking} disabled={!confirmed} />
+        <Button label={t('booking.done.discover')} variant="ghost" onPress={close} />
       </View>
     </View>
   )

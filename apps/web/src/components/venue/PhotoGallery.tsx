@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react'
+import { useT } from '@/i18n/client'
 
 interface Photo {
   id: string
@@ -14,6 +15,7 @@ interface Photo {
  * of behaviours, and the lightbox takes the keyboard (←, →, Esc).
  */
 export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) {
+  const t = useT()
   const [index, setIndex] = useState(0)
   const [lightbox, setLightbox] = useState(false)
   const count = photos.length
@@ -40,7 +42,7 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
     return (
       <div className="flex aspect-[4/3] w-full flex-col items-center justify-center rounded-xl bg-neutral-100">
         <ImageOff className="h-12 w-12 text-neutral-500" aria-hidden="true" />
-        <p className="mt-2 text-xs text-neutral-500">No photos available</p>
+        <p className="mt-2 text-xs text-neutral-500">{t('venue.gallery.noPhotos')}</p>
       </div>
     )
   }
@@ -54,11 +56,11 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
           type="button"
           onClick={() => setLightbox(true)}
           className="block w-full overflow-hidden rounded-xl"
-          aria-label={`Open photo ${index + 1} of ${count} full screen`}
+          aria-label={t('venue.gallery.open', { n: index + 1, count })}
         >
           <img
             src={current.url}
-            alt={`${alt}, photo ${index + 1}`}
+            alt={t('venue.gallery.photoAlt', { name: alt, n: index + 1 })}
             className="aspect-[4/3] w-full bg-neutral-100 object-cover"
           />
         </button>
@@ -80,7 +82,7 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
               key={p.id}
               type="button"
               onClick={() => setIndex(i)}
-              aria-label={`Show photo ${i + 1}`}
+              aria-label={t('venue.gallery.show', { n: i + 1 })}
               aria-current={i === index}
               className={`shrink-0 overflow-hidden rounded-md ring-2 ring-offset-1 ${
                 i === index ? 'ring-primary-600' : 'ring-transparent opacity-70 hover:opacity-100'
@@ -96,7 +98,7 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Photos"
+          aria-label={t('venue.gallery.photos')}
           className="fixed inset-0 z-50 flex flex-col bg-black"
         >
           <div className="flex items-center justify-between p-4 text-white">
@@ -106,7 +108,7 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
             <button
               type="button"
               onClick={() => setLightbox(false)}
-              aria-label="Close"
+              aria-label={t('venue.gallery.close')}
               className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"
             >
               <X className="h-6 w-6" />
@@ -115,7 +117,7 @@ export function PhotoGallery({ photos, alt }: { photos: Photo[]; alt: string }) 
           <div className="relative flex flex-1 items-center justify-center p-4">
             <img
               src={current.url}
-              alt={`${alt}, photo ${index + 1}`}
+              alt={t('venue.gallery.photoAlt', { name: alt, n: index + 1 })}
               className="max-h-full max-w-full object-contain"
             />
             {count > 1 && (
@@ -140,12 +142,13 @@ function ArrowButton({
   onClick: () => void
   dark?: boolean
 }) {
+  const t = useT()
   const Icon = side === 'left' ? ChevronLeft : ChevronRight
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={side === 'left' ? 'Previous photo' : 'Next photo'}
+      aria-label={side === 'left' ? t('venue.gallery.previous') : t('venue.gallery.next')}
       className={`absolute top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full ${
         side === 'left' ? 'left-3' : 'right-3'
       } ${dark ? 'bg-white/15 text-white hover:bg-white/25' : 'bg-white/90 text-neutral-900 shadow-sm hover:bg-white'}`}

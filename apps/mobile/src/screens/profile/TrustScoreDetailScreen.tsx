@@ -30,24 +30,19 @@ import { profileApi } from '../../lib/profileApi'
 import { ErrorState } from '../../components/common/ErrorState'
 import { TrustBadge } from '../../components/profile/TrustBadge'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
+import type { Locale } from '@pitchup/shared'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'TrustScore'>
-
-const TIPS = [
-  'Show up to all your bookings',
-  'Cancel at least 24h in advance',
-  'Leave a review after playing',
-  'Keep your score above 70 for full access',
-]
 
 type Row = { kind: 'month'; label: string } | { kind: 'event'; event: TrustEvent }
 
 /** Events with a month heading whenever the month changes. */
-export function withMonths(events: TrustEvent[]): Row[] {
+export function withMonths(events: TrustEvent[], locale: Locale): Row[] {
   const rows: Row[] = []
   let current = ''
   for (const event of events) {
-    const label = formatMonth(venueClock(new Date(event.createdAt)).date)
+    const label = formatMonth(venueClock(new Date(event.createdAt)).date, locale)
     if (label !== current) {
       rows.push({ kind: 'month', label })
       current = label
@@ -58,6 +53,8 @@ export function withMonths(events: TrustEvent[]): Row[] {
 }
 
 export function TrustScoreDetailScreen({ navigation }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const q = useInfiniteQuery({
     queryKey: ['trust-score'],
     queryFn: ({ pageParam }) => profileApi.trustScore(pageParam),
@@ -68,7 +65,10 @@ export function TrustScoreDetailScreen({ navigation }: Props) {
   if (q.isError) return <ErrorState onRetry={() => q.refetch()} />
   const first = q.data?.pages[0]
   if (!first) return <ActivityIndicator style={styles.loading} color={colors.primary[600]} />
-  const rows = withMonths(q.data!.pages.flatMap(p => p.events))
+  const rows = withMonths(
+    q.data!.pages.flatMap(p => p.events),
+    locale
+  )
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -77,12 +77,12 @@ export function TrustScoreDetailScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Trust score
+          {t('profile.trust.title')}
         </Text>
       </View>
       <FlatList
@@ -121,34 +121,35 @@ export function TrustScoreDetailScreen({ navigation }: Props) {
 }
 
 function Header({ detail: d, empty }: { detail: TrustScoreDetail; empty: boolean }) {
+  const t = useT()
   return (
     <View style={styles.headerBlock}>
       <View style={styles.center}>
         <TrustBadge score={d.score} size={120} duration={800} />
-        <Text style={styles.tier}>{d.tier}</Text>
+        <Text style={styles.tier}>{t(`trust.tier.${d.tier}`)}</Text>
         <Text style={styles.muted}>{d.tierDescription}</Text>
       </View>
       <View style={styles.card}>
-        {d.tiers.map(t => {
-          const current = t.name === d.tier
+        {d.tiers.map(row => {
+          const current = row.name === d.tier
           return (
             <View
-              key={t.name}
+              key={row.name}
               style={[
                 styles.tierRow,
-                current && { backgroundColor: colors.neutral[50], borderLeftColor: t.colour },
+                current && { backgroundColor: colors.neutral[50], borderLeftColor: row.colour },
               ]}
-              accessibilityLabel={`${t.name}, ${t.range}: ${t.description}${current ? ', your tier' : ''}`}
+              accessibilityLabel={`${t(`trust.tier.${row.name}`)}, ${row.range}: ${row.description}${current ? t('profile.trust.yourTier') : ''}`}
             >
-              <Text style={styles.tierName}>{t.name}</Text>
-              <Text style={styles.tierRange}>{t.range}</Text>
-              <Text style={styles.tierText}>{t.description}</Text>
+              <Text style={styles.tierName}>{t(`trust.tier.${row.name}`)}</Text>
+              <Text style={styles.tierRange}>{row.range}</Text>
+              <Text style={styles.tierText}>{row.description}</Text>
             </View>
           )
         })}
       </View>
-      <Text style={styles.sectionTitle}>History</Text>
-      {empty ? <Text style={styles.muted}>No score events yet</Text> : null}
+      <Text style={styles.sectionTitle}>{t('profile.trust.history')}</Text>
+      {empty ? <Text style={styles.muted}>{t('profile.trust.none')}</Text> : null}
     </View>
   )
 }
@@ -160,6 +161,7 @@ export function EventRow({
   event: TrustEvent
   onPress?: (() => void) | undefined
 }) {
+  const locale = useLocale()
   const up = e.delta >= 0
   const content = (
     <>
@@ -170,7 +172,9 @@ export function EventRow({
       </View>
       <View style={styles.flex}>
         <Text style={styles.eventLabel}>{e.label}</Text>
-        <Text style={styles.date}>{formatDateLong(venueClock(new Date(e.createdAt)).date)}</Text>
+        <Text style={styles.date}>
+          {formatDateLong(venueClock(new Date(e.createdAt)).date, locale)}
+        </Text>
       </View>
       {onPress ? <Icon name="chevron-right" size={22} color={colors.neutral[400]} /> : null}
     </>
@@ -185,13 +189,14 @@ export function EventRow({
 }
 
 function Tips() {
+  const t = useT()
   return (
     <View style={styles.tips}>
-      <Text style={styles.sectionTitle}>How to improve your score</Text>
-      {TIPS.map(t => (
-        <View key={t} style={styles.tip}>
+      <Text style={styles.sectionTitle}>{t('profile.trust.improve')}</Text>
+      {([0, 1, 2, 3] as const).map(i => (
+        <View key={i} style={styles.tip}>
           <Icon name="check-circle" size={18} color={colors.primary[600]} />
-          <Text style={styles.tipText}>{t}</Text>
+          <Text style={styles.tipText}>{t(`profile.trust.tips.${i}`)}</Text>
         </View>
       ))}
     </View>

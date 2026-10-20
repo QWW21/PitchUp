@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function CompanyDecision({
   companyId,
@@ -18,6 +19,7 @@ export function CompanyDecision({
   companyName: string
   changes?: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
   const [reason, setReason] = useState('')
@@ -55,7 +57,7 @@ export function CompanyDecision({
           disabled={busy}
           className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          {changes ? 'Approve changes' : 'Approve'}
+          {changes ? t('admin.decision.approveChanges') : t('admin.decision.approve')}
         </button>
         <button
           type="button"
@@ -63,7 +65,7 @@ export function CompanyDecision({
           disabled={busy}
           className="h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
         >
-          {changes ? 'Turn down…' : 'Send back…'}
+          {changes ? t('admin.decision.turnDownDots') : t('admin.decision.sendBackDots')}
         </button>
       </div>
       <dialog
@@ -76,18 +78,18 @@ export function CompanyDecision({
           id={`reject-${changes ? 'changes-' : ''}${companyId}`}
           className="text-lg font-semibold text-neutral-900"
         >
-          {changes ? `Turn down ${companyName}'s changes` : `Send ${companyName} back`}
+          {changes
+            ? t('admin.decision.turnDownTitle', { name: companyName })
+            : t('admin.decision.sendBackTitle', { name: companyName })}
         </h2>
         <p className="mt-1 text-sm text-neutral-700">
-          {changes
-            ? 'The manager sees this reason; the venue keeps its current details.'
-            : 'The manager sees this reason and can fix the venue and submit again.'}
+          {changes ? t('admin.decision.changesNote') : t('admin.decision.backNote')}
         </p>
         <label
           htmlFor={`reason-${changes ? 'changes-' : ''}${companyId}`}
           className="mt-4 block text-sm font-medium text-neutral-700"
         >
-          What needs fixing
+          {t('admin.decision.whatToFix')}
         </label>
         <textarea
           id={`reason-${changes ? 'changes-' : ''}${companyId}`}
@@ -104,7 +106,7 @@ export function CompanyDecision({
             onClick={() => dialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('admin.cancel')}
           </button>
           <button
             type="button"
@@ -112,7 +114,11 @@ export function CompanyDecision({
             disabled={busy || reason.trim().length < 5}
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? 'Sending…' : changes ? 'Turn down' : 'Send back'}
+            {busy
+              ? t('admin.decision.sending')
+              : changes
+                ? t('admin.decision.turnDown')
+                : t('admin.decision.sendBack')}
           </button>
         </div>
       </dialog>

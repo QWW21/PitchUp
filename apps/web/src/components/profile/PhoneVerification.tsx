@@ -8,8 +8,10 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function PhoneVerification({ phone }: { phone: string }) {
+  const t = useT()
   const router = useRouter()
   const [sent, setSent] = useState(false)
   const [code, setCode] = useState('')
@@ -31,7 +33,7 @@ export function PhoneVerification({ phone }: { phone: string }) {
 
   const verify = async () => {
     if (code.length !== 6) {
-      setError('Enter the 6-digit code from the text.')
+      setError(t('profile.phone.enterCode'))
       return
     }
     setBusy(true)
@@ -49,24 +51,26 @@ export function PhoneVerification({ phone }: { phone: string }) {
     <div className="mt-2 rounded-md bg-neutral-50 p-3 text-sm">
       {!sent ? (
         <p className="text-neutral-700">
-          Not verified yet.{' '}
+          {t('profile.phone.notVerified')}{' '}
           <button
             type="button"
             onClick={() => void sendCode()}
             disabled={busy}
             className="font-medium text-primary-700 underline disabled:opacity-60"
           >
-            {busy ? 'Sending…' : 'Text me a code'}
+            {busy ? t('profile.phone.sending') : t('profile.phone.textMe')}
           </button>
         </p>
       ) : (
         <div className="space-y-2">
           <p className="text-neutral-700" role="status">
-            We texted a code to {phone}.
+            {t('profile.phone.texted', { phone })}
           </p>
           <div className="flex flex-wrap items-end gap-2">
             <label className="block">
-              <span className="mb-1 block font-medium text-neutral-900">Code</span>
+              <span className="mb-1 block font-medium text-neutral-900">
+                {t('profile.phone.code')}
+              </span>
               <input
                 value={code}
                 onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -87,7 +91,7 @@ export function PhoneVerification({ phone }: { phone: string }) {
               disabled={busy}
               className="h-10 rounded-md bg-primary-600 px-4 font-semibold text-white hover:opacity-90 disabled:opacity-60"
             >
-              {busy ? 'Checking…' : 'Verify'}
+              {busy ? t('profile.phone.checking') : t('profile.phone.verify')}
             </button>
             <button
               type="button"
@@ -95,7 +99,7 @@ export function PhoneVerification({ phone }: { phone: string }) {
               disabled={busy}
               className="h-10 px-2 font-medium text-primary-700 underline disabled:opacity-60"
             >
-              Send a new code
+              {t('profile.phone.sendNew')}
             </button>
           </div>
         </div>

@@ -12,10 +12,10 @@ import {
   SHIRT_COLOURS_NEEDING_BORDER,
   type ShirtColour,
 } from '@pitchup/shared'
+import { capitalise } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 import { SaveBar } from './SaveBar'
 import { useEditorForm } from './useForm'
-
-const name = (c: string) => c.charAt(0) + c.slice(1).toLowerCase()
 
 export function ShirtsForm({
   pitchId,
@@ -26,6 +26,8 @@ export function ShirtsForm({
   hasShirts: boolean
   inventory: { colour: ShirtColour; quantity: number }[]
 }) {
+  const t = useT()
+  const name = (c: ShirtColour) => capitalise(t(`shirt.${c}`))
   const f = useEditorForm({
     hasShirts,
     sets: Object.fromEntries(
@@ -34,7 +36,7 @@ export function ShirtsForm({
   })
   const v = f.values
   const active = SHIRT_COLOURS.filter(c => v.sets[c] > 0)
-  const promised = !!f.error && /promised/.test(f.error)
+  const promised = f.reason === 'SHIRTS_PROMISED'
 
   const body = (force: boolean) => ({
     hasShirts: v.hasShirts,
@@ -48,7 +50,7 @@ export function ShirtsForm({
   })
   const save = (force = false) => {
     if (v.hasShirts && !active.length) {
-      return f.setError('Add at least one set, or stop lending shirts')
+      return f.setError(t('editor.shirts.needSet'))
     }
     void f.save(`/api/v1/pitches/${pitchId}/shirts`, 'PUT', body(force))
   }
@@ -58,11 +60,9 @@ export function ShirtsForm({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p id="lend-label" className="text-sm font-medium text-neutral-900">
-            Lend shirts
+            {t('editor.shirts.lend')}
           </p>
-          <p className="text-sm text-neutral-500">
-            Free for players. Each booking gets a set for every team but one.
-          </p>
+          <p className="text-sm text-neutral-500">{t('editor.shirts.lendHint')}</p>
         </div>
         <button
           type="button"
@@ -84,10 +84,10 @@ export function ShirtsForm({
             <thead className="text-xs font-medium uppercase text-neutral-500">
               <tr>
                 <th scope="col" className="py-2">
-                  Colour
+                  {t('editor.shirts.colour')}
                 </th>
                 <th scope="col" className="py-2">
-                  Sets
+                  {t('editor.shirts.sets')}
                 </th>
               </tr>
             </thead>
@@ -109,7 +109,7 @@ export function ShirtsForm({
                       type="number"
                       min={0}
                       max={PITCH_LIMITS.MAX_SETS_PER_COLOUR}
-                      aria-label={`${name(c)} sets`}
+                      aria-label={t('editor.shirts.setsOf', { colour: name(c) })}
                       value={v.sets[c]}
                       onChange={e =>
                         f.setValues(p => ({
@@ -132,14 +132,16 @@ export function ShirtsForm({
           </table>
           <p className="text-sm text-neutral-500">
             {active.length
-              ? `Players can choose: ${active.map(c => `${name(c)} (${v.sets[c]})`).join(', ')}.`
-              : 'Set at least one colour above 0. Colours at 0 are not offered.'}
+              ? t('editor.shirts.choose', {
+                  list: active.map(c => `${name(c)} (${v.sets[c]})`).join(', '),
+                })
+              : t('editor.shirts.noneAbove')}
           </p>
         </>
       )}
 
       <SaveBar
-        label="Save shirts"
+        label={t('editor.shirts.save')}
         dirty={f.dirty}
         busy={f.busy}
         saved={f.saved}
@@ -153,7 +155,7 @@ export function ShirtsForm({
           onClick={() => save(true)}
           className="text-sm font-semibold text-error-600 underline"
         >
-          Save anyway: I&rsquo;ll sort the shirts out with those players
+          {t('editor.shirts.anyway')}
         </button>
       )}
     </div>

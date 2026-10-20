@@ -20,14 +20,14 @@ export async function disputeNoShow(
     where: { id: bookingId },
     select: { playerId: true, status: true, noShow: true },
   })
-  if (!booking || booking.playerId !== playerId) throw notFound('Booking not found')
+  if (!booking || booking.playerId !== playerId) throw notFound('api.bookingNotFound')
   if (booking.status !== 'NO_SHOW' || !booking.noShow) {
-    throw new ApiException('VALIDATION_ERROR', 'Only a no-show can be disputed', {
+    throw new ApiException('VALIDATION_ERROR', 'api.disputeNoShowOnly', {
       reason: 'NOT_A_NO_SHOW',
     })
   }
   if (booking.noShow.disputeStatus !== 'NONE') {
-    throw new ApiException('CONFLICT', 'This no-show has already been disputed', {
+    throw new ApiException('CONFLICT', 'api.alreadyDisputed', {
       reason: 'ALREADY_DISPUTED',
     })
   }
@@ -35,8 +35,9 @@ export async function disputeNoShow(
   if (now.getTime() > deadline) {
     throw new ApiException(
       'VALIDATION_ERROR',
-      `No-shows can be disputed for ${NO_SHOW_DISPUTE_WINDOW_HOURS} hours`,
-      { reason: 'DISPUTE_WINDOW_CLOSED' }
+      'api.disputeWindow',
+      { reason: 'DISPUTE_WINDOW_CLOSED' },
+      { n: NO_SHOW_DISPUTE_WINDOW_HOURS }
     )
   }
 
@@ -53,8 +54,8 @@ export async function disputeNoShow(
       await notify(tx, {
         userId: a.id,
         type: 'DISPUTE_OPENED',
-        title: 'No-show disputed',
-        body: `A player disputes the no-show on booking ${bookingReference(bookingId)}.`,
+        title: t => t('notify.disputeOpened.title'),
+        body: t => t('notify.disputeOpened.body', { reference: bookingReference(bookingId) }),
         data: { bookingId, link: '/admin/disputes' },
       })
     }

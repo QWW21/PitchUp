@@ -13,25 +13,31 @@ import {
   type BookingListItem,
   type BookingStatus,
 } from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
-const STATUS: Record<BookingStatus, { label: string; className: string }> = {
-  CONFIRMED: { label: 'Confirmed', className: 'bg-primary-50 text-primary-700' },
-  PENDING: { label: 'Awaiting payment', className: 'bg-warning-50 text-amber-800' },
-  AWAITING_APPROVAL: { label: 'Waiting for the venue', className: 'bg-warning-50 text-amber-800' },
-  COMPLETED: { label: 'Completed', className: 'bg-primary-50 text-primary-700' },
-  NO_SHOW: { label: 'No-show', className: 'bg-error-50 text-error-600' },
-  CANCELLED: { label: 'Cancelled', className: 'bg-neutral-100 text-neutral-700' },
+/** The badge's colours; its words are `bookingStatus.<STATUS>`. */
+const STATUS: Record<BookingStatus, string> = {
+  CONFIRMED: 'bg-primary-50 text-primary-700',
+  PENDING: 'bg-warning-50 text-amber-800',
+  AWAITING_APPROVAL: 'bg-warning-50 text-amber-800',
+  COMPLETED: 'bg-primary-50 text-primary-700',
+  NO_SHOW: 'bg-error-50 text-error-600',
+  CANCELLED: 'bg-neutral-100 text-neutral-700',
 }
 
 export function StatusBadge({ status }: { status: BookingStatus }) {
-  const s = STATUS[status]
+  const t = useT()
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${s.className}`}>{s.label}</span>
+    <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${STATUS[status]}`}>
+      {t(`bookingStatus.${status}`)}
+    </span>
   )
 }
 
 /** "Starts in 3h 20min", refreshed every minute, for bookings within 24 hours. */
 function Countdown({ startsAt }: { startsAt: string }) {
+  const t = useT()
+  const locale = useLocale()
   const start = new Date(startsAt)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -39,23 +45,19 @@ function Countdown({ startsAt }: { startsAt: string }) {
     return () => clearInterval(timer)
   }, [])
   if (start.getTime() - now.getTime() > 24 * 3_600_000) return null
-  const text = formatCountdown(start, now)
+  const started = start.getTime() <= now.getTime()
+  const text = formatCountdown(start, locale, now)
   return (
     <span className="inline-flex items-center gap-1 rounded-full bg-warning-50 px-2.5 py-1 text-xs font-medium text-amber-800">
       <Timer className="h-3.5 w-3.5" aria-hidden="true" />
-      {text === 'Starting now' ? text : `Starts in ${text}`}
+      {started ? text : t('myBookings.card.startsIn', { time: text })}
     </span>
   )
 }
 
-const cancelledByText = {
-  PLAYER: 'Cancelled by you',
-  MANAGER: 'Cancelled by the venue',
-  ADMIN: 'Cancelled by PitchUp',
-  SYSTEM: 'Cancelled',
-} as const
-
 export function BookingCard({ booking: b }: { booking: BookingListItem }) {
+  const t = useT()
+  const locale = useLocale()
   const detail = `/my-bookings/${b.id}`
   return (
     <article className="relative rounded-xl border border-neutral-200 bg-white p-4 transition-colors duration-150 hover:bg-neutral-50">
@@ -81,12 +83,12 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
 
       <dl className="mt-3 space-y-1 text-sm text-neutral-700">
         <div className="flex items-center gap-2">
-          <dt className="sr-only">Date</dt>
+          <dt className="sr-only">{t('myBookings.card.date')}</dt>
           <CalendarDays className="h-4 w-4 text-neutral-500" aria-hidden="true" />
-          <dd>{formatDateLong(b.date)}</dd>
+          <dd>{formatDateLong(b.date, locale)}</dd>
         </div>
         <div className="flex items-center gap-2">
-          <dt className="sr-only">Time</dt>
+          <dt className="sr-only">{t('myBookings.card.time')}</dt>
           <Clock className="h-4 w-4 text-neutral-500" aria-hidden="true" />
           <dd>
             {b.startTime}–{b.endTime}
@@ -102,18 +104,22 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
 
       {b.status === 'CONFIRMED' && b.dueAtVenue > 0 && (
         <p className="mt-2 text-sm font-medium text-neutral-900">
-          To pay at the venue: {b.dueAtVenue} RON
+          {t('myBookings.card.toPay', { amount: b.dueAtVenue })}
         </p>
       )}
 
       {b.status === 'CANCELLED' && (
         <p className="mt-3 text-sm text-neutral-700">
-          <span className="italic">{cancelledByText[b.cancelledBy ?? 'SYSTEM']}</span>
+          <span className="italic">
+            {t(`myBookings.card.cancelledBy.${b.cancelledBy ?? 'SYSTEM'}`)}
+          </span>
           {' · '}
           {b.refundAmount ? (
-            <span className="font-medium text-primary-700">Refund: {b.refundAmount} RON</span>
+            <span className="font-medium text-primary-700">
+              {t('myBookings.card.refund', { amount: b.refundAmount })}
+            </span>
           ) : (
-            'No refund'
+            t('myBookings.card.noRefund')
           )}
         </p>
       )}
@@ -125,7 +131,7 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
               href={`${detail}/review`}
               className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
             >
-              Leave a review
+              {t('myBookings.card.leaveReview')}
             </Link>
           ) : (
             <span />
@@ -134,7 +140,7 @@ export function BookingCard({ booking: b }: { booking: BookingListItem }) {
             href={`/book/${b.pitch.id}/date`}
             className="rounded-md px-3 py-1.5 text-sm font-medium text-primary-700 hover:bg-primary-50"
           >
-            Book again
+            {t('myBookings.card.bookAgain')}
           </Link>
         </div>
       )}

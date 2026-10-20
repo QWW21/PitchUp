@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Crosshair, Loader2, Search, X } from 'lucide-react'
 import { CITIES, foldForSearch } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 export type DetectResult = 'detected' | 'denied' | 'error' | 'unsupported'
 
@@ -16,12 +17,6 @@ interface CityDialogProps {
   onDetect: () => Promise<DetectResult>
 }
 
-const DETECT_MESSAGES: Record<Exclude<DetectResult, 'detected'>, string> = {
-  denied: 'Location permission denied. Select manually.',
-  error: "Couldn't detect a supported city near you. Try selecting manually.",
-  unsupported: 'Your browser does not support location. Select manually.',
-}
-
 /** City picker: searchable list with a "Detect my location" row. UIUX_SPEC §5.3, E03-08. */
 export function CityDialog({
   open,
@@ -31,6 +26,7 @@ export function CityDialog({
   onSelect,
   onDetect,
 }: CityDialogProps) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [detecting, setDetecting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -59,7 +55,7 @@ export function CityDialog({
     setMessage(null)
     const result = await onDetect()
     setDetecting(false)
-    if (result !== 'detected') setMessage(DETECT_MESSAGES[result])
+    if (result !== 'detected') setMessage(t(`discover.city.${result}`))
   }
 
   return (
@@ -76,13 +72,13 @@ export function CityDialog({
       >
         <div className="flex h-14 items-center justify-between border-b border-neutral-200 px-4">
           <h2 id="city-dialog-title" className="text-xl font-semibold text-neutral-900">
-            {dismissible ? 'Select city' : 'Where are you playing?'}
+            {dismissible ? t('discover.city.select') : t('discover.city.where')}
           </h2>
           {dismissible && (
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close"
+              aria-label={t('common.close')}
               className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-neutral-100"
             >
               <X className="h-5 w-5" />
@@ -97,8 +93,8 @@ export function CityDialog({
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search cities..."
-              aria-label="Search cities"
+              placeholder={t('discover.city.search')}
+              aria-label={t('discover.city.searchLabel')}
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-500"
             />
           </div>
@@ -116,7 +112,7 @@ export function CityDialog({
             ) : (
               <Crosshair className="h-5 w-5" aria-hidden="true" />
             )}
-            Detect my location
+            {t('discover.city.detect')}
           </button>
           {message && (
             <p role="alert" className="px-4 py-2 text-sm text-error-600">
@@ -125,11 +121,11 @@ export function CityDialog({
           )}
 
           <p className="bg-neutral-50 px-4 pb-1 pt-3 text-[11px] font-medium uppercase text-neutral-500">
-            Romania
+            {t('discover.city.country')}
           </p>
           {filtered.length === 0 ? (
             <p className="px-4 pt-10 text-center text-sm text-neutral-500">
-              No cities found for &lsquo;{query}&rsquo;
+              {t('discover.city.noneFound', { query })}
             </p>
           ) : (
             <ul>
@@ -145,7 +141,10 @@ export function CityDialog({
                       <span className="block text-xs text-neutral-500">{city.county}</span>
                     </span>
                     {city.name === selected && (
-                      <Check className="h-5 w-5 text-primary-600" aria-label="Selected" />
+                      <Check
+                        className="h-5 w-5 text-primary-600"
+                        aria-label={t('discover.city.selected')}
+                      />
                     )}
                   </button>
                 </li>

@@ -5,22 +5,21 @@
  */
 import { z } from 'zod'
 import type { TrustScoreReason, TrustTierLabel } from './types'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 const cursor = z.string().min(1).max(60).optional()
 const limit = z.coerce.number().int().min(1).max(50).default(20)
-const search = z.string().trim().min(2, 'Type at least 2 characters').max(80).optional()
+const search = z.string().trim().min(2, 'v.type2chars').max(80).optional()
 
 // ── Venues (E15-01, E15-02) ────────────────────────────────────────────────
 
 export const COMPANY_STATUSES = ['DRAFT', 'PENDING', 'ACTIVE', 'SUSPENDED'] as const
 export type CompanyStatusName = (typeof COMPANY_STATUSES)[number]
 
-export const COMPANY_STATUS_LABELS: Record<CompanyStatusName, string> = {
-  DRAFT: 'Draft',
-  PENDING: 'Waiting for approval',
-  ACTIVE: 'Live',
-  SUSPENDED: 'Suspended',
-}
+/** "Live", "Waiting for approval"…, by `companyStatus.<STATUS>`. */
+export const companyStatusLabel = (status: CompanyStatusName, locale: Locale): string =>
+  sharedT(locale)(`companyStatus.${status}`)
 
 /** GET /admin/companies — newest first. */
 export const AdminCompanyQuerySchema = z.object({
@@ -65,10 +64,10 @@ export const COMPANY_TRANSITIONS: Record<CompanyStatusName, CompanyStatusName[]>
 export const CompanyStatusUpdateSchema = z
   .object({
     status: z.enum(['ACTIVE', 'DRAFT', 'SUSPENDED']),
-    reason: z.string().trim().min(5, 'Say why, in a few words').max(500).optional(),
+    reason: z.string().trim().min(5, 'v.sayWhyFew').max(500).optional(),
   })
   .refine(v => v.status === 'ACTIVE' || !!v.reason, {
-    message: 'Say why',
+    message: 'v.sayWhy',
     path: ['reason'],
   })
 export type CompanyStatusUpdate = z.infer<typeof CompanyStatusUpdateSchema>
@@ -139,17 +138,17 @@ export const AdminUserUpdateSchema = z
       .int()
       .min(-100)
       .max(100)
-      .refine(n => n !== 0, 'Adjust by at least one point')
+      .refine(n => n !== 0, 'v.adjustOnePoint')
       .optional(),
-    trustAdjustReason: z.string().trim().min(5, 'Say why, in a few words').max(200).optional(),
+    trustAdjustReason: z.string().trim().min(5, 'v.sayWhyFew').max(200).optional(),
   })
-  .refine(v => Object.values(v).some(x => x !== undefined), { message: 'Nothing to change' })
+  .refine(v => Object.values(v).some(x => x !== undefined), { message: 'v.nothingToChange' })
   .refine(v => v.trustScoreAdjust === undefined || !!v.trustAdjustReason, {
-    message: 'Say why the score changes',
+    message: 'v.sayWhyScore',
     path: ['trustAdjustReason'],
   })
   .refine(v => v.suspended !== true || !!v.suspensionReason, {
-    message: 'Say why the account is suspended',
+    message: 'v.sayWhySuspended',
     path: ['suspensionReason'],
   })
 export type AdminUserUpdate = z.infer<typeof AdminUserUpdateSchema>
@@ -194,7 +193,7 @@ export interface AdminReviewPage {
 }
 
 export const AdminDeleteReviewSchema = z.object({
-  reason: z.string().trim().min(10, 'Tell the author why, in a sentence').max(300),
+  reason: z.string().trim().min(10, 'v.tellAuthorWhy').max(300),
 })
 
 // ── Overview and settings (E15-05) ──────────────────────────────────────────
@@ -234,5 +233,5 @@ export const PlatformConfigSchema = z
     maintenanceMessage: z.string().trim().min(10).max(500),
   })
   .partial()
-  .refine(v => Object.keys(v).length > 0, { message: 'Nothing to change' })
+  .refine(v => Object.keys(v).length > 0, { message: 'v.nothingToChange' })
 export type PlatformConfigInput = z.infer<typeof PlatformConfigSchema>

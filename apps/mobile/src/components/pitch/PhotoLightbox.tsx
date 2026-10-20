@@ -13,6 +13,7 @@ import {
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
+import { useT } from '../../i18n'
 
 interface PhotoLightboxProps {
   urls: string[]
@@ -30,6 +31,7 @@ interface PhotoLightboxProps {
  * RN 0.76 tree is its own piece of work.
  */
 export function PhotoLightbox({ urls, index, onClose }: PhotoLightboxProps) {
+  const t = useT()
   const { width, height } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const list = useRef<FlatList<string>>(null)
@@ -81,7 +83,7 @@ export function PhotoLightbox({ urls, index, onClose }: PhotoLightboxProps) {
         <Pressable
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close photos"
+          accessibilityLabel={t('discover.pitch.closePhotos')}
           style={[styles.close, { top: insets.top + 16 }]}
         >
           <Icon name="close" size={24} color="#FFFFFF" />

@@ -19,7 +19,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     windowMs: 15 * 60 * 1000,
   })
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many attempts', 429, {
+    return err('RATE_LIMITED', 'api.tooManyAttempts', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -39,11 +39,11 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
     switch (result.failure) {
       case 'CODE_EXPIRED':
-        return err('NOT_FOUND', 'That code has expired, request a new one', 410, detail)
+        return err('NOT_FOUND', 'api.codeExpiredRequest', 410, detail)
       case 'TOO_MANY_ATTEMPTS':
-        return err('RATE_LIMITED', 'Too many incorrect attempts, request a new code', 429, detail)
+        return err('RATE_LIMITED', 'api.tooManyWrongRequest', 429, detail)
       default:
-        return err('VALIDATION_ERROR', 'That code is not correct', 400, detail)
+        return err('VALIDATION_ERROR', 'api.codeWrong', 400, detail)
     }
   }
 

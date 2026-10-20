@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react'
 import { PanResponder, StyleSheet, Text, View } from 'react-native'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface RangeSliderProps {
   min: number
@@ -29,6 +30,7 @@ export function RangeSlider({
   onChange,
   unit = 'RON',
 }: RangeSliderProps) {
+  const t = useT()
   const [trackWidth, setTrackWidth] = useState(0)
 
   // PanResponder handlers are created once, so they read live values from refs.
@@ -71,7 +73,7 @@ export function RangeSlider({
         style={styles.track}
         onLayout={e => setTrackWidth(e.nativeEvent.layout.width - THUMB)}
         accessibilityRole="adjustable"
-        accessibilityLabel={`Price from ${low} to ${high} ${unit}`}
+        accessibilityLabel={t('discover.priceRange', { low, high, unit })}
       >
         <View style={styles.rail} />
         <View style={[styles.fill, { left: toX(low) + THUMB / 2, width: toX(high) - toX(low) }]} />

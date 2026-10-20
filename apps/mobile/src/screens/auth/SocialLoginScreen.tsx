@@ -25,11 +25,13 @@ import { googleSignIn } from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
 import { useAuthStore } from '../../stores/authStore'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'SocialLogin'>
 type Field = 'phone' | 'city' | 'dateOfBirth'
 
 export function SocialLoginScreen({ navigation, route }: Props) {
+  const t = useT()
   const { idToken, name, email } = route.params
   const setUser = useAuthStore(s => s.setUser)
   const [phone, setPhone] = useState('')
@@ -49,9 +51,9 @@ export function SocialLoginScreen({ navigation, route }: Props) {
       const found: Partial<Record<Field, string>> = {}
       for (const issue of parsed.error.issues) {
         const field = issue.path[1] as Field | undefined
-        if (field && !found[field]) found[field] = issue.message
+        if (field && !found[field]) found[field] = t.text(issue.message)
       }
-      if (!city) found.city = 'Select your city.'
+      if (!city) found.city = t('auth.register.noCity')
       setErrors(found)
       return
     }
@@ -60,16 +62,16 @@ export function SocialLoginScreen({ navigation, route }: Props) {
     try {
       const result = await googleSignIn(parsed.data)
       if (result.status === 'SIGNED_IN') setUser(result.user)
-      else setApiError('Could not create your account. Please try again.')
+      else setApiError(t('auth.register.failed'))
     } catch (e) {
       setApiError(
         e instanceof ApiError
           ? e.code === 'CONFLICT'
-            ? 'That phone number is already registered. Sign in with your email instead.'
+            ? t('auth.social.phoneTaken')
             : e.code === 'UNAUTHORIZED'
-              ? 'Your Google sign-in expired. Go back and try again.'
-              : 'Could not create your account. Please try again.'
-          : 'Could not connect. Check your internet and try again.'
+              ? t('auth.social.expired')
+              : t('auth.register.failed')
+          : t('auth.connection')
       )
     } finally {
       setLoading(false)
@@ -84,15 +86,15 @@ export function SocialLoginScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.wordmark}>PitchUp</Text>
         <Text style={styles.heading} accessibilityRole="header">
-          Almost there{name ? `, ${name.split(' ')[0]}` : ''}
+          {name
+            ? t('auth.social.almost', { name: name.split(' ')[0]! })
+            : t('auth.register.almost')}
         </Text>
-        <Text style={styles.sub}>
-          You&apos;re signing up with {email}. We need a few more details to book pitches.
-        </Text>
+        <Text style={styles.sub}>{t('auth.social.signingUp', { email })}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Phone"
+            label={t('auth.register.phone')}
             value={phone}
             onChangeText={setPhone}
             placeholder="+40712345678"
@@ -101,8 +103,12 @@ export function SocialLoginScreen({ navigation, route }: Props) {
             {...(errors.phone ? { error: errors.phone } : {})}
           />
           <View style={styles.gap}>
-            <Text style={styles.label}>City</Text>
-            <View style={styles.cities} accessibilityRole="radiogroup" accessibilityLabel="City">
+            <Text style={styles.label}>{t('auth.register.city')}</Text>
+            <View
+              style={styles.cities}
+              accessibilityRole="radiogroup"
+              accessibilityLabel={t('auth.register.city')}
+            >
               {CITY_NAMES.map(c => (
                 <Pressable
                   key={c}
@@ -118,7 +124,7 @@ export function SocialLoginScreen({ navigation, route }: Props) {
             {errors.city ? <Text style={styles.error}>{errors.city}</Text> : null}
           </View>
           <Input
-            label="Date of birth"
+            label={t('auth.register.dob')}
             value={dateOfBirth}
             onChangeText={setDateOfBirth}
             placeholder="1995-06-15"
@@ -129,9 +135,9 @@ export function SocialLoginScreen({ navigation, route }: Props) {
           {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
         </View>
 
-        <Button label="Create account" onPress={submit} loading={loading} />
+        <Button label={t('auth.register.create')} onPress={submit} loading={loading} />
         <Button
-          label="Back"
+          label={t('auth.back')}
           variant="ghost"
           onPress={() => navigation.goBack()}
           fullWidth={false}

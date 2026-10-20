@@ -6,22 +6,12 @@ import { CompanyInfoForm } from '@/components/onboarding/CompanyInfoForm'
 import { LocationForm } from '@/components/onboarding/LocationForm'
 import { ContactHoursForm } from '@/components/onboarding/ContactHoursForm'
 import { WithdrawChanges } from '@/components/manager/WithdrawChanges'
+import { INTL_LOCALE } from '@pitchup/shared'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Venue details | PitchUp' }
-
-const SECTION_NAMES = {
-  info: 'name and description',
-  location: 'address',
-  contactHours: 'contact and opening hours',
-} as const
-
-const when = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Bucharest',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('manager.settings.venue.title') }
+}
 
 /**
  * The venue's details — C-13. The same forms as onboarding; a change waits
@@ -29,6 +19,14 @@ const when = new Intl.DateTimeFormat('en-GB', {
  */
 export default async function VenueSettingsPage() {
   const { company: c } = await requireActiveManager()
+  const t = await getT()
+  const when = new Intl.DateTimeFormat(INTL_LOCALE[await getLocale()], {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  })
   const status = venueChangesStatus(c)
   const p = (c.pendingChanges as VenueProfileChanges | null) ?? {}
   const info = p.info
@@ -37,33 +35,38 @@ export default async function VenueSettingsPage() {
 
   return (
     <>
-      <p className="max-w-2xl text-sm text-neutral-700">
-        This is what players see on your page. Changes are checked by PitchUp before they show;
-        until then your page keeps its current details.
-      </p>
+      <p className="max-w-2xl text-sm text-neutral-700">{t('manager.settings.venue.intro')}</p>
       {status.pending.length > 0 && (
         <div
           role="status"
           className="max-w-2xl rounded-md bg-warning-50 p-4 text-sm text-amber-900"
         >
           <p className="font-medium">
-            Waiting for approval: your new {status.pending.map(s => SECTION_NAMES[s]).join(', ')}
-            {status.submittedAt && ` (sent ${when.format(new Date(status.submittedAt))})`}.
+            {t('manager.settings.venue.waiting', {
+              sections: status.pending
+                .map(s => t(`manager.settings.venue.sections.${s}`))
+                .join(', '),
+              sent: status.submittedAt
+                ? t('manager.settings.venue.sent', {
+                    when: when.format(new Date(status.submittedAt)),
+                  })
+                : '',
+            })}
           </p>
-          <p className="mt-1">The forms below show what you sent.</p>
+          <p className="mt-1">{t('manager.settings.venue.formsShow')}</p>
           <WithdrawChanges />
         </div>
       )}
       {status.rejectionReason && status.pending.length === 0 && (
         <div role="alert" className="max-w-2xl rounded-md bg-error-50 p-4 text-sm text-error-600">
-          <p className="font-medium">Your last changes were not approved.</p>
+          <p className="font-medium">{t('manager.settings.venue.rejected')}</p>
           <p className="mt-1">{status.rejectionReason}</p>
         </div>
       )}
 
       <section aria-labelledby="venue-info" className="max-w-2xl rounded-xl bg-white p-5 shadow-sm">
         <h2 id="venue-info" className="text-lg font-semibold text-neutral-900">
-          Name and description
+          {t('manager.settings.venue.info')}
         </h2>
         <CompanyInfoForm
           ownerId={c.id}
@@ -85,7 +88,7 @@ export default async function VenueSettingsPage() {
         className="max-w-2xl rounded-xl bg-white p-5 shadow-sm"
       >
         <h2 id="venue-location" className="text-lg font-semibold text-neutral-900">
-          Address
+          {t('manager.settings.venue.address')}
         </h2>
         <LocationForm
           inSettings
@@ -106,7 +109,7 @@ export default async function VenueSettingsPage() {
         className="max-w-2xl rounded-xl bg-white p-5 shadow-sm"
       >
         <h2 id="venue-contact" className="text-lg font-semibold text-neutral-900">
-          Contact and opening hours
+          {t('manager.settings.venue.contact')}
         </h2>
         <ContactHoursForm
           inSettings

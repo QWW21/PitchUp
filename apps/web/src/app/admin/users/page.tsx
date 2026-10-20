@@ -3,17 +3,14 @@ import Link from 'next/link'
 import { AdminUserQuerySchema } from '@pitchup/shared'
 import { listUsers } from '@/lib/admin/users'
 import { UserFilters } from '@/components/admin/UserFilters'
+import { INTL_LOCALE } from '@pitchup/shared'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Users | PitchUp admin' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('admin.users.title') }
+}
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
-
-const joined = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'Europe/Bucharest',
-})
 
 const ROLE_STYLE: Record<string, string> = {
   PLAYER: 'bg-neutral-100 text-neutral-700',
@@ -24,6 +21,13 @@ const ROLE_STYLE: Record<string, string> = {
 /** Every account — E15-07: search, filters in the URL, pages of 20. */
 export default async function AdminUsersPage({ searchParams }: Props) {
   const raw = await searchParams
+  const t = await getT()
+  const joined = new Intl.DateTimeFormat(INTL_LOCALE[await getLocale()], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  })
   const pick = (k: string) =>
     typeof raw[k] === 'string' && raw[k] ? (raw[k] as string) : undefined
   const parsed = AdminUserQuerySchema.safeParse({
@@ -43,7 +47,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-neutral-900">Users</h1>
+      <h1 className="text-2xl font-bold text-neutral-900">{t('admin.users.heading')}</h1>
       <UserFilters
         search={query.search ?? ''}
         role={query.role ?? ''}
@@ -51,15 +55,15 @@ export default async function AdminUsersPage({ searchParams }: Props) {
         status={query.status ?? ''}
       />
       {page.items.length === 0 ? (
-        <p className="mt-4 text-sm text-neutral-700">No users match.</p>
+        <p className="mt-4 text-sm text-neutral-700">{t('admin.users.none')}</p>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-xl bg-white shadow-sm">
           <table className="w-full min-w-[44rem] text-left text-sm">
             <thead className="border-b border-neutral-200 text-xs text-neutral-700">
               <tr>
-                {['User', 'Role', 'Trust', 'Bookings', 'Status', 'Joined'].map(h => (
+                {(['user', 'role', 'trust', 'bookings', 'status', 'joined'] as const).map(h => (
                   <th key={h} scope="col" className="px-4 py-2 font-medium">
-                    {h}
+                    {t(`admin.users.cols.${h}`)}
                   </th>
                 ))}
               </tr>
@@ -82,22 +86,23 @@ export default async function AdminUsersPage({ searchParams }: Props) {
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_STYLE[u.role]}`}
                     >
-                      {u.role.toLowerCase()}
+                      {t(`admin.users.role.${u.role as 'PLAYER' | 'MANAGER' | 'ADMIN'}`)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-neutral-700">
-                    {u.trustScore} <span className="text-xs text-neutral-500">{u.tier}</span>
+                    {u.trustScore}{' '}
+                    <span className="text-xs text-neutral-500">{t(`trust.tier.${u.tier}`)}</span>
                   </td>
                   <td className="px-4 py-3 text-neutral-700">{u.bookings}</td>
                   <td className="px-4 py-3">
                     {u.deletedAt ? (
-                      <span className="text-xs text-neutral-500">Deleted</span>
+                      <span className="text-xs text-neutral-500">{t('admin.users.deleted')}</span>
                     ) : u.suspendedAt ? (
                       <span className="rounded-full bg-error-50 px-2 py-0.5 text-xs font-medium text-error-600">
-                        Suspended
+                        {t('admin.users.suspended')}
                       </span>
                     ) : (
-                      <span className="text-xs text-primary-700">Active</span>
+                      <span className="text-xs text-primary-700">{t('admin.users.active')}</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-neutral-700">
@@ -114,7 +119,7 @@ export default async function AdminUsersPage({ searchParams }: Props) {
           href={`/admin/users?${next}`}
           className="mt-4 inline-flex h-10 items-center rounded-md border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
         >
-          Next page
+          {t('admin.nextPage')}
         </Link>
       )}
     </>

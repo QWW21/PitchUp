@@ -11,10 +11,7 @@ const reviewText = z.preprocess(
   z
     .string()
     .trim()
-    .min(
-      REVIEW.MIN_TEXT_LENGTH,
-      `Write at least ${REVIEW.MIN_TEXT_LENGTH} characters, or leave it empty`
-    )
+    .min(REVIEW.MIN_TEXT_LENGTH, 'v.reviewMinText')
     .max(REVIEW.MAX_TEXT_LENGTH)
     .optional()
 )
@@ -37,7 +34,7 @@ export const UpdateReviewSchema = z
   })
   .partial()
   .refine(data => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided',
+    message: 'v.oneField',
   })
 
 export const ManagerReplySchema = z.object({
@@ -46,12 +43,6 @@ export const ManagerReplySchema = z.object({
 
 export const REPORT_CATEGORIES = ['SPAM', 'OFFENSIVE', 'IRRELEVANT', 'FAKE'] as const
 export type ReportCategory = (typeof REPORT_CATEGORIES)[number]
-export const REPORT_CATEGORY_LABELS: Record<ReportCategory, string> = {
-  SPAM: 'Spam',
-  OFFENSIVE: 'Offensive',
-  IRRELEVANT: 'Not about this pitch',
-  FAKE: 'Fake review',
-}
 
 /** A report of a review, by any signed-in user. PRD §11.3, E07-04. */
 export const ReportReviewSchema = z.object({
@@ -67,12 +58,6 @@ export const ReportReviewSchema = z.object({
 /** Public orders, E07-01. `unanswered` puts reviews without a reply first. */
 export const REVIEW_SORTS = ['newest', 'highest', 'lowest', 'unanswered'] as const
 export type ReviewSort = (typeof REVIEW_SORTS)[number]
-export const REVIEW_SORT_LABELS: Record<ReviewSort, string> = {
-  newest: 'Newest',
-  highest: 'Highest',
-  lowest: 'Lowest',
-  unanswered: 'Unanswered',
-}
 
 /** GET /pitches/:id/reviews and GET /reviews — page-based, like E04. */
 export const ReviewListQuerySchema = z.object({

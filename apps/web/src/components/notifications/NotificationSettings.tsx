@@ -13,13 +13,14 @@ import {
 } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 type Channel = 'pushEnabled' | 'emailEnabled'
 
-const CHANNELS: { key: Channel; label: string; hint: string }[] = [
-  { key: 'emailEnabled', label: 'Email', hint: 'To the address on your account' },
-  { key: 'pushEnabled', label: 'Push', hint: 'On phones where you use the PitchUp app' },
-]
+const CHANNELS = [
+  { key: 'emailEnabled', label: 'email', hint: 'emailHint' },
+  { key: 'pushEnabled', label: 'push', hint: 'pushHint' },
+] as const satisfies readonly { key: Channel; label: string; hint: string }[]
 
 export function NotificationSettings({
   initial,
@@ -28,6 +29,7 @@ export function NotificationSettings({
   initial: NotificationPreferences
   role: string
 }) {
+  const t = useT()
   const [prefs, setPrefs] = useState(initial)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -49,11 +51,11 @@ export function NotificationSettings({
   }
 
   const muted = (types: readonly NotificationType[]) =>
-    types.every(t => prefs.disabledTypes.includes(t))
+    types.every(type => prefs.disabledTypes.includes(type))
   const toggleGroup = (types: readonly NotificationType[]) =>
     void save({
       disabledTypes: muted(types)
-        ? prefs.disabledTypes.filter(t => !types.includes(t))
+        ? prefs.disabledTypes.filter(type => !types.includes(type))
         : [...new Set([...prefs.disabledTypes, ...types])],
     })
 
@@ -62,19 +64,19 @@ export function NotificationSettings({
       {error && <Alert>{error}</Alert>}
       <section aria-labelledby="channels-h" className="rounded-xl bg-white p-5 shadow-sm">
         <h2 id="channels-h" className="text-base font-semibold text-neutral-900">
-          How we tell you
+          {t('profile.notifications.how')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Everything also appears in the bell at the top of the page.
-        </p>
+        <p className="mt-1 text-sm text-neutral-700">{t('profile.notifications.bellToo')}</p>
         <ul className="mt-3 divide-y divide-neutral-100">
           {CHANNELS.map(c => (
             <li key={c.key} className="flex items-center justify-between gap-4 py-3">
               <span>
                 <span id={`ch-${c.key}`} className="block text-sm font-medium text-neutral-900">
-                  {c.label}
+                  {t(`profile.notifications.${c.label}`)}
                 </span>
-                <span className="block text-xs text-neutral-500">{c.hint}</span>
+                <span className="block text-xs text-neutral-500">
+                  {t(`profile.notifications.${c.hint}`)}
+                </span>
               </span>
               <Switch
                 labelledBy={`ch-${c.key}`}
@@ -89,16 +91,18 @@ export function NotificationSettings({
 
       <section aria-labelledby="types-h" className="rounded-xl bg-white p-5 shadow-sm">
         <h2 id="types-h" className="text-base font-semibold text-neutral-900">
-          What we tell you about
+          {t('profile.notifications.what')}
         </h2>
         <ul className="mt-3 divide-y divide-neutral-100">
           {preferenceGroupsFor(role).map(g => (
             <li key={g.key} className="flex items-center justify-between gap-4 py-3">
               <span>
                 <span id={`t-${g.key}`} className="block text-sm font-medium text-neutral-900">
-                  {g.label}
+                  {t(`notifyPref.${g.key}.label`)}
                 </span>
-                <span className="block text-xs text-neutral-500">{g.description}</span>
+                <span className="block text-xs text-neutral-500">
+                  {t(`notifyPref.${g.key}.description`)}
+                </span>
               </span>
               <Switch
                 labelledBy={`t-${g.key}`}
@@ -109,9 +113,7 @@ export function NotificationSettings({
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs text-neutral-500">
-          Venue approval and security messages are always sent.
-        </p>
+        <p className="mt-2 text-xs text-neutral-500">{t('profile.notifications.always')}</p>
       </section>
     </div>
   )

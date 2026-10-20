@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
  */
 export const POST = withErrorHandling(async () => {
   if (env.NODE_ENV !== 'development' && env.ALLOW_TEST_HOOKS !== '1') {
-    return err('NOT_FOUND', 'Not found', 404)
+    return err('NOT_FOUND', 'api.notFound', 404)
   }
   resetRateLimits()
   return ok({ reset: true })

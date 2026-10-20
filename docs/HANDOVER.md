@@ -560,6 +560,48 @@ Native changes:
   libraries' documented setup; the first Android build after this change is
   the real check (see "React Native version constraints").
 
+## Romanian and English
+
+Added 2026-10-20. Both apps are in **Romanian by default**, with English one
+tap away. Every screen, email, push, notification and API error is
+translated; the English text is word for word what it was before.
+
+- **Where the text lives:**
+  - `packages/shared/src/i18n/` — the translator, and the words both apps
+    use: dates and months, statuses, trust tiers and rules, payment wording,
+    amenities, sizes, surfaces, refund policy, notification groups, and
+    every validation message of the shared Zod schemas (`v.*`).
+  - `apps/web/src/i18n/en|ro/` — the web's own text, one file per area
+    (auth, profile, manager, mBookings, mVenue, editor, analytics,
+    onboarding, admin, api, email, notify, …).
+  - `apps/mobile/src/i18n/en|ro/` — the app's own text (auth, discover,
+    booking, bookings, profile, manager).
+  - Each Romanian file is typed against its English one
+    (`CatalogShape<typeof …En>`), so a missing or extra key fails
+    `tsc`. Plurals have Romanian's three forms (`one`, `few`, `other`).
+- **Choosing the language:**
+  - Web: the RO/EN switch in the player's top bar, the manager's top bar,
+    the onboarding header and the admin sidebar. It sets the
+    `pitchup-locale` cookie and, when signed in, saves it on the account.
+  - App: the RO/EN switch on the login screen and on Profile → Language.
+    It is kept on the phone and, when signed in, on the account. Every
+    request sends it as `x-locale`, so server messages come back in it.
+  - Emails and pushes use the account's `User.locale`, or Romanian when
+    it was never set.
+  - `DEFAULT_LOCALE` (env) changes the default; the E2E run sets `en`, so
+    the existing tests keep reading English.
+- **API errors:** routes and libraries throw catalog keys (`api.*`, with
+  params); `withErrorHandling` translates them, and the field messages of a
+  validation error, into the request's language. Clients that branch on an
+  error do it by `code` or `details.reason`, never by the message (the
+  pitch editor's "save anyway" for shirts now reads `SHIRTS_PROMISED`).
+- **Adding text:** add the English key, then the Romanian one (`tsc` says
+  which are missing), and use `t('area.key')` (`useT()` in client
+  components and the app, `await getT()` in server components).
+- **Not translated:** venue-written content (names, descriptions, replies),
+  numbers' formatting on the analytics page (still `en-GB`), and internal
+  log messages.
+
 ## Error monitoring (Sentry)
 
 Added 2026-10-20. Errors only, no performance tracing, and no personal data

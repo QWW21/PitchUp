@@ -6,10 +6,13 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPitchDetail } from '@/lib/venues/pitch'
 import { BookingShell } from '@/components/booking/BookingShell'
+import { getLocale, getT } from '@/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = { title: 'Book a pitch | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('booking.title') }
+}
 
 type Props = { children: ReactNode; params: Promise<{ pitchId: string }> }
 
@@ -34,17 +37,20 @@ export default async function BookingLayout({ children, params }: Props) {
     select: { trustScore: true },
   })
   const gate = user
-    ? bookingTrustGate({
-        score: user.trustScore,
-        pitchMinScore: pitch.minTrustScore,
-        activeBookings: await prisma.booking.count({
-          where: {
-            playerId: session.user.id,
-            status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
-            endTime: { gt: new Date() },
-          },
-        }),
-      })
+    ? bookingTrustGate(
+        {
+          score: user.trustScore,
+          pitchMinScore: pitch.minTrustScore,
+          activeBookings: await prisma.booking.count({
+            where: {
+              playerId: session.user.id,
+              status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+              endTime: { gt: new Date() },
+            },
+          }),
+        },
+        await getLocale()
+      )
     : null
   // The pitch page says why.
   if (gate) redirect(pitchPath)

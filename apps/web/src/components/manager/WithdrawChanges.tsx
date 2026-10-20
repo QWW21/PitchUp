@@ -4,8 +4,10 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function WithdrawChanges() {
+  const t = useT()
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -27,7 +29,7 @@ export function WithdrawChanges() {
         }}
         className="mt-3 h-10 rounded-md border border-amber-800 px-4 text-sm font-semibold text-amber-900 hover:bg-white disabled:opacity-60"
       >
-        {busy ? 'Withdrawing…' : 'Withdraw these changes'}
+        {busy ? t('manager.settings.venue.withdrawing') : t('manager.settings.venue.withdraw')}
       </button>
       {error && <p className="mt-2 text-error-600">{error}</p>}
     </>

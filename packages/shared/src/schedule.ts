@@ -7,6 +7,8 @@
  */
 import { DISCOVER } from './constants/discover'
 import { WorkingHoursSchema } from './schemas/company'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 /** One day of the week, always present: closed days have `isClosed: true`. */
 export interface DayHours {
@@ -16,17 +18,6 @@ export interface DayHours {
   closeTime: string
   isClosed: boolean
 }
-
-export const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
-export const DAY_LONG = [
-  'Sunday',
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-] as const
 
 export const toMinutes = (hhmm: string): number => {
   const [h, m] = hhmm.split(':').map(Number)
@@ -43,7 +34,7 @@ export const fromMinutes = (minutes: number): string =>
 export function normalizeWeek(workingHours: unknown): DayHours[] {
   const parsed = WorkingHoursSchema.safeParse(workingHours)
   const entries = parsed.success ? parsed.data : []
-  return DAY_SHORT.map((_, day) => {
+  return [0, 1, 2, 3, 4, 5, 6].map(day => {
     const entry = entries.find(e => e.day === day)
     return entry
       ? { day, openTime: entry.openTime, closeTime: entry.closeTime, isClosed: entry.isClosed }
@@ -204,8 +195,8 @@ export function todayStatus(workingHours: unknown, now: Date): TodayStatus {
 }
 
 /** "08:00 – 23:00", "Open 24 hours" or "Closed". */
-export function formatDayHours(d: DayHours): string {
-  if (d.isClosed) return 'Closed'
-  if (d.openTime === d.closeTime) return 'Open 24 hours'
+export function formatDayHours(d: DayHours, locale: Locale): string {
+  if (d.isClosed) return sharedT(locale)('hours.closed')
+  if (d.openTime === d.closeTime) return sharedT(locale)('hours.open24')
   return `${d.openTime} – ${d.closeTime}`
 }

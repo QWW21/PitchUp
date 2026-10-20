@@ -16,12 +16,15 @@ export function useEditorForm<T>(initial: T) {
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** The API's machine-readable reason for the last failed save, if it gave one. */
+  const [reason, setReason] = useState<string | null>(null)
   const dirty = JSON.stringify(values) !== JSON.stringify(baseline)
   useUnsaved(dirty)
 
   const save = async (url: string, method: string, body: unknown) => {
     setBusy(true)
     setError(null)
+    setReason(null)
     setSaved(false)
     try {
       await send(url, method, body)
@@ -30,6 +33,7 @@ export function useEditorForm<T>(initial: T) {
       router.refresh()
     } catch (caught) {
       setError((caught as Error).message)
+      setReason((caught as { reason?: string }).reason ?? null)
     }
     setBusy(false)
   }
@@ -41,6 +45,7 @@ export function useEditorForm<T>(initial: T) {
     busy,
     saved,
     error,
+    reason,
     setError,
     save,
     reset: () => {

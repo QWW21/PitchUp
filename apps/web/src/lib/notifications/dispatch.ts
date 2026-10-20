@@ -15,16 +15,25 @@
 import 'server-only'
 import { after } from 'next/server'
 import type { NotificationType, Prisma, PrismaClient } from '@prisma/client'
+import type { Locale } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { webT, type WebT } from '@/i18n/catalog'
+import { userLocale } from '@/i18n/server'
 import { sendChannels } from './channels'
 
 type Db = Prisma.TransactionClient | PrismaClient
 
+/**
+ * Notification text is written in the recipient's language, which only
+ * notify() knows: so it is given as a function of the translator.
+ */
+export type NotificationText = (t: WebT, locale: Locale) => string
+
 export interface NotificationPayload {
   userId: string
   type: NotificationType
-  title: string
-  body: string
+  title: NotificationText
+  body: NotificationText
   /**
    * What it is about (bookingId, reviewId…), for the app's deep links. `link`
    * is the web page the email button opens when the type alone can't say
@@ -35,17 +44,19 @@ export interface NotificationPayload {
 
 /** Writes the in-app notification; null when the person muted this type. */
 export async function notify(db: Db, payload: NotificationPayload): Promise<string | null> {
-  const prefs = await db.notificationPreference.findUnique({
-    where: { userId: payload.userId },
-    select: { disabledTypes: true },
+  const user = await db.user.findUnique({
+    where: { id: payload.userId },
+    select: { locale: true, notificationPreference: { select: { disabledTypes: true } } },
   })
-  if (prefs?.disabledTypes.includes(payload.type)) return null
+  if (user?.notificationPreference?.disabledTypes.includes(payload.type)) return null
+  const locale = userLocale(user ?? {})
+  const t = webT(locale)
   const row = await db.notification.create({
     data: {
       userId: payload.userId,
       type: payload.type,
-      title: payload.title,
-      body: payload.body,
+      title: payload.title(t, locale),
+      body: payload.body(t, locale),
       data: payload.data ?? {},
     },
     select: { id: true },

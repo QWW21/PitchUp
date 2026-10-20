@@ -11,7 +11,7 @@ import {
 
 describe('trust tiers in words (E08-02)', () => {
   it('describes what each tier allows, from the rules themselves', () => {
-    expect(TRUST_TIERS.map(t => [t.label, tierRange(t), tierDescription(t)])).toEqual([
+    expect(TRUST_TIERS.map(t => [t.label, tierRange(t), tierDescription(t, 'en')])).toEqual([
       ['Excellent', '90–100', 'No restrictions.'],
       ['Good', '70–89', 'No restrictions.'],
       ['Fair', '50–69', 'A card on file is required.'],

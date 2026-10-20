@@ -55,7 +55,7 @@ export const CreateBookingSchema = z
     paymentMethod: z.enum(BOOKING_PAYMENT_METHODS).default('ONLINE'),
   })
   .refine(data => minutesOf(data.endTime) > minutesOf(data.startTime), {
-    message: 'End time must be after start time',
+    message: 'v.endAfterStart',
     path: ['endTime'],
   })
   .refine(
@@ -64,7 +64,7 @@ export const CreateBookingSchema = z
       return hours >= BOOKING.MIN_DURATION_HOURS && hours <= BOOKING.MAX_DURATION_HOURS
     },
     {
-      message: `Booking must be between ${BOOKING.MIN_DURATION_HOURS} and ${BOOKING.MAX_DURATION_HOURS} hours`,
+      message: 'v.bookingDuration',
       path: ['endTime'],
     }
   )
@@ -89,7 +89,7 @@ export const DisputeSchema = z.object({
 /** PUT /admin/disputes/:bookingId/resolve — E12-04. The note is shown to the player. */
 export const ResolveDisputeSchema = z.object({
   outcome: z.enum(['RESOLVED_PLAYER', 'RESOLVED_MANAGER']),
-  note: z.string().trim().min(10, 'Explain the decision (10 characters or more)').max(500),
+  note: z.string().trim().min(10, 'v.decisionNote').max(500),
 })
 
 /** GET /admin/disputes — one open dispute. */

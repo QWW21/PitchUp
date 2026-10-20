@@ -12,10 +12,7 @@ export const dynamic = 'force-dynamic'
 export const POST = withErrorHandling(
   requireAuth(async (_request, session) => {
     if (!isStripeConfigured()) {
-      throw new ApiException(
-        'SERVICE_UNAVAILABLE',
-        'Saving cards needs Stripe, which is not set up'
-      )
+      throw new ApiException('SERVICE_UNAVAILABLE', 'api.cardsNeedStripe')
     }
     const customerId = await getOrCreateCustomer(session.user.id)
     return ok({ clientSecret: await createSetupIntent(customerId) })

@@ -8,19 +8,9 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronRight } from 'lucide-react'
-import type { TrustEvent, TrustScoreDetail } from '@pitchup/shared'
+import { INTL_LOCALE, capitalise, type TrustEvent, type TrustScoreDetail } from '@pitchup/shared'
 import { send } from '@/lib/http'
-
-const month = new Intl.DateTimeFormat('en-GB', {
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'Europe/Bucharest',
-})
-const day = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  timeZone: 'Europe/Bucharest',
-})
+import { useLocale, useT } from '@/i18n/client'
 
 export function TrustHistory({
   initial,
@@ -29,6 +19,18 @@ export function TrustHistory({
   initial: TrustEvent[]
   nextCursor: string | null
 }) {
+  const t = useT()
+  const locale = useLocale()
+  const month = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  })
+  const day = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Europe/Bucharest',
+  })
   const [events, setEvents] = useState(initial)
   const [cursor, setCursor] = useState(firstCursor)
   const [busy, setBusy] = useState(false)
@@ -63,12 +65,12 @@ export function TrustHistory({
   })
 
   if (!events.length) {
-    return <p className="mt-2 text-sm text-neutral-500">No score events yet.</p>
+    return <p className="mt-2 text-sm text-neutral-500">{t('profile.trust.noEvents')}</p>
   }
 
   const groups: { label: string; items: TrustEvent[] }[] = []
   for (const e of events) {
-    const label = month.format(new Date(e.createdAt))
+    const label = capitalise(month.format(new Date(e.createdAt)))
     const last = groups.at(-1)
     if (last?.label === label) last.items.push(e)
     else groups.push({ label, items: [e] })
@@ -130,7 +132,7 @@ export function TrustHistory({
             disabled={busy}
             className="rounded-md border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
           >
-            {busy ? 'Loading…' : 'Show older'}
+            {busy ? t('profile.trust.loading') : t('profile.trust.older')}
           </button>
         </div>
       )}

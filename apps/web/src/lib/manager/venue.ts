@@ -13,7 +13,9 @@
 import 'server-only'
 import { Prisma, type Company } from '@prisma/client'
 import {
-  DAY_SHORT,
+  sharedT,
+  weekdayShort,
+  type Locale,
   normalizeWeek,
   type CompanyInfoInput,
   type CompanyLocationInput,
@@ -27,6 +29,8 @@ import {
   type VenueProfileSection,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
+import { webT, type WebCatalog } from '@/i18n/catalog'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 import { geocode } from '@/lib/onboarding/company'
@@ -119,8 +123,8 @@ export async function proposeVenueChange(
       await notify(tx, {
         userId: a.id,
         type: 'COMPANY_SUBMITTED',
-        title: 'Venue changes to review',
-        body: `${company.name} changed its details. They show once you approve them.`,
+        title: t => t('notify.venueChangesToReview.title'),
+        body: t => t('notify.venueChangesToReview.body', { company: company.name }),
         data: { companyId: company.id, link: '/admin/companies' },
       })
     }
@@ -143,9 +147,12 @@ export async function withdrawVenueChanges(companyId: string): Promise<VenueChan
 
 const text = (v: string | null | undefined) => (v && v.trim() ? v : '—')
 
-const hoursText = (hours: unknown) =>
+const hoursText = (hours: unknown, locale: Locale) =>
   normalizeWeek(hours)
-    .map(d => `${DAY_SHORT[d.day]} ${d.isClosed ? 'closed' : `${d.openTime}–${d.closeTime}`}`)
+    .map(
+      d =>
+        `${weekdayShort(d.day, locale)} ${d.isClosed ? sharedT(locale)('hours.closed').toLowerCase() : `${d.openTime}–${d.closeTime}`}`
+    )
     .join(', ')
 
 const addressText = (a: {
@@ -157,38 +164,48 @@ const addressText = (a: {
 }) =>
   [a.addressLine1, a.addressLine2, a.postalCode, a.city, a.county].filter(Boolean).join(', ') || '—'
 
-const pinText = (lat: number | null | undefined, lng: number | null | undefined) =>
-  lat == null || lng == null ? 'none' : `${lat.toFixed(5)}, ${lng.toFixed(5)}`
+const pinText = (lat: number | null | undefined, lng: number | null | undefined, none: string) =>
+  lat == null || lng == null ? none : `${lat.toFixed(5)}, ${lng.toFixed(5)}`
 
 /** What would change, field by field; unchanged fields are left out. */
-export function changeLines(c: Company): VenueChangeLine[] {
+export function changeLines(c: Company, locale: Locale): VenueChangeLine[] {
   const p = pendingOf(c)
+  const t = webT(locale)
+  const f = (k: keyof WebCatalog['admin']['changeFields']) => t(`admin.changeFields.${k}`)
   const lines: VenueChangeLine[] = []
   const line = (field: string, before: string, after: string) => {
     if (before !== after) lines.push({ field, before, after })
   }
   if (p.info) {
-    line('Name', c.name, p.info.name)
-    line('Description', text(c.description), text(p.info.description))
+    line(f('name'), c.name, p.info.name)
+    line(f('description'), text(c.description), text(p.info.description))
     if ((c.logoUrl ?? '') !== (p.info.logoUrl ?? '')) {
       lines.push({
-        field: 'Logo',
-        before: c.logoUrl ? 'current logo' : 'none',
-        after: p.info.logoUrl ? 'a new logo' : 'removed',
+        field: f('logo'),
+        before: c.logoUrl ? f('currentLogo') : f('none'),
+        after: p.info.logoUrl ? f('newLogo') : f('removed'),
       })
     }
-    line('Website', text(c.websiteUrl), text(p.info.websiteUrl))
-    line('Facebook', text(c.facebookUrl), text(p.info.facebookUrl))
-    line('Instagram', text(c.instagramUrl), text(p.info.instagramUrl))
+    line(f('website'), text(c.websiteUrl), text(p.info.websiteUrl))
+    line(f('facebook'), text(c.facebookUrl), text(p.info.facebookUrl))
+    line(f('instagram'), text(c.instagramUrl), text(p.info.instagramUrl))
   }
   if (p.location) {
-    line('Address', addressText(c), addressText(p.location))
-    line('Map pin', pinText(c.lat, c.lng), pinText(p.location.lat, p.location.lng))
+    line(f('address'), addressText(c), addressText(p.location))
+    line(
+      f('pin'),
+      pinText(c.lat, c.lng, f('none')),
+      pinText(p.location.lat, p.location.lng, f('none'))
+    )
   }
   if (p.contactHours) {
-    line('Phone', text(c.phone), p.contactHours.phone)
-    line('Email', text(c.email), p.contactHours.email)
-    line('Opening hours', hoursText(c.workingHours), hoursText(p.contactHours.workingHours))
+    line(f('phone'), text(c.phone), p.contactHours.phone)
+    line(f('email'), text(c.email), p.contactHours.email)
+    line(
+      f('hours'),
+      hoursText(c.workingHours, locale),
+      hoursText(p.contactHours.workingHours, locale)
+    )
   }
   return lines
 }
@@ -199,6 +216,7 @@ export async function listVenueChanges(): Promise<PendingVenueChange[]> {
     orderBy: { changesSubmittedAt: 'asc' },
     include: { owner: { select: { name: true, email: true } } },
   })
+  const locale = await getLocale()
   return rows
     .filter(c => Object.keys(pendingOf(c)).length > 0)
     .map(c => ({
@@ -206,15 +224,15 @@ export async function listVenueChanges(): Promise<PendingVenueChange[]> {
       companyName: c.name,
       manager: { name: c.owner.name, email: c.owner.email },
       submittedAt: c.changesSubmittedAt!.toISOString(),
-      lines: changeLines(c),
+      lines: changeLines(c, locale),
     }))
 }
 
 async function withChanges(companyId: string) {
   const c = await prisma.company.findUnique({ where: { id: companyId } })
-  if (!c) throw notFound('Company not found')
+  if (!c) throw notFound('api.companyNotFound')
   if (!c.changesSubmittedAt || !Object.keys(pendingOf(c)).length) {
-    throw new ApiException('CONFLICT', 'This venue has no changes waiting', {
+    throw new ApiException('CONFLICT', 'api.noChangesWaiting', {
       reason: 'NO_CHANGES',
     })
   }
@@ -267,8 +285,8 @@ export async function approveVenueChanges(companyId: string, now: Date = new Dat
     await notify(tx, {
       userId: c.ownerId,
       type: 'COMPANY_APPROVED',
-      title: 'Your changes are live',
-      body: `PitchUp approved the new details of ${p.info?.name ?? c.name}; players see them now.`,
+      title: t => t('notify.venueChangesLive.title'),
+      body: t => t('notify.venueChangesLive.body', { company: p.info?.name ?? c.name }),
       data: { companyId: c.id, link: '/manager/settings' },
     })
   })
@@ -294,8 +312,8 @@ export async function rejectVenueChanges(
     await notify(tx, {
       userId: c.ownerId,
       type: 'COMPANY_REJECTED',
-      title: 'Your changes were not approved',
-      body: `${reason} Your page keeps its current details; you can send new changes in Settings.`,
+      title: t => t('notify.venueChangesRejected.title'),
+      body: t => t('notify.venueChangesRejected.body', { reason }),
       data: { companyId: c.id, reason, link: '/manager/settings' },
     })
   })

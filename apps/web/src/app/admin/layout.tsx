@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { auth, signOut } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { AdminNav } from '@/components/admin/AdminNav'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { getT } from '@/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,6 +24,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     prisma.noShow.count({ where: { disputeStatus: 'OPEN' } }),
   ])
 
+  const t = await getT()
+
   async function signOutAction() {
     'use server'
     await signOut({ redirectTo: '/login' })
@@ -35,20 +39,23 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             PitchUp
           </Link>
           <span className="rounded-full bg-primary-600 px-2 py-0.5 text-xs font-semibold text-white">
-            Admin
+            {t('admin.badge')}
           </span>
           <form action={signOutAction} className="ml-auto lg:hidden">
             <button type="submit" className="text-sm font-medium text-neutral-300 hover:text-white">
-              Sign out
+              {t('admin.signOut')}
             </button>
           </form>
         </div>
         <AdminNav alerts={{ '/admin/companies': pending + changes, '/admin/disputes': disputes }} />
         <form action={signOutAction} className="mt-6 hidden px-2 lg:block">
           <button type="submit" className="text-sm font-medium text-neutral-300 hover:text-white">
-            Sign out
+            {t('admin.signOut')}
           </button>
         </form>
+        <div className="mt-4 px-2">
+          <LanguageSwitch signedIn />
+        </div>
       </aside>
       <main className="min-w-0 flex-1 px-4 pb-16 pt-6 lg:px-8">
         <div className="mx-auto max-w-5xl">{children}</div>

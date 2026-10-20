@@ -16,7 +16,7 @@
 import 'server-only'
 import type { Prisma } from '@prisma/client'
 import {
-  TRUST_REASON_LABELS,
+  trustReasonLabel,
   TRUST_TIERS,
   deriveTier,
   type AdminUserDetail,
@@ -25,6 +25,7 @@ import {
   type AdminUserUpdate,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { applyTrustEvent } from '@/lib/trust/apply'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
@@ -90,6 +91,7 @@ export async function listUsers(query: AdminUserQuery): Promise<AdminUserPage> {
 }
 
 export async function userDetail(userId: string, now: Date = new Date()): Promise<AdminUserDetail> {
+  const locale = await getLocale()
   const u = await prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -106,7 +108,7 @@ export async function userDetail(userId: string, now: Date = new Date()): Promis
       },
     },
   })
-  if (!u) throw notFound('User not found')
+  if (!u) throw notFound('api.userNotFound')
   const [byStatus, upcoming, lateCancels] = await Promise.all([
     prisma.booking.groupBy({ by: ['status'], where: { playerId: userId }, _count: { _all: true } }),
     prisma.booking.count({
@@ -138,7 +140,7 @@ export async function userDetail(userId: string, now: Date = new Date()): Promis
     trustHistory: u.trustScoreEvents.map(e => ({
       id: e.id,
       reason: e.reason,
-      label: TRUST_REASON_LABELS[e.reason],
+      label: trustReasonLabel(e.reason, locale),
       delta: e.delta,
       note: e.note,
       at: e.createdAt.toISOString(),
@@ -156,9 +158,9 @@ export async function updateUser(
     where: { id: userId },
     select: { id: true, deletedAt: true, suspendedAt: true },
   })
-  if (!user || user.deletedAt) throw notFound('User not found')
+  if (!user || user.deletedAt) throw notFound('api.userNotFound')
   if (input.suspended !== undefined && userId === adminId) {
-    throw new ApiException('FORBIDDEN', "You can't suspend your own account", {
+    throw new ApiException('FORBIDDEN', 'api.cantSuspendSelf', {
       reason: 'SELF_SUSPEND',
     })
   }
@@ -181,8 +183,8 @@ export async function updateUser(
       await notify(tx, {
         userId,
         type: 'ADMIN_NOTICE',
-        title: 'Your account is active again',
-        body: 'PitchUp reinstated your account: you can sign in and book again.',
+        title: t => t('notify.accountReinstated.title'),
+        body: t => t('notify.accountReinstated.body'),
         data: {},
       })
     }
@@ -194,8 +196,15 @@ export async function updateUser(
       await notify(tx, {
         userId,
         type: 'ADMIN_NOTICE',
-        title: `PitchUp adjusted your trust score by ${input.trustScoreAdjust > 0 ? '+' : ''}${input.trustScoreAdjust}`,
-        body: `${input.trustAdjustReason} Your score is now ${result.score}.`,
+        title: t =>
+          t('notify.trustAdjusted.title', {
+            delta: `${input.trustScoreAdjust! > 0 ? '+' : ''}${input.trustScoreAdjust}`,
+          }),
+        body: t =>
+          t('notify.trustAdjusted.body', {
+            reason: input.trustAdjustReason ?? '',
+            score: result.score ?? '',
+          }),
         data: { link: '/profile/trust-score' },
       })
     }
@@ -213,13 +222,9 @@ export async function adminDeleteUser(
     where: { id: userId },
     select: { id: true, role: true, deletedAt: true },
   })
-  if (!user || user.deletedAt) throw notFound('User not found')
+  if (!user || user.deletedAt) throw notFound('api.userNotFound')
   if (user.role !== 'PLAYER') {
-    throw new ApiException(
-      'VALIDATION_ERROR',
-      'Only player accounts can be deleted; suspend a venue or admin account instead',
-      { reason: 'NOT_A_PLAYER' }
-    )
+    throw new ApiException('VALIDATION_ERROR', 'api.deletePlayersOnly', { reason: 'NOT_A_PLAYER' })
   }
   await closePlayerAccount(user, `Deleted by PitchUp: ${reason}`, now)
 }

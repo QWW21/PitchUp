@@ -1,4 +1,7 @@
-import { COMPANY_STATUS_LABELS, type CompanyStatusName } from '@pitchup/shared'
+'use client'
+
+import type { CompanyStatusName } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 const STYLES: Record<CompanyStatusName, string> = {
   DRAFT: 'bg-neutral-100 text-neutral-700',
@@ -9,11 +12,12 @@ const STYLES: Record<CompanyStatusName, string> = {
 
 /** A venue's status as a pill — E15-06. */
 export function CompanyStatusBadge({ status }: { status: CompanyStatusName }) {
+  const t = useT()
   return (
     <span
       className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${STYLES[status]}`}
     >
-      {COMPANY_STATUS_LABELS[status]}
+      {t(`companyStatus.${status}`)}
     </span>
   )
 }

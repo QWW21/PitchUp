@@ -36,7 +36,7 @@ export const GET = withErrorHandling(
         prisma.user.findUnique({ where: { id: session.user.id }, select: { trustScore: true } }),
       ])
       if (!user) throw unauthorized()
-      if (!pitch || pitch.company.status !== 'ACTIVE') throw notFound('Pitch not found')
+      if (!pitch || pitch.company.status !== 'ACTIVE') throw notFound('api.pitchNotFound')
       const { paymentMode: mode, depositPercent } = pitch.company
       const methods = paymentMethodsFor(mode, depositPercent, user.trustScore)
       const options: PaymentOptions = {

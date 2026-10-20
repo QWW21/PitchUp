@@ -11,8 +11,11 @@ import { useRef, useState } from 'react'
 import { REVIEW, formatDateLong, type BookingDetail } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useLocale, useT } from '@/i18n/client'
+import { MARK, withMarkup } from '@/i18n/rich'
 
 export function BookingActions({ booking: b }: { booking: BookingDetail }) {
+  const t = useT()
   return (
     <div className="space-y-3">
       {b.cancellation && <CancelBooking booking={b} />}
@@ -21,7 +24,7 @@ export function BookingActions({ booking: b }: { booking: BookingDetail }) {
           href={`/my-bookings/${b.id}/review`}
           className="flex h-12 w-full items-center justify-center rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700"
         >
-          Rate this pitch
+          {t('myBookings.actions.rate')}
         </Link>
       )}
       {b.noShow && <NoShowDispute booking={b} />}
@@ -30,7 +33,7 @@ export function BookingActions({ booking: b }: { booking: BookingDetail }) {
           href={`/book/${b.pitch.id}/date`}
           className="flex h-12 w-full items-center justify-center rounded-md font-semibold text-primary-700 hover:bg-primary-50"
         >
-          Book this pitch again
+          {t('myBookings.actions.bookAgain')}
         </Link>
       )}
     </div>
@@ -38,6 +41,8 @@ export function BookingActions({ booking: b }: { booking: BookingDetail }) {
 }
 
 function CancelBooking({ booking: b }: { booking: BookingDetail }) {
+  const t = useT()
+  const locale = useLocale()
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
   const [busy, setBusy] = useState(false)
@@ -71,7 +76,7 @@ function CancelBooking({ booking: b }: { booking: BookingDetail }) {
         onClick={() => dialog.current?.showModal()}
         className="h-12 w-full rounded-md border border-error-600 bg-white font-semibold text-error-600 hover:bg-error-50"
       >
-        Cancel booking
+        {t('myBookings.actions.cancel')}
       </button>
       <dialog
         ref={dialog}
@@ -80,32 +85,31 @@ function CancelBooking({ booking: b }: { booking: BookingDetail }) {
         onClick={e => e.target === dialog.current && dialog.current?.close()}
       >
         <h2 id="cancel-title" className="text-lg font-semibold text-neutral-900">
-          Cancel this booking?
+          {t('myBookings.actions.cancelTitle')}
         </h2>
         <p className="mt-1 text-sm text-neutral-700">
-          {b.pitch.name} · {formatDateLong(b.date)}, {b.startTime}–{b.endTime}
+          {b.pitch.name} · {formatDateLong(b.date, locale)}, {b.startTime}–{b.endTime}
         </p>
         <div className={`mt-4 rounded-r-md border-l-[3px] p-3 text-sm ${tone}`}>
           {b.paidAt ? (
             refundPercent > 0 ? (
               <>
                 <p className="text-neutral-900">
-                  You&rsquo;ll receive <strong>{refundAmount} RON</strong> back · {refundPercent}%
-                  refund
+                  {withMarkup(
+                    t('myBookings.actions.refundBack', { amount: MARK, percent: refundPercent }),
+                    <strong>{refundAmount} RON</strong>
+                  )}
                 </p>
-                <p className="mt-1 text-neutral-700">
-                  Refunds reach your card in 5–10 business days.
-                </p>
+                <p className="mt-1 text-neutral-700">{t('myBookings.actions.refundTiming')}</p>
               </>
             ) : (
               <p className="text-neutral-900">
-                <strong>No refund</strong> · it is less than 2 hours to kick-off.
+                <strong>{t('myBookings.actions.noRefund')}</strong>
+                {t('myBookings.actions.noRefundWhy')}
               </p>
             )
           ) : (
-            <p className="text-neutral-900">
-              This booking is not paid, so there is nothing to refund.
-            </p>
+            <p className="text-neutral-900">{t('myBookings.actions.notPaid')}</p>
           )}
         </div>
         {error && (
@@ -120,7 +124,7 @@ function CancelBooking({ booking: b }: { booking: BookingDetail }) {
             onClick={() => dialog.current?.close()}
             className="h-11 w-full rounded-md bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700"
           >
-            Keep my booking
+            {t('myBookings.actions.keep')}
           </button>
           <button
             type="button"
@@ -130,10 +134,10 @@ function CancelBooking({ booking: b }: { booking: BookingDetail }) {
             className="h-11 w-full rounded-md border border-error-600 bg-white text-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60"
           >
             {busy
-              ? 'Cancelling…'
+              ? t('myBookings.actions.cancelling')
               : b.paidAt && refundAmount > 0
-                ? `Cancel — get ${refundAmount} RON back`
-                : 'Cancel booking'}
+                ? t('myBookings.actions.cancelGetBack', { amount: refundAmount })
+                : t('myBookings.actions.cancel')}
           </button>
         </div>
       </dialog>
@@ -142,6 +146,7 @@ function CancelBooking({ booking: b }: { booking: BookingDetail }) {
 }
 
 function NoShowDispute({ booking: b }: { booking: BookingDetail }) {
+  const t = useT()
   const router = useRouter()
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
@@ -152,15 +157,15 @@ function NoShowDispute({ booking: b }: { booking: BookingDetail }) {
     return (
       <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
         {ns.disputeStatus === 'OPEN'
-          ? 'Dispute submitted. An admin will review it.'
+          ? t('myBookings.actions.disputeOpen')
           : ns.disputeStatus === 'RESOLVED_PLAYER'
-            ? 'Your dispute was upheld.'
-            : 'Your dispute was reviewed and the no-show stands.'}
+            ? t('myBookings.actions.disputeUpheld')
+            : t('myBookings.actions.disputeRejected')}
       </p>
     )
   }
   if (!ns.disputeUntil) {
-    return <p className="text-sm text-neutral-700">The time to dispute this no-show has passed.</p>
+    return <p className="text-sm text-neutral-700">{t('myBookings.actions.disputeExpired')}</p>
   }
 
   const submit = async () => {
@@ -178,14 +183,13 @@ function NoShowDispute({ booking: b }: { booking: BookingDetail }) {
   return (
     <section aria-labelledby="dispute-heading" className="rounded-xl bg-white p-4 shadow-sm">
       <h2 id="dispute-heading" className="text-base font-semibold text-neutral-900">
-        Were you there?
+        {t('myBookings.actions.wereYouThere')}
       </h2>
       <p className="mt-1 text-sm text-neutral-700">
-        The venue marked this booking as a no-show{ns.reason ? `: “${ns.reason}”` : ''}. If you
-        played, tell us what happened.
+        {t('myBookings.actions.markedNoShow', { reason: ns.reason ? `: “${ns.reason}”` : '' })}
       </p>
       <label htmlFor="dispute-text" className="mt-3 block text-sm font-medium text-neutral-700">
-        What happened
+        {t('myBookings.actions.whatHappened')}
       </label>
       <textarea
         id="dispute-text"
@@ -202,7 +206,7 @@ function NoShowDispute({ booking: b }: { booking: BookingDetail }) {
         disabled={busy || !text.trim()}
         className="mt-2 h-11 w-full rounded-md border border-neutral-200 bg-white text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
       >
-        {busy ? 'Sending…' : 'Dispute no-show'}
+        {busy ? t('myBookings.actions.sending') : t('myBookings.actions.dispute')}
       </button>
     </section>
   )
@@ -217,12 +221,13 @@ export function ReviewActions({
   reviewId: string
   editableUntil: string
 }) {
+  const t = useT()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const editable = new Date(editableUntil).getTime() > Date.now()
 
   const remove = async () => {
-    if (!window.confirm('Delete your review? This cannot be undone.')) return
+    if (!window.confirm(t('myBookings.actions.deleteConfirm'))) return
     try {
       await send(`/api/v1/reviews/${reviewId}`, 'DELETE')
       router.refresh()
@@ -238,11 +243,11 @@ export function ReviewActions({
           href={`/my-bookings/${bookingId}/review`}
           className="font-medium text-primary-700 hover:underline"
         >
-          Edit review
+          {t('myBookings.actions.editReview')}
         </Link>
       )}
       <button type="button" onClick={remove} className="font-medium text-error-600 hover:underline">
-        Delete review
+        {t('myBookings.actions.deleteReview')}
       </button>
       {error && <span className="text-error-600">{error}</span>}
     </div>

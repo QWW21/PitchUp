@@ -11,25 +11,19 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, ChevronRight, Download, SearchX } from 'lucide-react'
 import {
   MANAGER_BOOKING_STATUSES,
+  INTL_LOCALE,
   formatDateLong,
+  type Locale,
   type ManagerBooking,
   type ManagerBookingPage,
 } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
 import { BookingStatusBadge } from './BookingStatusBadge'
+import { useLocale, useT } from '@/i18n/client'
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: 'Awaiting payment',
-  AWAITING_APPROVAL: 'Needs your answer',
-  CONFIRMED: 'Confirmed',
-  CANCELLED: 'Cancelled',
-  COMPLETED: 'Completed',
-  NO_SHOW: 'No-show',
-}
-
-const short = (date: string) =>
-  new Intl.DateTimeFormat('en-GB', {
+const short = (date: string, locale: Locale) =>
+  new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -50,6 +44,8 @@ export function BookingList({
   pitches: { id: string; name: string }[]
   filters: Record<string, string>
 }) {
+  const t = useT()
+  const locale = useLocale()
   const router = useRouter()
   const pathname = usePathname()
   const [items, setItems] = useState(initial.items)
@@ -73,8 +69,8 @@ export function BookingList({
     }
     const term = search.trim()
     if (term.length === 1 || term === (filters.search ?? '')) return
-    const t = setTimeout(() => apply({ search: term }), 400)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => apply({ search: term }), 400)
+    return () => clearTimeout(timer)
   }, [search])
 
   const apiUrl = (extra: Record<string, string>) =>
@@ -110,30 +106,34 @@ export function BookingList({
         if (!next) break
       }
       if (!all.length) {
-        setMessage('No bookings to export.')
+        setMessage(t('mBookings.list.noExport'))
       } else {
         const rows = [
-          [
-            'Date',
-            'Start',
-            'End',
-            'Player',
-            'Pitch',
-            'Status',
-            'Price (RON)',
-            'Payment',
-            'Due at venue (RON)',
-            'Reference',
-          ],
+          (
+            [
+              'date',
+              'start',
+              'end',
+              'player',
+              'pitch',
+              'status',
+              'price',
+              'payment',
+              'due',
+              'reference',
+            ] as const
+          ).map(k => t(`mBookings.list.csv.${k}`)),
           ...all.map(b => [
             b.date,
             b.startTime,
             b.endTime,
             b.player.name,
             b.pitch.name,
-            STATUS_LABELS[b.status] ?? b.status,
+            t(`mBookings.status.${b.status}`),
             b.total,
-            b.paymentMethod === 'ONLINE' ? 'Online' : 'At the venue',
+            b.paymentMethod === 'ONLINE'
+              ? t('mBookings.list.csv.online')
+              : t('mBookings.list.csv.venue'),
             b.attendedAt ? 0 : b.dueAtVenue,
             b.reference,
           ]),
@@ -142,12 +142,12 @@ export function BookingList({
         const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
         const a = document.createElement('a')
         a.href = url
-        a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`
+        a.download = `${t('mBookings.list.file')}-${new Date().toISOString().slice(0, 10)}.csv`
         a.click()
         URL.revokeObjectURL(url)
       }
     } catch {
-      setMessage('Export failed. Try again.')
+      setMessage(t('mBookings.list.exportFailed'))
     }
     setBusy(false)
   }
@@ -163,7 +163,7 @@ export function BookingList({
           className="inline-flex h-10 items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
         >
           <CalendarDays className="h-4 w-4" aria-hidden="true" />
-          Week view
+          {t('mBookings.list.weekView')}
         </Link>
         <button
           type="button"
@@ -172,24 +172,24 @@ export function BookingList({
           className="inline-flex h-10 items-center gap-2 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
           <Download className="h-4 w-4" aria-hidden="true" />
-          Export CSV
+          {t('mBookings.list.export')}
         </button>
       </div>
 
       <form
         role="search"
-        aria-label="Filter bookings"
+        aria-label={t('mBookings.list.filter')}
         onSubmit={e => e.preventDefault()}
         className="mb-4 flex flex-wrap items-end gap-3 rounded-xl bg-white p-4 shadow-sm"
       >
         <label className="text-xs font-medium text-neutral-700">
-          Pitch
+          {t('mBookings.list.pitch')}
           <select
             value={filters.pitchId ?? ''}
             onChange={e => apply({ pitchId: e.target.value })}
             className={`mt-1 block ${field}`}
           >
-            <option value="">All pitches</option>
+            <option value="">{t('mBookings.list.allPitches')}</option>
             {pitches.map(p => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -198,22 +198,22 @@ export function BookingList({
           </select>
         </label>
         <label className="text-xs font-medium text-neutral-700">
-          Status
+          {t('mBookings.list.status')}
           <select
             value={filters.status ?? ''}
             onChange={e => apply({ status: e.target.value })}
             className={`mt-1 block ${field}`}
           >
-            <option value="">All statuses</option>
+            <option value="">{t('mBookings.list.allStatuses')}</option>
             {MANAGER_BOOKING_STATUSES.map(s => (
               <option key={s} value={s}>
-                {STATUS_LABELS[s]}
+                {t(`mBookings.status.${s}`)}
               </option>
             ))}
           </select>
         </label>
         <label className="text-xs font-medium text-neutral-700">
-          From
+          {t('mBookings.list.from')}
           <input
             type="date"
             value={filters.dateFrom ?? ''}
@@ -222,7 +222,7 @@ export function BookingList({
           />
         </label>
         <label className="text-xs font-medium text-neutral-700">
-          To
+          {t('mBookings.list.to')}
           <input
             type="date"
             value={filters.dateTo ?? ''}
@@ -232,11 +232,11 @@ export function BookingList({
           />
         </label>
         <label className="min-w-[12rem] flex-1 text-xs font-medium text-neutral-700">
-          Player
+          {t('mBookings.list.player')}
           <input
             type="search"
             value={search}
-            placeholder="Name or email"
+            placeholder={t('mBookings.list.nameOrEmail')}
             onChange={e => setSearch(e.target.value)}
             className={`mt-1 block w-full ${field}`}
           />
@@ -250,7 +250,7 @@ export function BookingList({
             }}
             className="h-10 px-2 text-sm font-semibold text-primary-700 hover:underline"
           >
-            Clear filters
+            {t('mBookings.list.clear')}
           </button>
         )}
       </form>
@@ -264,8 +264,10 @@ export function BookingList({
       {items.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl bg-white px-6 py-14 text-center shadow-sm">
           <SearchX className="h-12 w-12 text-neutral-300" aria-hidden="true" />
-          <p className="mt-3 font-semibold text-neutral-900">No bookings found</p>
-          {filtered && <p className="mt-1 text-sm text-neutral-500">Try other filters.</p>}
+          <p className="mt-3 font-semibold text-neutral-900">{t('mBookings.list.none')}</p>
+          {filtered && (
+            <p className="mt-1 text-sm text-neutral-500">{t('mBookings.list.tryOther')}</p>
+          )}
         </div>
       ) : (
         <div className="relative overflow-x-auto rounded-xl bg-white shadow-sm">
@@ -273,22 +275,22 @@ export function BookingList({
             <thead className="bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
               <tr>
                 <th scope="col" className="px-4 py-3">
-                  Date and time
+                  {t('mBookings.list.dateTime')}
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Player
+                  {t('mBookings.list.player')}
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Pitch
+                  {t('mBookings.list.pitch')}
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  Status
+                  {t('mBookings.list.status')}
                 </th>
                 <th scope="col" className="px-4 py-3 text-right">
-                  Amount
+                  {t('mBookings.list.amount')}
                 </th>
                 <th scope="col" className="px-4 py-3">
-                  <span className="sr-only">Open</span>
+                  <span className="sr-only">{t('mBookings.list.open')}</span>
                 </th>
               </tr>
             </thead>
@@ -296,8 +298,8 @@ export function BookingList({
               {items.map(b => (
                 <tr key={b.id} className="hover:bg-neutral-50">
                   <td className="whitespace-nowrap px-4 py-3 text-neutral-900">
-                    <span title={formatDateLong(b.date)}>{short(b.date)}</span>, {b.startTime}–
-                    {b.endTime}
+                    <span title={formatDateLong(b.date, locale)}>{short(b.date, locale)}</span>,{' '}
+                    {b.startTime}–{b.endTime}
                   </td>
                   <td className="px-4 py-3 text-neutral-900">{b.player.name}</td>
                   <td className="px-4 py-3">
@@ -317,14 +319,18 @@ export function BookingList({
                     {b.total} RON
                     {b.dueAtVenue > 0 && !b.attendedAt && b.status === 'CONFIRMED' && (
                       <span className="block text-xs text-neutral-500">
-                        {b.dueAtVenue} RON at the venue
+                        {t('mBookings.list.atVenue', { amount: b.dueAtVenue })}
                       </span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link
                       href={`/manager/bookings/${b.id}`}
-                      aria-label={`Open booking ${b.reference}, ${b.player.name}, ${short(b.date)} ${b.startTime}`}
+                      aria-label={t('mBookings.list.openLabel', {
+                        reference: b.reference,
+                        player: b.player.name,
+                        when: `${short(b.date, locale)} ${b.startTime}`,
+                      })}
                       className="inline-flex h-9 w-9 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100"
                     >
                       <ChevronRight className="h-4 w-4" aria-hidden="true" />
@@ -345,7 +351,7 @@ export function BookingList({
             disabled={busy}
             className="h-10 rounded-md border border-neutral-200 bg-white px-5 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
           >
-            {busy ? 'Loading…' : 'Load more'}
+            {busy ? t('mBookings.list.loading') : t('mBookings.list.more')}
           </button>
         </div>
       )}

@@ -19,6 +19,7 @@ import { colors } from './src/theme/tokens'
 import { authEvents } from './src/lib/authEvents'
 import { startPush } from './src/lib/push'
 import { useAuthStore } from './src/stores/authStore'
+import { useLocaleStore } from './src/stores/localeStore'
 import { ONBOARDING_SEEN_KEY, OnboardingScreen } from './src/screens/auth/OnboardingScreen'
 import { LoginScreen } from './src/screens/auth/LoginScreen'
 import { RegisterStep1Screen } from './src/screens/auth/RegisterStep1Screen'
@@ -180,12 +181,14 @@ export default function App() {
   const { status, checkSession, logout } = useAuthStore()
   const [showOnboarding, setShowOnboarding] = React.useState<boolean | null>(null)
 
-  // Run token validation and onboarding check in parallel on mount.
+  // Token validation, the onboarding flag and the saved language, in
+  // parallel on mount; the language first, so the first screen is in it.
   useEffect(() => {
     checkSession()
-    AsyncStorage.getItem(ONBOARDING_SEEN_KEY).then(value => {
-      setShowOnboarding(value !== '1')
-    })
+    void Promise.all([
+      AsyncStorage.getItem(ONBOARDING_SEEN_KEY),
+      useLocaleStore.getState().load(),
+    ]).then(([seen]) => setShowOnboarding(seen !== '1'))
   }, [checkSession])
 
   // Any 401 that exhausts the refresh cycle lands here.

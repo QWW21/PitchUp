@@ -6,13 +6,13 @@ import { StyleSheet, Text, View } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
   ALL_AMENITIES,
-  AMENITY_LABELS,
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
   formatShortDuration,
 } from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 /** The ticket's `locker-room` and `stadium-outline` are not in the installed icon set. */
 const AMENITY_ICONS: Record<AmenityType, string> = {
@@ -34,6 +34,7 @@ const AMENITY_ICONS: Record<AmenityType, string> = {
 
 /** All fourteen, available ones highlighted, the rest greyed and struck through. */
 export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities'] }) {
+  const t = useT()
   const have = new Set(amenities.map(a => a.amenityType))
   return (
     <View style={styles.grid}>
@@ -44,7 +45,10 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
             key={type}
             style={styles.cell}
             accessible
-            accessibilityLabel={`${AMENITY_LABELS[type]}, ${available ? 'available' : 'not available'}`}
+            accessibilityLabel={t(
+              available ? 'discover.pitch.available' : 'discover.pitch.notAvailable',
+              { amenity: t(`amenity.${type}`) }
+            )}
           >
             <Icon
               name={AMENITY_ICONS[type]}
@@ -52,7 +56,7 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
               color={available ? colors.primary[600] : colors.neutral[300]}
             />
             <Text style={[styles.amenity, !available && styles.unavailable]} numberOfLines={1}>
-              {AMENITY_LABELS[type]}
+              {t(`amenity.${type}`)}
             </Text>
           </View>
         )
@@ -63,25 +67,29 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
 
 /** One hourly rate at any time of day; shirts are free. */
 export function PricingCard({ pitch }: { pitch: PitchDetail }) {
-  const colours = formatShirtColours(pitch.shirtInventory)
+  const t = useT()
+  const locale = useLocale()
+  const colours = formatShirtColours(pitch.shirtInventory, locale)
   return (
     <View style={styles.card}>
       <View style={styles.priceRow}>
-        <Text style={styles.range}>Any time</Text>
+        <Text style={styles.range}>{t('discover.pitch.anyTime')}</Text>
         <Text style={styles.price}>
           {pitch.hourlyRate} RON<Text style={styles.per}>/h</Text>
         </Text>
       </View>
       <Text style={styles.note}>
-        Min. {formatShortDuration(pitch.minBookingHours * 60)} · Billed per 30 min
+        {t('discover.pitch.minBilled', {
+          duration: formatShortDuration(pitch.minBookingHours * 60),
+        })}
       </Text>
       {pitch.hasShirts ? (
         <View style={[styles.shirts, styles.divider]}>
           <Icon name="tshirt-crew" size={16} color={colors.neutral[500]} />
           <Text style={styles.shirtText}>
-            <Text style={styles.bold}>Free shirts</Text>
-            {colours ? ` in ${colours}` : ''}. Ask for them when you book: one set for every team
-            but one.
+            <Text style={styles.bold}>{t('discover.pitch.freeShirts')}</Text>
+            {colours ? t('discover.pitch.shirtsIn', { colours }) : ''}
+            {t('discover.pitch.shirtsHow')}
           </Text>
         </View>
       ) : null}

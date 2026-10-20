@@ -5,8 +5,11 @@ import Link from 'next/link'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
+import { MARK, withMarkup } from '@/i18n/rich'
+import { useT } from '@/i18n/client'
 
 export function ForgotPasswordForm() {
+  const t = useT()
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
@@ -25,7 +28,7 @@ export function ForgotPasswordForm() {
       })
 
       if (res.status === 429) {
-        setError('Too many requests. Try again in a few minutes.')
+        setError(t('auth.forgot.tooMany'))
         return
       }
 
@@ -34,7 +37,7 @@ export function ForgotPasswordForm() {
       // undo the enumeration protection on the register and login endpoints.
       setSent(true)
     } catch {
-      setError('Could not connect. Check your connection and try again.')
+      setError(t('common.connectionError'))
     } finally {
       setLoading(false)
     }
@@ -44,14 +47,16 @@ export function ForgotPasswordForm() {
     return (
       <div className="mt-8 space-y-4 text-center">
         <p className="text-base text-neutral-700">
-          If <span className="font-medium text-neutral-900">{email}</span> is registered, a reset
-          link is on its way. Check your spam folder if you don&apos;t see it within a minute.
+          {withMarkup(
+            t('auth.forgot.sent', { email: MARK }),
+            <span className="font-medium text-neutral-900">{email}</span>
+          )}
         </p>
         <Link
           href="/login"
           className="inline-block font-medium text-primary-600 hover:text-primary-700"
         >
-          ← Back to sign in
+          {t('auth.forgot.back')}
         </Link>
       </div>
     )
@@ -60,7 +65,7 @@ export function ForgotPasswordForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
       <TextField
-        label="Email"
+        label={t('auth.login.email')}
         type="email"
         name="email"
         autoComplete="email"
@@ -73,12 +78,12 @@ export function ForgotPasswordForm() {
       {error && <Alert>{error}</Alert>}
 
       <Button type="submit" size="lg" loading={loading}>
-        {loading ? 'Sending…' : 'Send reset link'}
+        {loading ? t('auth.forgot.sending') : t('auth.forgot.send')}
       </Button>
 
       <p className="text-center text-sm text-neutral-500">
         <Link href="/login" className="font-medium text-primary-600 hover:text-primary-700">
-          ← Back to sign in
+          {t('auth.forgot.back')}
         </Link>
       </p>
     </form>

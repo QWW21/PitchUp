@@ -172,7 +172,7 @@ export async function listCompanies(
   let start = 0
   if (q.cursor) {
     const index = rows.findIndex(r => r.id === q.cursor)
-    if (index === -1) throw validationError('Invalid cursor')
+    if (index === -1) throw validationError('api.invalidCursor')
     start = index + 1
   }
   const page = rows.slice(start, start + q.limit)

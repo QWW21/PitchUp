@@ -4,8 +4,9 @@
  */
 import React from 'react'
 import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
-import { REVIEW_SORTS, REVIEW_SORT_LABELS, type ReviewSort } from '@pitchup/shared'
+import { REVIEW_SORTS, type ReviewSort } from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export function ReviewSortSelector({
   value,
@@ -14,12 +15,13 @@ export function ReviewSortSelector({
   value: ReviewSort
   onChange: (sort: ReviewSort) => void
 }) {
+  const t = useT()
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
-      accessibilityLabel="Sort reviews"
+      accessibilityLabel={t('discover.reviews.sort')}
     >
       {REVIEW_SORTS.map(s => {
         const on = s === value
@@ -31,7 +33,7 @@ export function ReviewSortSelector({
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
           >
-            <Text style={[styles.text, on && styles.textOn]}>{REVIEW_SORT_LABELS[s]}</Text>
+            <Text style={[styles.text, on && styles.textOn]}>{t(`reviewSort.${s}`)}</Text>
           </Pressable>
         )
       })}

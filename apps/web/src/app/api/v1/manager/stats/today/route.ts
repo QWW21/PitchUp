@@ -13,7 +13,7 @@ export const GET = withErrorHandling(
   requireManager(async (_request, session) => {
     const company = await managerCompany(session.user.id)
     if (company?.status !== 'ACTIVE') {
-      return err('FORBIDDEN', 'Your venue is not approved yet', 403, { reason: 'NOT_ACTIVE' })
+      return err('FORBIDDEN', 'api.venueNotApproved', 403, { reason: 'NOT_ACTIVE' })
     }
     const response = ok(await managerStats(company.id))
     response.headers.set('Cache-Control', 'no-store')

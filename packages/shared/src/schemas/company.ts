@@ -31,7 +31,7 @@ export const CreateCompanySchema = z.object({
 
 export const UpdateCompanySchema = CreateCompanySchema.partial().refine(
   data => Object.keys(data).length > 0,
-  { message: 'At least one field must be provided' }
+  { message: 'v.oneField' }
 )
 
 export type CreateCompanyInput = z.infer<typeof CreateCompanySchema>

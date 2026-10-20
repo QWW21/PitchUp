@@ -69,18 +69,30 @@ describe('the refund policy (C-10)', () => {
     )
   })
   it('says itself in one sentence', () => {
-    expect(describeRefundPolicy()).toBe(
+    expect(describeRefundPolicy(DEFAULT_REFUND_POLICY, 'en')).toBe(
       'Free cancellation up to 12 hours before kick-off; 75% back up to 2 hours before; nothing after.'
     )
     expect(
-      describeRefundPolicy({ fullRefundHours: 24, partialRefundHours: 0, partialRefundPercent: 50 })
+      describeRefundPolicy(
+        { fullRefundHours: 24, partialRefundHours: 0, partialRefundPercent: 50 },
+        'en'
+      )
     ).toBe('Free cancellation up to 24 hours before kick-off; 50% back until kick-off.')
     expect(
-      describeRefundPolicy({ fullRefundHours: 1, partialRefundHours: 0, partialRefundPercent: 0 })
+      describeRefundPolicy(
+        { fullRefundHours: 1, partialRefundHours: 0, partialRefundPercent: 0 },
+        'en'
+      )
     ).toBe('Free cancellation up to 1 hour before kick-off; nothing after.')
     expect(
-      describeRefundPolicy({ fullRefundHours: 0, partialRefundHours: 0, partialRefundPercent: 0 })
+      describeRefundPolicy(
+        { fullRefundHours: 0, partialRefundHours: 0, partialRefundPercent: 0 },
+        'en'
+      )
     ).toBe('Free cancellation until kick-off.')
+    expect(describeRefundPolicy(DEFAULT_REFUND_POLICY, 'ro')).toBe(
+      'Anulare gratuită cu până la 12 ore înainte de meci; 75% înapoi cu până la 2 ore înainte; după aceea, nimic.'
+    )
   })
   it('reads a stored policy, or falls back to the default', () => {
     const p = { fullRefundHours: 6, partialRefundHours: 1, partialRefundPercent: 40 }
@@ -172,10 +184,12 @@ describe('start and duration (C-6)', () => {
   })
 })
 
-it('formats dates without Intl', async () => {
-  const { formatDateLong, formatMonth } = await import('./booking')
-  expect(formatDateLong('2026-11-05')).toBe('Thursday, 5 November 2026')
-  expect(formatMonth('2026-02-14')).toBe('February 2026')
+it('formats dates without Intl, in both languages', async () => {
+  const { formatDateLong, formatMonth } = await import('./i18n')
+  expect(formatDateLong('2026-11-05', 'en')).toBe('Thursday, 5 November 2026')
+  expect(formatMonth('2026-02-14', 'en')).toBe('February 2026')
+  expect(formatDateLong('2026-11-05', 'ro')).toBe('Joi, 5 noiembrie 2026')
+  expect(formatMonth('2026-02-14', 'ro')).toBe('Februarie 2026')
 })
 
 describe('cancellationRefund', () => {
@@ -206,6 +220,6 @@ describe('formatCountdown', () => {
   ])('%i minutes → %s', async (minutes, text) => {
     const { formatCountdown } = await import('./booking')
     const now = new Date('2026-11-10T12:00:00Z')
-    expect(formatCountdown(new Date(now.getTime() + minutes * 60_000), now)).toBe(text)
+    expect(formatCountdown(new Date(now.getTime() + minutes * 60_000), 'en', now)).toBe(text)
   })
 })

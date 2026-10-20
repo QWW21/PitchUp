@@ -10,25 +10,22 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { addDays, dayOfWeek, venueClock, type CalendarDay } from '@pitchup/shared'
+import {
+  INTL_LOCALE,
+  addDays,
+  dayOfWeek,
+  formatMonth,
+  venueClock,
+  weekdayShort,
+  type CalendarDay,
+  type Locale,
+} from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
+import { useLocale, useT } from '@/i18n/client'
 import { stepPath, useBooking } from './draft'
 
-const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-]
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+/** Monday first. */
+const WEEK = [1, 2, 3, 4, 5, 6, 0]
 
 const monthStart = (date: string) => `${date.slice(0, 7)}-01`
 const daysIn = (first: string) => {
@@ -39,8 +36,8 @@ const shiftMonth = (first: string, by: number) => {
   const [y, m] = first.split('-').map(Number)
   return new Date(Date.UTC(y!, m! - 1 + by, 1)).toISOString().slice(0, 10)
 }
-const longDate = (date: string) =>
-  new Intl.DateTimeFormat('en-GB', {
+const longDate = (date: string, locale: Locale) =>
+  new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -52,11 +49,13 @@ async function fetchCalendar(pitchId: string, from: string, days: number) {
     cache: 'no-store',
   })
   const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Request failed')
+  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? res.statusText)
   return body.data as CalendarDay[]
 }
 
 export function DateStep() {
+  const t = useT()
+  const locale = useLocale()
   const { pitch, draft, ready, update } = useBooking()
   const router = useRouter()
   const prefill = useSearchParams().get('date')
@@ -103,7 +102,7 @@ export function DateStep() {
   const choose = (date: string) => {
     const s = status.get(date)
     if (s === 'full') {
-      setNotice('No available slots on this day.')
+      setNotice(t('booking.date.noSlots'))
       return
     }
     if (s !== 'available') return
@@ -149,7 +148,7 @@ export function DateStep() {
   return (
     <section aria-labelledby="date-heading">
       <h1 id="date-heading" className="text-xl font-semibold text-neutral-900">
-        Pick a date
+        {t('booking.date.heading')}
       </h1>
 
       <div className="mt-4 rounded-xl bg-white p-4 shadow-sm">
@@ -158,19 +157,19 @@ export function DateStep() {
             type="button"
             onClick={() => setMonth(shiftMonth(month, -1))}
             disabled={!canPrev}
-            aria-label="Previous month"
+            aria-label={t('booking.date.previousMonth')}
             className="flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
           >
             <ChevronLeft className="h-5 w-5" aria-hidden="true" />
           </button>
           <h2 className="text-base font-semibold text-neutral-900" aria-live="polite">
-            {MONTHS[Number(month.slice(5, 7)) - 1]} {month.slice(0, 4)}
+            {formatMonth(month, locale)}
           </h2>
           <button
             type="button"
             onClick={() => setMonth(shiftMonth(month, 1))}
             disabled={!canNext}
-            aria-label="Next month"
+            aria-label={t('booking.date.nextMonth')}
             className="flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 disabled:opacity-30"
           >
             <ChevronRight className="h-5 w-5" aria-hidden="true" />
@@ -180,15 +179,15 @@ export function DateStep() {
         <table
           ref={grid}
           role="grid"
-          aria-label="Choose a date"
+          aria-label={t('booking.date.choose')}
           onKeyDown={onKeyDown}
           className="mt-3 w-full table-fixed border-collapse"
         >
           <thead>
             <tr>
-              {WEEKDAYS.map(d => (
+              {WEEK.map(d => (
                 <th key={d} scope="col" className="pb-2 text-xs font-medium text-neutral-500">
-                  {d}
+                  {weekdayShort(d, locale)}
                 </th>
               ))}
             </tr>
@@ -202,8 +201,12 @@ export function DateStep() {
                   const isSelected = date === selected
                   const isToday = date === today
                   const disabled = !calendar.data || s === 'closed' || !s
-                  const label = `${longDate(date)}${
-                    s === 'full' ? ', fully booked' : s === 'closed' ? ', unavailable' : ''
+                  const label = `${longDate(date, locale)}${
+                    s === 'full'
+                      ? t('booking.date.fullyBooked')
+                      : s === 'closed'
+                        ? t('booking.date.unavailable')
+                        : ''
                   }`
                   return (
                     <td
@@ -244,16 +247,16 @@ export function DateStep() {
         </table>
 
         <p role="status" className="mt-2 min-h-5 text-center text-sm text-neutral-700">
-          {calendar.isError ? 'Couldn’t load the calendar. Try again.' : notice}
+          {calendar.isError ? t('booking.date.loadError') : notice}
         </p>
-        <p className="mt-1 text-center text-xs text-neutral-500">
-          Crossed-out days are closed, fully booked or out of range.
-        </p>
+        <p className="mt-1 text-center text-xs text-neutral-500">{t('booking.date.legend')}</p>
       </div>
 
       <div className="mt-6">
         <Button size="lg" onClick={next} disabled={!selected}>
-          {selected ? `Next: times on ${longDate(selected)}` : 'Next'}
+          {selected
+            ? t('booking.date.nextOn', { date: longDate(selected, locale) })
+            : t('booking.date.next')}
         </Button>
       </div>
     </section>

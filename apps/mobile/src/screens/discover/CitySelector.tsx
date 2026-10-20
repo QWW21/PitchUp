@@ -19,11 +19,12 @@ import { CITIES, foldForSearch, type City } from '@pitchup/shared'
 import { useDiscoverStore } from '../../stores/discoverStore'
 import { useLocation, type DetectResult } from '../../hooks/useLocation'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
-const DETECT_MESSAGES: Record<Exclude<DetectResult, 'detected'>, string> = {
-  denied: 'Location permission denied. Select manually.',
-  blocked: 'Location permission denied. Select manually.',
-  error: "Couldn't detect location. Try selecting manually.",
+const DETECT_MESSAGES: Record<Exclude<DetectResult, 'detected'>, 'denied' | 'error'> = {
+  denied: 'denied',
+  blocked: 'denied',
+  error: 'error',
 }
 
 interface CitySelectorProps {
@@ -32,6 +33,7 @@ interface CitySelectorProps {
 }
 
 export function CitySelector({ visible, onClose }: CitySelectorProps) {
+  const t = useT()
   const selectedCity = useDiscoverStore(s => s.selectedCity)
   const setCity = useDiscoverStore(s => s.setCity)
   const { requestAndDetect } = useLocation()
@@ -58,7 +60,7 @@ export function CitySelector({ visible, onClose }: CitySelectorProps) {
     const result = await requestAndDetect()
     setDetecting(false)
     if (result === 'detected') close()
-    else setMessage(DETECT_MESSAGES[result])
+    else setMessage(t(`discover.city.${DETECT_MESSAGES[result]}`))
   }
 
   function choose(city: City) {
@@ -75,11 +77,11 @@ export function CitySelector({ visible, onClose }: CitySelectorProps) {
     >
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <View style={styles.header}>
-          <Text style={styles.title}>Select city</Text>
+          <Text style={styles.title}>{t('discover.city.title')}</Text>
           <Pressable
             onPress={close}
             accessibilityRole="button"
-            accessibilityLabel="Close"
+            accessibilityLabel={t('discover.city.close')}
             style={styles.closeButton}
           >
             <Icon name="close" size={24} color={colors.neutral[900]} />
@@ -91,11 +93,11 @@ export function CitySelector({ visible, onClose }: CitySelectorProps) {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search cities..."
+            placeholder={t('discover.city.search')}
             placeholderTextColor={colors.neutral[400]}
             autoCorrect={false}
             style={styles.searchInput}
-            accessibilityLabel="Search cities"
+            accessibilityLabel={t('discover.city.searchLabel')}
           />
         </View>
 
@@ -116,14 +118,14 @@ export function CitySelector({ visible, onClose }: CitySelectorProps) {
                 ) : (
                   <Icon name="crosshairs-gps" size={20} color={colors.primary[600]} />
                 )}
-                <Text style={styles.detectText}>Detect my location</Text>
+                <Text style={styles.detectText}>{t('discover.city.detect')}</Text>
               </Pressable>
               {message ? <Text style={styles.message}>{message}</Text> : null}
-              <Text style={styles.section}>ROMANIA</Text>
+              <Text style={styles.section}>{t('discover.city.country')}</Text>
             </>
           }
           ListEmptyComponent={
-            <Text style={styles.empty}>No cities found for &lsquo;{query}&rsquo;</Text>
+            <Text style={styles.empty}>{t('discover.city.none', { query })}</Text>
           }
           renderItem={({ item }) => (
             <Pressable

@@ -8,8 +8,10 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { safeCallbackPath } from '@/lib/auth/callback'
+import { useT } from '@/i18n/client'
 
 export function LoginForm({ google }: { google: boolean }) {
+  const t = useT()
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState(() => searchParams.get('email') ?? '')
@@ -39,7 +41,7 @@ export function LoginForm({ google }: { google: boolean }) {
     } catch {
       // signIn only throws when the request itself fails (no connection, or
       // a non-JSON server error); a wrong password comes back as a result.
-      setError('Could not connect. Check your connection and try again.')
+      setError(t('common.connectionError'))
       setLoading(false)
       return
     }
@@ -49,7 +51,7 @@ export function LoginForm({ google }: { google: boolean }) {
     // unverified account — telling them apart here would reinstate the
     // enumeration oracle the backend closes. An unverified account is sent
     // a fresh code server-side, so the hint below is actionable either way.
-    setError('Incorrect email or password.')
+    setError(t('auth.login.wrong'))
     setLoading(false)
     // The password is left in place: making someone retype it after a typo
     // in the email field is a poor trade for no security gain.
@@ -58,18 +60,15 @@ export function LoginForm({ google }: { google: boolean }) {
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
       {searchParams.get('error') === 'GoogleNoAccount' && (
-        <Alert>
-          No PitchUp account uses that Google address. Sign in with your email and password, or
-          register your company first.
-        </Alert>
+        <Alert>{t('auth.login.googleNoAccount')}</Alert>
       )}
       {searchParams.get('notice') === 'password-changed' && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Your password is changed. Sign in with the new one.
+          {t('auth.login.passwordChanged')}
         </p>
       )}
       <TextField
-        label="Email"
+        label={t('auth.login.email')}
         type="email"
         name="email"
         autoComplete="email"
@@ -80,7 +79,7 @@ export function LoginForm({ google }: { google: boolean }) {
       />
 
       <TextField
-        label="Password"
+        label={t('auth.login.password')}
         name="password"
         autoComplete="current-password"
         revealable
@@ -95,26 +94,24 @@ export function LoginForm({ google }: { google: boolean }) {
           href="/forgot-password"
           className="text-sm font-medium text-primary-600 hover:text-primary-700"
         >
-          Forgot password?
+          {t('auth.login.forgot')}
         </Link>
       </div>
 
       {error && (
         <div>
           <Alert>{error}</Alert>
-          <p className="mt-1.5 text-sm text-neutral-500">
-            Not verified yet? Check your inbox — we have sent a new code.
-          </p>
+          <p className="mt-1.5 text-sm text-neutral-500">{t('auth.login.notVerified')}</p>
         </div>
       )}
 
       <Button type="submit" size="lg" loading={loading}>
-        {loading ? 'Signing in…' : 'Sign in'}
+        {loading ? t('auth.login.signingIn') : t('auth.login.signIn')}
       </Button>
 
       {google && (
         <>
-          <p className="text-center text-sm text-neutral-500">or</p>
+          <p className="text-center text-sm text-neutral-500">{t('auth.login.or')}</p>
           <Button
             type="button"
             variant="secondary"
@@ -129,7 +126,7 @@ export function LoginForm({ google }: { google: boolean }) {
               })
             }
           >
-            Continue with Google
+            {t('auth.login.google')}
           </Button>
         </>
       )}

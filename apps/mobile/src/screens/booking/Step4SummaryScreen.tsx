@@ -17,7 +17,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
 import { CardField, useStripe } from '@stripe/stripe-react-native'
 import {
-  PAYMENT_METHOD_LABELS,
+  paymentMethodLabel,
+  type Locale,
   bookingPrice,
   describePayment,
   paymentSplit,
@@ -41,31 +42,30 @@ import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
-
-const REASONS: Record<string, string> = {
-  SLOT_CONFLICT: 'Someone has just booked that time. Please pick another.',
-  TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
-  SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
-  PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
-  ACTIVE_BOOKING_LIMIT:
-    'At your trust score you can have one upcoming booking at a time. Play or cancel it first.',
-}
+import { currentT, useLocale, useT } from '../../i18n'
 
 export function describeError(e: unknown): string {
   if (e instanceof ApiError) {
+    const t = currentT()
     const reason = (e.details as { reason?: string } | undefined)?.reason
-    return (reason && REASONS[reason]) || e.message
+    const key = `booking.summary.reasons.${reason}` as 'booking.summary.reasons.SLOT_CONFLICT'
+    return reason && t.has(key) ? t(key) : e.message
   }
-  return 'Payment failed. Please try again.'
+  return currentT()('booking.summary.paymentFailed')
 }
 
 /** "Wednesday, 4 November 2026 at 18:00", venue time. */
-const venueLabel = (instant: Date) => {
+const venueLabel = (instant: Date, locale: Locale) => {
   const { date, minutes } = venueClock(instant)
-  return `${formatDateLong(date)} at ${fromMinutes(minutes)}`
+  return currentT()('booking.summary.at', {
+    date: formatDateLong(date, locale),
+    time: fromMinutes(minutes),
+  })
 }
 
 export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSummary'>) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const s = useBookingStore()
   const pitch = s.pitch!
@@ -86,7 +86,9 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
   const isStripe = config.data?.provider === 'stripe' && !!split && split.payNow > 0
   const isTest = config.data?.provider === 'test' && !!split && split.payNow > 0
   const payLabel = split
-    ? `Confirm & pay ${split.payNow} RON${split.deposit ? ' deposit' : ''}`
+    ? t(split.deposit ? 'booking.summary.payDeposit' : 'booking.summary.payLabel', {
+        amount: split.payNow,
+      })
     : ''
   const sets = shirtSetsFor(s.teamCount, s.wantsShirts)
   const players = s.players.slice(0, s.teamCount).reduce((a, b) => a + b, 0)
@@ -113,7 +115,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
       const created = await bookingApi.create(bookingBody(s, split!.method))
       const result = await bookingApi.confirmTest(created.bookingId, outcome)
       if (result.status === 'CONFIRMED') return finish(created.bookingId)
-      fail('Your card was declined. Nothing was charged; try again.')
+      fail(t('booking.summary.declined'))
     } catch (e) {
       fail(describeError(e))
     }
@@ -140,10 +142,10 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
         onClose={() => navigation.getParent()?.goBack()}
       />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.heading}>Check and pay</Text>
+        <Text style={styles.heading}>{t('booking.summary.heading')}</Text>
 
         <View style={styles.summary}>
-          <Row icon="calendar">{formatDateLong(s.date!)}</Row>
+          <Row icon="calendar">{formatDateLong(s.date!, locale)}</Row>
           <Row icon="clock-outline">
             {s.startTime}–{s.endTime} ({formatDuration(s.minutes)})
           </Row>
@@ -151,12 +153,10 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
             {pitch.name} · {pitch.companyName}
           </Row>
           <Row icon="account-group">
-            {s.teamCount} teams · {players} players
+            {t('booking.summary.teamsPlayers', { teams: s.teamCount, players })}
           </Row>
           {sets > 0 ? (
-            <Row icon="tshirt-crew">
-              Free shirts: {sets} {sets === 1 ? 'set' : 'sets'}
-            </Row>
+            <Row icon="tshirt-crew">{t('booking.summary.freeShirts', { count: sets })}</Row>
           ) : null}
           {s.note.trim() ? (
             <Row icon="note-text" lines={1}>
@@ -166,36 +166,39 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Price</Text>
+          <Text style={styles.cardTitle}>{t('booking.summary.price')}</Text>
           <View style={styles.priceRow}>
             <Text style={styles.body15}>
-              Pitch ({formatDuration(s.minutes)} × {pitch.hourlyRate} RON/h)
+              {t('booking.teams.pitchLine', {
+                duration: formatDuration(s.minutes),
+                rate: pitch.hourlyRate,
+              })}
             </Text>
             <Text style={styles.body15}>{price.total} RON</Text>
           </View>
           {sets > 0 ? (
             <View style={styles.priceRow}>
-              <Text style={styles.body15}>Shirts</Text>
-              <Text style={styles.body15}>Free</Text>
+              <Text style={styles.body15}>{t('booking.teams.shirts')}</Text>
+              <Text style={styles.body15}>{t('booking.teams.free')}</Text>
             </View>
           ) : null}
           <View style={[styles.priceRow, styles.total]}>
-            <Text style={styles.totalText}>Total</Text>
+            <Text style={styles.totalText}>{t('booking.teams.total')}</Text>
             <Text style={styles.totalText}>{price.total} RON</Text>
           </View>
-          <Text style={styles.small}>No booking fee: you pay the pitch price.</Text>
+          <Text style={styles.small}>{t('booking.summary.noFee')}</Text>
         </View>
 
         {methods.length > 1 ? (
           <View style={styles.card} accessibilityRole="radiogroup">
-            <Text style={styles.cardTitle}>How do you want to pay?</Text>
+            <Text style={styles.cardTitle}>{t('booking.summary.how')}</Text>
             {methods.map(m => {
               const option = paymentSplit(price.total, m, options.data!.depositPercent)
               const on = m === method
               const label =
                 option.payNow === 0 && m !== 'ONLINE'
-                  ? 'Pay at the venue'
-                  : PAYMENT_METHOD_LABELS[m]
+                  ? t('booking.summary.payAtVenue')
+                  : paymentMethodLabel(m, locale)
               return (
                 <Pressable
                   key={m}
@@ -203,7 +206,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
                   style={[styles.choice, on && styles.choiceOn]}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: on }}
-                  accessibilityLabel={`${label}. ${describePayment(option)}`}
+                  accessibilityLabel={`${label}. ${describePayment(option, locale)}`}
                 >
                   <Icon
                     name={on ? 'radiobox-marked' : 'radiobox-blank'}
@@ -212,7 +215,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
                   />
                   <View style={styles.flex}>
                     <Text style={styles.choiceTitle}>{label}</Text>
-                    <Text style={styles.body15}>{describePayment(option)}</Text>
+                    <Text style={styles.body15}>{describePayment(option, locale)}</Text>
                   </View>
                 </Pressable>
               )
@@ -221,36 +224,34 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
         ) : null}
         {methods.length === 1 && split && split.method !== 'ONLINE' ? (
           <View style={styles.card}>
-            <Text style={styles.choiceTitle}>{describePayment(split)}</Text>
+            <Text style={styles.choiceTitle}>{describePayment(split, locale)}</Text>
           </View>
         ) : null}
         {options.isSuccess && !method ? (
-          <Text style={styles.error}>
-            This venue takes payment at the venue only, for players with a trust score of 70 or
-            more.
-          </Text>
+          <Text style={styles.error}>{t('booking.summary.venueOnly')}</Text>
         ) : null}
 
         <View style={styles.policy}>
           <Icon name="information-outline" size={18} color={colors.info[500]} />
           <Text style={styles.policyText}>
             {freeUntil.getTime() > Date.now()
-              ? `Free cancellation until ${venueLabel(freeUntil)}.`
+              ? t('booking.summary.freeUntil', { when: venueLabel(freeUntil, locale) })
               : partUntil.getTime() > Date.now() && policy.partialRefundPercent > 0
-                ? `Cancelling now refunds ${policy.partialRefundPercent}%, until ${venueLabel(partUntil)}.`
-                : 'This booking starts soon: cancelling it will not be refunded.'}{' '}
-            {describeRefundPolicy(policy)}
-            {options.data?.autoApproveBookings === false
-              ? ' This venue confirms each booking: you pay now, and get it all back if they decline.'
-              : ''}
+                ? t('booking.summary.partial', {
+                    percent: policy.partialRefundPercent,
+                    when: venueLabel(partUntil, locale),
+                  })
+                : t('booking.summary.noRefund')}{' '}
+            {describeRefundPolicy(policy, locale)}
+            {options.data?.autoApproveBookings === false ? t('booking.summary.confirmsEach') : ''}
           </Text>
         </View>
 
         {isTest ? (
           <View style={styles.testNotice}>
             <Text style={styles.small}>
-              <Text style={styles.bold}>Test mode.</Text> Stripe is not set up, so no card is needed
-              and nothing is charged.
+              <Text style={styles.bold}>{t('booking.summary.testMode')}</Text>
+              {t('booking.summary.testBody')}
             </Text>
           </View>
         ) : null}
@@ -265,7 +266,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
           />
         ) : null}
         {config.isSuccess && !config.data.provider ? (
-          <Text style={styles.error}>Payments are not available right now.</Text>
+          <Text style={styles.error}>{t('booking.summary.unavailable')}</Text>
         ) : null}
       </ScrollView>
 
@@ -276,7 +277,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
             { paddingBottom: insets.bottom + spacing.md, transform: [{ translateX: shake }] },
           ]}
         >
-          <PayButton label="Confirm booking" busy={busy} onPress={bookFree} />
+          <PayButton label={t('booking.summary.confirm')} busy={busy} onPress={bookFree} />
         </Animated.View>
       ) : null}
       {isTest ? (
@@ -293,7 +294,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
             style={styles.declineLink}
             accessibilityRole="button"
           >
-            <Text style={styles.link}>Simulate a declined card</Text>
+            <Text style={styles.link}>{t('booking.summary.simulate')}</Text>
           </Pressable>
         </Animated.View>
       ) : null}
@@ -340,7 +341,7 @@ function PayButton({
       accessibilityRole="button"
       accessibilityState={{ busy, disabled: busy || !!disabled }}
     >
-      <Text style={styles.payText}>{busy ? 'Processing…' : label}</Text>
+      <Text style={styles.payText}>{busy ? currentT()('booking.summary.processing') : label}</Text>
     </Pressable>
   )
 }
@@ -398,7 +399,7 @@ function StripeCard({
 
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Payment method</Text>
+      <Text style={styles.cardTitle}>{currentT()('booking.summary.method')}</Text>
       {cards.data?.map(c => (
         <Pressable
           key={c.id}
@@ -424,7 +425,7 @@ function StripeCard({
         accessibilityRole="radio"
         accessibilityState={{ checked: !saved }}
       >
-        <Text style={styles.link}>+ Add new card</Text>
+        <Text style={styles.link}>{currentT()('booking.summary.addCard')}</Text>
       </Pressable>
       {!saved ? (
         <CardField

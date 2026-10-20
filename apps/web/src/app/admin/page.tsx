@@ -3,8 +3,11 @@ import Link from 'next/link'
 import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { platformStats } from '@/lib/admin/stats'
 import { AutoRefresh } from '@/components/admin/AutoRefresh'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Admin | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('admin.overview.title') }
+}
 
 const number = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 })
 const ron = (n: number) => `${number.format(n)} RON`
@@ -12,34 +15,46 @@ const ron = (n: number) => `${number.format(n)} RON`
 /** The platform at a glance — E15-09. Refreshed every minute. */
 export default async function AdminOverviewPage() {
   const s = await platformStats()
+  const t = await getT()
   const cards: [string, string, string?][] = [
-    ['Users', number.format(s.users), `${s.players} players · ${s.managers} managers`],
     [
-      'Venues',
-      number.format(s.companies.total),
-      `${s.companies.active} live · ${s.companies.suspended} suspended`,
+      t('admin.overview.users'),
+      number.format(s.users),
+      t('admin.overview.usersNote', { players: s.players, managers: s.managers }),
     ],
-    ['Bookable pitches', number.format(s.activePitches)],
-    ['Bookings played', number.format(s.bookings)],
-    ['Booking value', ron(s.gmv), `${ron(s.last30dGmv)} in the last 30 days`],
-    ['PitchUp fees', ron(s.fees)],
-    ['Suspended accounts', number.format(s.suspendedUsers)],
+    [
+      t('admin.overview.venues'),
+      number.format(s.companies.total),
+      t('admin.overview.venuesNote', {
+        active: s.companies.active,
+        suspended: s.companies.suspended,
+      }),
+    ],
+    [t('admin.overview.pitches'), number.format(s.activePitches)],
+    [t('admin.overview.played'), number.format(s.bookings)],
+    [
+      t('admin.overview.value'),
+      ron(s.gmv),
+      t('admin.overview.valueNote', { amount: ron(s.last30dGmv) }),
+    ],
+    [t('admin.overview.fees'), ron(s.fees)],
+    [t('admin.overview.suspended'), number.format(s.suspendedUsers)],
   ]
   const queue = [
     {
       count: s.companies.pending,
-      label: 'venues wait for approval',
+      label: t('admin.overview.queue.pending'),
       href: '/admin/companies',
     },
-    { count: s.venueChanges, label: 'venues changed their details', href: '/admin/companies' },
-    { count: s.openDisputes, label: 'open disputes', href: '/admin/disputes' },
-    { count: s.reportedReviews, label: 'reported reviews', href: '/admin/reviews' },
+    { count: s.venueChanges, label: t('admin.overview.queue.changes'), href: '/admin/companies' },
+    { count: s.openDisputes, label: t('admin.overview.queue.disputes'), href: '/admin/disputes' },
+    { count: s.reportedReviews, label: t('admin.overview.queue.reviews'), href: '/admin/reviews' },
   ]
 
   return (
     <>
       <AutoRefresh seconds={60} />
-      <h1 className="text-2xl font-bold text-neutral-900">Platform overview</h1>
+      <h1 className="text-2xl font-bold text-neutral-900">{t('admin.overview.heading')}</h1>
       {s.openDisputes > 0 && (
         <div
           role="status"
@@ -48,16 +63,16 @@ export default async function AdminOverviewPage() {
           <AlertTriangle className="h-5 w-5 shrink-0 text-error-600" aria-hidden="true" />
           <p className="text-sm text-error-600">
             <span className="font-semibold">
-              {s.openDisputes} open {s.openDisputes === 1 ? 'dispute' : 'disputes'}
+              {t('admin.overview.openDisputes', { count: s.openDisputes })}
             </span>{' '}
             <Link href="/admin/disputes" className="underline">
-              Decide now
+              {t('admin.overview.decide')}
             </Link>
           </p>
         </div>
       )}
       <section
-        aria-label="Figures"
+        aria-label={t('admin.overview.figures')}
         className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
       >
         {cards.map(([label, value, note]) => (
@@ -70,7 +85,7 @@ export default async function AdminOverviewPage() {
       </section>
       <section aria-labelledby="queue-heading" className="mt-8">
         <h2 id="queue-heading" className="text-lg font-semibold text-neutral-900">
-          Waiting for you
+          {t('admin.overview.waiting')}
         </h2>
         <ul className="mt-3 divide-y divide-neutral-100 rounded-xl bg-white shadow-sm">
           {queue.map(q => (

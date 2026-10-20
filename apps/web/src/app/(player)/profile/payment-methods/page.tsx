@@ -6,8 +6,11 @@ import { prisma } from '@/lib/prisma'
 import { isStripeConfigured, listCards } from '@/lib/payments/stripe'
 import { paymentConfig } from '@/lib/payments'
 import { PaymentMethods } from '@/components/profile/PaymentMethods'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Payment methods | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('profile.payment.title') }
+}
 
 /**
  * Payment methods — E08-08. The saved cards from E05-09; adding one is a
@@ -18,6 +21,7 @@ export default async function PaymentMethodsPage() {
   const session = await auth()
   if (!session?.user) redirect('/login?callbackUrl=%2Fprofile%2Fpayment-methods')
 
+  const t = await getT()
   let cards: SavedCard[] = []
   if (isStripeConfigured()) {
     const user = await prisma.user.findUnique({
@@ -29,7 +33,7 @@ export default async function PaymentMethodsPage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-neutral-900">Payment methods</h1>
+      <h1 className="text-2xl font-bold text-neutral-900">{t('profile.payment.heading')}</h1>
       <PaymentMethods cards={cards} publishableKey={paymentConfig().publishableKey} />
     </>
   )

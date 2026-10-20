@@ -11,7 +11,9 @@ export async function send<T = unknown>(url: string, method: string, body?: unkn
   if (res.status === 204) return null as T
   const json = await res.json().catch(() => null)
   if (!res.ok || json?.error) {
-    throw new Error(json?.error?.message ?? 'Something went wrong. Try again.')
+    throw Object.assign(new Error(json?.error?.message ?? 'Something went wrong. Try again.'), {
+      reason: json?.error?.details?.reason as string | undefined,
+    })
   }
   return json.data as T
 }

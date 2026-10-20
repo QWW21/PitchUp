@@ -15,6 +15,7 @@ import { Alert } from '@/components/ui/Alert'
 import { TextField } from '@/components/ui/TextField'
 import { env } from '@/lib/env'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 interface Values {
   addressLine1: string
@@ -35,6 +36,7 @@ export function LocationForm({
   existing: Values
   inSettings?: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const [v, setV] = useState(existing)
   const [sent, setSent] = useState(false)
@@ -56,7 +58,7 @@ export function LocationForm({
       const found: Partial<Record<Field, string>> = {}
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as Field | undefined
-        if (key && !found[key]) found[key] = issue.message
+        if (key && !found[key]) found[key] = t.text(issue.message)
       }
       setErrors(found)
       return
@@ -82,7 +84,7 @@ export function LocationForm({
   return (
     <form onSubmit={submit} noValidate className="mt-8 space-y-5">
       <TextField
-        label="Address"
+        label={t('onboarding.step2.address')}
         value={v.addressLine1}
         onChange={set('addressLine1')}
         placeholder="Str. Sportului 1"
@@ -91,7 +93,7 @@ export function LocationForm({
         autoComplete="address-line1"
       />
       <TextField
-        label="Address line 2 (optional)"
+        label={t('onboarding.step2.address2')}
         value={v.addressLine2}
         onChange={set('addressLine2')}
         maxLength={100}
@@ -100,7 +102,7 @@ export function LocationForm({
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div>
           <label htmlFor="city" className="mb-1.5 block text-sm font-medium text-neutral-900">
-            City
+            {t('onboarding.step2.city')}
           </label>
           <select
             id="city"
@@ -109,7 +111,7 @@ export function LocationForm({
             aria-invalid={errors.city ? true : undefined}
             className="h-12 w-full rounded-md border border-neutral-200 bg-white px-3 text-base"
           >
-            <option value="">Choose a city</option>
+            <option value="">{t('onboarding.step2.chooseCity')}</option>
             {CITY_NAMES.map(c => (
               <option key={c} value={c}>
                 {c}
@@ -119,7 +121,7 @@ export function LocationForm({
           {errors.city && <p className="mt-1.5 text-sm text-error-600">{errors.city}</p>}
         </div>
         <TextField
-          label="Postal code"
+          label={t('onboarding.step2.postal')}
           value={v.postalCode}
           onChange={set('postalCode')}
           maxLength={10}
@@ -127,16 +129,18 @@ export function LocationForm({
           autoComplete="postal-code"
         />
         <TextField
-          label="County"
+          label={t('onboarding.step2.county')}
           value={v.county}
           onChange={set('county')}
           maxLength={60}
           error={errors.county}
         />
         <div>
-          <p className="mb-1.5 text-sm font-medium text-neutral-900">Country</p>
+          <p className="mb-1.5 text-sm font-medium text-neutral-900">
+            {t('onboarding.step2.country')}
+          </p>
           <p className="flex h-12 items-center rounded-md bg-neutral-100 px-3 text-base text-neutral-700">
-            Romania
+            {t('onboarding.step2.romania')}
           </p>
         </div>
       </div>
@@ -153,7 +157,7 @@ export function LocationForm({
       {error && <Alert>{error}</Alert>}
       {sent && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Sent to PitchUp for approval. Your page shows the current details until then.
+          {t('onboarding.sentForApproval')}
         </p>
       )}
       <div className="flex gap-3">
@@ -163,7 +167,7 @@ export function LocationForm({
             onClick={() => router.push('/onboarding/step/1')}
             className="h-12 rounded-md border border-neutral-200 px-5 font-semibold text-neutral-900 hover:bg-neutral-50"
           >
-            Back
+            {t('onboarding.back')}
           </button>
         )}
         <button
@@ -171,7 +175,11 @@ export function LocationForm({
           disabled={busy}
           className="h-12 flex-1 rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          {busy ? 'Saving…' : inSettings ? 'Send for approval' : 'Next: contact & hours'}
+          {busy
+            ? t('onboarding.saving')
+            : inSettings
+              ? t('onboarding.sendForApproval')
+              : t('onboarding.step2.next')}
         </button>
       </div>
     </form>
@@ -186,11 +194,12 @@ function AddressMap(props: {
   position: LatLng | null
   onMove: (p: LatLng | null) => void
 }) {
+  const t = useT()
   const key = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
   if (!key) {
     return (
       <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-        The map isn&rsquo;t available here, so we&rsquo;ll place your venue from the address.
+        {t('onboarding.step2.noMap')}
       </p>
     )
   }
@@ -211,6 +220,7 @@ function PinMap({
   onMove: (p: LatLng | null) => void
 }) {
   // The same loader options as the Discover map, so the script loads once.
+  const t = useT()
   const { isLoaded, loadError } = useJsApiLoader({ id: 'google-maps', googleMapsApiKey: apiKey })
   const [state, setState] = useState<'idle' | 'locating' | 'found' | 'failed'>(
     position ? 'found' : 'idle'
@@ -245,7 +255,7 @@ function PinMap({
   if (loadError) {
     return (
       <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-        The map couldn&rsquo;t load, so we&rsquo;ll place your venue from the address.
+        {t('onboarding.step2.mapFailed')}
       </p>
     )
   }
@@ -254,12 +264,13 @@ function PinMap({
       <p className="mb-2 flex items-center gap-2 text-sm text-neutral-700" aria-live="polite">
         {state === 'locating' && (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Locating address…
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />{' '}
+            {t('onboarding.step2.locating')}
           </>
         )}
-        {state === 'found' && 'Drag the pin if it isn’t exactly on your venue.'}
-        {state === 'failed' && 'Could not locate the address. Drag the pin to your venue.'}
-        {state === 'idle' && 'Enter the address to place it on the map.'}
+        {state === 'found' && t('onboarding.step2.found')}
+        {state === 'failed' && t('onboarding.step2.notFound')}
+        {state === 'idle' && t('onboarding.step2.enter')}
       </p>
       {isLoaded ? (
         <GoogleMap
@@ -276,7 +287,7 @@ function PinMap({
             <MarkerF
               position={position ?? centre}
               draggable
-              title="Your venue"
+              title={t('onboarding.step2.yourVenue')}
               onDragEnd={e => e.latLng && onMove({ lat: e.latLng.lat(), lng: e.latLng.lng() })}
             />
           )}

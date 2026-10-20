@@ -10,13 +10,22 @@ import {
   View,
 } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { DAY_LONG, formatDayHours, todayStatus, venueClock, type DayHours } from '@pitchup/shared'
+import {
+  formatDayHours,
+  todayStatus,
+  venueClock,
+  weekdayLong,
+  type DayHours,
+} from '@pitchup/shared'
 import { colors } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true)
 
 /** Today's status, expanding to the week. UIUX_SPEC §6.1, E04-04. */
 export function WorkingHoursAccordion({ week }: { week: DayHours[] }) {
+  const t = useT()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const rotation = useRef(new Animated.Value(0)).current
   const now = new Date()
@@ -46,17 +55,18 @@ export function WorkingHoursAccordion({ week }: { week: DayHours[] }) {
         style={styles.row}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        accessibilityLabel="Opening hours"
+        accessibilityLabel={t('discover.company.hours')}
       >
         <Icon name="clock-outline" size={16} color={colors.neutral[400]} />
         {status.kind === 'open' ? (
           <Text style={styles.body}>
-            <Text style={styles.open}>Open</Text> · Closes at {status.closesAt}
+            <Text style={styles.open}>{t('discover.company.open')}</Text>
+            {t('discover.company.closesAt', { time: status.closesAt })}
           </Text>
         ) : status.kind === 'opensLater' ? (
-          <Text style={styles.body}>Opens at {status.opensAt}</Text>
+          <Text style={styles.body}>{t('discover.company.opensAt', { time: status.opensAt })}</Text>
         ) : (
-          <Text style={styles.closed}>Closed today</Text>
+          <Text style={styles.closed}>{t('discover.company.closedToday')}</Text>
         )}
         <Animated.View
           style={{
@@ -80,7 +90,9 @@ export function WorkingHoursAccordion({ week }: { week: DayHours[] }) {
             const isToday = d === today
             return (
               <View key={d} style={styles.dayRow}>
-                <Text style={[styles.dayLabel, isToday && styles.today]}>{DAY_LONG[d]}</Text>
+                <Text style={[styles.dayLabel, isToday && styles.today]}>
+                  {weekdayLong(d, locale)}
+                </Text>
                 <Text
                   style={[
                     styles.hours,
@@ -88,7 +100,7 @@ export function WorkingHoursAccordion({ week }: { week: DayHours[] }) {
                     isToday && styles.today,
                   ]}
                 >
-                  {formatDayHours(day)}
+                  {formatDayHours(day, locale)}
                 </Text>
               </View>
             )

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { PasswordStrength } from '@/components/ui/PasswordStrength'
 import { toE164 } from '@/lib/auth/phone'
 import { TextField } from '@/components/ui/TextField'
+import { useT } from '@/i18n/client'
 
 /** Dial codes offered in the picker. Romania first, per the spec. */
 const DIAL_CODES = [
@@ -23,6 +24,7 @@ const DIAL_CODES = [
 type FieldErrors = Partial<Record<'name' | 'email' | 'phone' | 'password' | 'confirm', string>>
 
 export function RegisterForm() {
+  const t = useT()
   const router = useRouter()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -45,10 +47,10 @@ export function RegisterForm() {
     if (!parsed.success) {
       // The same schema the API validates against, so the two cannot drift.
       for (const [field, messages] of Object.entries(parsed.error.flatten().fieldErrors)) {
-        if (messages?.[0]) errors[field as keyof FieldErrors] = messages[0]
+        if (messages?.[0]) errors[field as keyof FieldErrors] = t.text(messages[0])
       }
     }
-    if (password !== confirm) errors.confirm = 'Passwords do not match'
+    if (password !== confirm) errors.confirm = t('auth.register.mismatch')
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
@@ -68,7 +70,7 @@ export function RegisterForm() {
     } catch {
       // A dropped connection rejects instead of returning a response; without
       // this the button would stay on its spinner for good.
-      setFormError('Could not connect. Check your connection and try again.')
+      setFormError(t('common.connectionError'))
       setLoading(false)
       return
     }
@@ -78,7 +80,7 @@ export function RegisterForm() {
       if (body?.error?.details?.field === 'phone') {
         setFieldErrors({ phone: body.error.message })
       } else {
-        setFormError(body?.error?.message ?? 'Could not create your account. Please try again.')
+        setFormError(body?.error?.message ?? t('auth.register.failed'))
       }
       setLoading(false)
       return
@@ -93,7 +95,7 @@ export function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
       <TextField
-        label="Full name"
+        label={t('auth.register.fullName')}
         name="name"
         autoComplete="name"
         required
@@ -104,7 +106,7 @@ export function RegisterForm() {
       />
 
       <TextField
-        label="Email address"
+        label={t('auth.register.email')}
         type="email"
         name="email"
         autoComplete="email"
@@ -117,11 +119,11 @@ export function RegisterForm() {
 
       <div>
         <label htmlFor="phone-number" className="mb-1.5 block text-sm font-medium text-neutral-900">
-          Phone number
+          {t('auth.register.phone')}
         </label>
         <div className="flex gap-2">
           <select
-            aria-label="Country dialling code"
+            aria-label={t('auth.register.dialCode')}
             value={dialCode}
             onChange={e => setDialCode(e.target.value)}
             disabled={loading}
@@ -162,7 +164,7 @@ export function RegisterForm() {
 
       <div>
         <TextField
-          label="Password"
+          label={t('auth.register.password')}
           name="password"
           autoComplete="new-password"
           revealable
@@ -176,7 +178,7 @@ export function RegisterForm() {
       </div>
 
       <TextField
-        label="Confirm password"
+        label={t('auth.register.confirm')}
         name="confirmPassword"
         autoComplete="new-password"
         revealable
@@ -190,7 +192,7 @@ export function RegisterForm() {
       {formError && <Alert>{formError}</Alert>}
 
       <Button type="submit" size="lg" loading={loading} className="!mt-6">
-        {loading ? 'Creating account…' : 'Create account & continue →'}
+        {loading ? t('auth.register.creating') : t('auth.register.create')}
       </Button>
     </form>
   )

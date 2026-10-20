@@ -1,4 +1,4 @@
-import type { AmenityType, PitchSize, SurfaceType } from '../types'
+import type { AmenityType, SurfaceType } from '../types'
 
 /** Discover list and filters. PRD §7.2, UIUX_SPEC §5. */
 export const DISCOVER = {
@@ -18,19 +18,6 @@ export const DISCOVER = {
 export const COMPANY_SORTS = ['distance', 'rating', 'price', 'newest'] as const
 export type CompanySort = (typeof COMPANY_SORTS)[number]
 
-export const SORT_LABELS: Record<CompanySort, string> = {
-  distance: 'Nearest',
-  rating: 'Top rated',
-  price: 'Lowest price',
-  newest: 'Newest',
-}
-
-export const SURFACE_LABELS: Record<SurfaceType, string> = {
-  NATURAL_GRASS: 'Natural grass',
-  ARTIFICIAL_GRASS: 'Artificial',
-  FUTSAL: 'Futsal',
-}
-
 /** Surface chip colours. UIUX_SPEC §2.7. */
 export const SURFACE_COLORS: Record<SurfaceType, { background: string; text: string }> = {
   NATURAL_GRASS: { background: '#F0FDF4', text: '#15803D' },
@@ -46,38 +33,36 @@ export const FILTERABLE_SIZES = [
   'ELEVEN_A_SIDE',
 ] as const
 
-export const SIZE_LABELS: Record<PitchSize, string> = {
-  FIVE_A_SIDE: '5v5',
-  SIX_A_SIDE: '6v6',
-  SEVEN_A_SIDE: '7v7',
-  ELEVEN_A_SIDE: '11v11',
-  CUSTOM: 'Custom',
-}
-
-/**
- * Shown beside a pitch size wherever a player sees one. The size is the
- * owner's recommendation, not a limit: the price is per hour, however many
- * players come.
- */
-export const SIZE_INFO =
-  'The number of players per team the owner recommends for the best game. It is not a limit: the price is the same however many of you come.'
-
 /**
  * What the player picks in the amenity filter. Free and paid variants are one
  * choice — someone who wants showers does not care, at this stage, whether
  * they cost extra. The API receives the expanded enum values and requires
  * every selected group to be present on the same pitch.
  */
-export const AMENITY_FILTERS: readonly { key: string; label: string; types: AmenityType[] }[] = [
-  { key: 'showers', label: 'Showers', types: ['SHOWERS_FREE', 'SHOWERS_PAID'] },
-  { key: 'changing', label: 'Changing rooms', types: ['CHANGING_ROOMS'] },
-  { key: 'parking', label: 'Parking', types: ['PARKING_FREE', 'PARKING_PAID'] },
-  { key: 'lighting', label: 'Night lighting', types: ['NIGHT_LIGHTING'] },
-  { key: 'ball', label: 'Ball rental', types: ['BALL_RENTAL_FREE', 'BALL_RENTAL_PAID'] },
-  { key: 'refreshments', label: 'Refreshments', types: ['REFRESHMENTS'] },
-  { key: 'lockers', label: 'Lockers', types: ['LOCKERS'] },
-  { key: 'referee', label: 'Referee', types: ['REFEREE'] },
-  { key: 'firstAid', label: 'First aid', types: ['FIRST_AID'] },
-  { key: 'wifi', label: 'Wi-Fi', types: ['WIFI'] },
-  { key: 'wheelchair', label: 'Wheelchair', types: ['WHEELCHAIR'] },
+export const AMENITY_FILTERS: readonly { key: AmenityFilterKey; types: AmenityType[] }[] = [
+  { key: 'showers', types: ['SHOWERS_FREE', 'SHOWERS_PAID'] },
+  { key: 'changing', types: ['CHANGING_ROOMS'] },
+  { key: 'parking', types: ['PARKING_FREE', 'PARKING_PAID'] },
+  { key: 'lighting', types: ['NIGHT_LIGHTING'] },
+  { key: 'ball', types: ['BALL_RENTAL_FREE', 'BALL_RENTAL_PAID'] },
+  { key: 'refreshments', types: ['REFRESHMENTS'] },
+  { key: 'lockers', types: ['LOCKERS'] },
+  { key: 'referee', types: ['REFEREE'] },
+  { key: 'firstAid', types: ['FIRST_AID'] },
+  { key: 'wifi', types: ['WIFI'] },
+  { key: 'wheelchair', types: ['WHEELCHAIR'] },
 ]
+
+/** Named by `amenityFilter.<key>` in the catalogs. */
+export type AmenityFilterKey =
+  | 'showers'
+  | 'changing'
+  | 'parking'
+  | 'lighting'
+  | 'ball'
+  | 'refreshments'
+  | 'lockers'
+  | 'referee'
+  | 'firstAid'
+  | 'wifi'
+  | 'wheelchair'

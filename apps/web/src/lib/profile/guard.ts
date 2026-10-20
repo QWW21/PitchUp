@@ -11,7 +11,7 @@ export function passwordAttemptLimit(userId: string) {
   const rate = checkRateLimit(`password-check:${userId}`, { limit: 5, windowMs: 15 * 60_000 })
   return rate.allowed
     ? null
-    : err('RATE_LIMITED', 'Too many attempts, try again shortly', 429, {
+    : err('RATE_LIMITED', 'api.tooManyAttemptsShortly', 429, {
         retryAfterSeconds: rate.retryAfterSeconds,
       })
 }

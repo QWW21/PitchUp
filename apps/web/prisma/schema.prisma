@@ -187,6 +187,8 @@ model User {
   trustScore        Int       @default(100)
   stripeCustomerId  String?
   emailVerified     Boolean   @default(false)
+  /// 'ro' or 'en': emails and pushes go in it. Null means the platform default.
+  locale            String?
   phoneVerified     Boolean   @default(false)
   /// Web sessions (stateless JWTs) issued before this are rejected, so a
   /// password reset signs out every browser. Mobile uses refresh-token

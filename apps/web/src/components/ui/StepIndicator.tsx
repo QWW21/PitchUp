@@ -1,3 +1,7 @@
+'use client'
+
+import { useT } from '@/i18n/client'
+
 interface StepIndicatorProps {
   steps: readonly string[]
   /** 1-based. */
@@ -6,6 +10,7 @@ interface StepIndicatorProps {
 
 /** Connected dots for a multi-step flow. UIUX_SPEC §12.2. */
 export function StepIndicator({ steps, current }: StepIndicatorProps) {
+  const t = useT()
   return (
     <div>
       {/* The visual dots carry no meaning for a screen reader, so they are
@@ -45,7 +50,7 @@ export function StepIndicator({ steps, current }: StepIndicatorProps) {
       </ol>
 
       <p className="mt-4 text-center text-sm text-neutral-500">
-        Step {current} of {steps.length}
+        {t('auth.step', { n: current, total: steps.length })}
       </p>
     </div>
   )

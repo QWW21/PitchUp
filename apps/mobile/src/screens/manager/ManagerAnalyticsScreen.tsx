@@ -23,6 +23,7 @@ import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ManagerAnalytics'>
 
@@ -39,6 +40,8 @@ const BAR_AREA = 120
 const ron = (n: number) => `${Math.round(n * 100) / 100} RON`
 
 export function ManagerAnalyticsScreen({ navigation }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const [period, setPeriod] = React.useState<AnalyticsPeriod>('30d')
   const [bar, setBar] = React.useState<number | null>(null)
   const summary = useQuery({
@@ -63,12 +66,12 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('manager.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Analytics
+          {t('manager.analytics.title')}
         </Text>
       </View>
       <View style={styles.chips}>
@@ -112,20 +115,28 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
           }
         >
           <View style={styles.grid}>
-            <Card label="Revenue" value={ron(s.revenue.value ?? 0)} kpi={s.revenue} />
-            <Card label="Bookings played" value={String(s.bookings.value ?? 0)} kpi={s.bookings} />
             <Card
-              label="Occupancy"
+              label={t('manager.analytics.revenue')}
+              value={ron(s.revenue.value ?? 0)}
+              kpi={s.revenue}
+            />
+            <Card
+              label={t('manager.analytics.played')}
+              value={String(s.bookings.value ?? 0)}
+              kpi={s.bookings}
+            />
+            <Card
+              label={t('manager.analytics.occupancy')}
               value={s.occupancy.value === null ? '—' : `${s.occupancy.value}%`}
               kpi={s.occupancy}
             />
             <Card
-              label="Average rating"
+              label={t('manager.analytics.rating')}
               value={s.avgRating.value === null ? '—' : `★ ${s.avgRating.value.toFixed(1)}`}
               kpi={s.avgRating}
             />
             <Card
-              label="No-show rate"
+              label={t('manager.analytics.noShowRate')}
               value={s.noShowRate.value === null ? '—' : `${s.noShowRate.value}%`}
               kpi={s.noShowRate}
               invertGood
@@ -133,14 +144,17 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
             />
           </View>
           <Text style={styles.muted}>
-            {ron(s.revenue.online)} online · {ron(s.revenue.atVenue)} at the venue
+            {t('manager.analytics.split', {
+              online: ron(s.revenue.online),
+              venue: ron(s.revenue.atVenue),
+            })}
           </Text>
 
           <Text style={styles.section} accessibilityRole="header">
-            Revenue
+            {t('manager.analytics.revenue')}
           </Text>
           {points.every(p => p.gross === 0) ? (
-            <Text style={styles.muted}>No revenue in this period.</Text>
+            <Text style={styles.muted}>{t('manager.analytics.noRevenue')}</Text>
           ) : (
             <>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -151,7 +165,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
                       onPress={() => setBar(bar === i ? null : i)}
                       style={styles.barSlot}
                       accessibilityRole="button"
-                      accessibilityLabel={`${bucketLabel(p.period, revenue.data.groupBy)}: ${ron(p.gross)}`}
+                      accessibilityLabel={`${bucketLabel(p.period, revenue.data.groupBy, locale)}: ${ron(p.gross)}`}
                     >
                       <View
                         style={[
@@ -166,8 +180,15 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
               </ScrollView>
               <Text style={styles.muted} accessibilityLiveRegion="polite">
                 {chosen
-                  ? `${bucketLabel(chosen.period, revenue.data.groupBy)}: ${ron(chosen.gross)}, ${chosen.bookings} ${chosen.bookings === 1 ? 'booking' : 'bookings'}`
-                  : `${bucketLabel(points[0]!.period, revenue.data.groupBy)} – ${bucketLabel(points.at(-1)!.period, revenue.data.groupBy)} · tap a bar for its figures`}
+                  ? t('manager.analytics.bar', {
+                      period: bucketLabel(chosen.period, revenue.data.groupBy, locale),
+                      amount: ron(chosen.gross),
+                      bookings: t('manager.analytics.bookings', { count: chosen.bookings }),
+                    })
+                  : t('manager.analytics.range', {
+                      from: bucketLabel(points[0]!.period, revenue.data.groupBy, locale),
+                      to: bucketLabel(points.at(-1)!.period, revenue.data.groupBy, locale),
+                    })}
               </Text>
             </>
           )}
@@ -177,7 +198,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
             style={styles.link}
             accessibilityRole="button"
           >
-            <Text style={styles.linkText}>Pitch performance</Text>
+            <Text style={styles.linkText}>{t('manager.analytics.performance')}</Text>
             <Icon name="chevron-right" size={22} color={colors.neutral[500]} />
           </Pressable>
         </ScrollView>
@@ -199,13 +220,17 @@ function Card({
   invertGood?: boolean
   wide?: boolean
 }) {
+  const t = useT()
   const { change } = kpi
   const good = change !== null && change !== 0 && (invertGood ? change < 0 : change > 0)
   const bad = change !== null && change !== 0 && !good
   const text =
     change === null
-      ? 'No earlier data'
-      : `${change > 0 ? '↑' : change < 0 ? '↓' : ''} ${Math.abs(change)}% vs before`
+      ? t('manager.analytics.noEarlier')
+      : t('manager.analytics.vsBefore', {
+          arrow: change > 0 ? '↑' : change < 0 ? '↓' : '',
+          n: Math.abs(change),
+        })
   return (
     <View
       style={[styles.card, wide && styles.cardWide]}

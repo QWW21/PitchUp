@@ -5,6 +5,7 @@ import { ApiException } from '@/lib/api/errors'
 import { requireActiveManager } from '@/lib/manager/access'
 import { loadPitchForEditor } from '@/lib/manager/editor'
 import { PitchEditorShell } from '@/components/pitch-editor/PitchEditorShell'
+import { getT } from '@/i18n/server'
 
 /** The pitch editor's frame — E10-07 (UIUX_SPEC §14.2): breadcrumb, title, tabs. */
 export default async function PitchEditorLayout({
@@ -19,15 +20,18 @@ export default async function PitchEditorLayout({
     if (caught instanceof ApiException && caught.code === 'NOT_FOUND') notFound()
     throw caught
   })
+  const t = await getT()
   return (
     <>
-      <nav aria-label="Breadcrumb" className="text-sm text-neutral-500">
+      <nav aria-label={t('editor.breadcrumb')} className="text-sm text-neutral-500">
         <Link href="/manager/pitches" className="hover:underline">
-          Pitches
+          {t('editor.pitches')}
         </Link>{' '}
         / <span className="text-neutral-700">{pitch.name}</span>
       </nav>
-      <h1 className="mt-1 text-2xl font-bold text-neutral-900">Edit {pitch.name}</h1>
+      <h1 className="mt-1 text-2xl font-bold text-neutral-900">
+        {t('editor.heading', { name: pitch.name })}
+      </h1>
       <PitchEditorShell pitchId={pitch.id}>{children}</PitchEditorShell>
     </>
   )

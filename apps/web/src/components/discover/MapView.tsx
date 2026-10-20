@@ -7,6 +7,7 @@ import { MapPinOff, X } from 'lucide-react'
 import { mapCenter, type CompanyListItem } from '@pitchup/shared'
 import { env } from '@/lib/env'
 import { CompanyLogo, CompanySummary } from './CompanyCard'
+import { useT } from '@/i18n/client'
 
 interface MapViewProps {
   companies: CompanyListItem[]
@@ -16,19 +17,14 @@ interface MapViewProps {
 
 /** Discover map: a price pill per company, preview card on click. E03-08. */
 export function MapView(props: MapViewProps) {
+  const t = useT()
   const apiKey = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-  if (!apiKey) {
-    return (
-      <MapMessage>
-        The map needs a Google Maps key. Set <code>NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code> in{' '}
-        <code>apps/web/.env</code> and restart the dev server.
-      </MapMessage>
-    )
-  }
+  if (!apiKey) return <MapMessage>{t('discover.mapView.noKey')}</MapMessage>
   return <GoogleMapView apiKey={apiKey} {...props} />
 }
 
 function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { apiKey: string }) {
+  const t = useT()
   const { isLoaded, loadError } = useJsApiLoader({ id: 'google-maps', googleMapsApiKey: apiKey })
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
@@ -41,7 +37,7 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
   const placed = companies.filter(c => c.lat !== null && c.lng !== null)
   const selected = placed.find(c => c.id === selectedId) ?? null
 
-  if (loadError) return <MapMessage>Couldn&rsquo;t load Google Maps.</MapMessage>
+  if (loadError) return <MapMessage>{t('discover.mapView.loadError')}</MapMessage>
   if (!isLoaded) return <div className="h-[600px] animate-pulse rounded-xl bg-neutral-100" />
 
   return (
@@ -64,7 +60,7 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
             getPixelPositionOffset={(w, h) => ({ x: -w / 2, y: -h })}
           >
             <PricePill
-              label={`${c.name}, from ${c.priceFrom} RON`}
+              label={t('discover.mapView.pill', { name: c.name, price: c.priceFrom })}
               priceFrom={c.priceFrom}
               selected={c.id === selectedId}
               onSelect={() => setSelectedId(c.id)}
@@ -78,7 +74,7 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
           <button
             type="button"
             onClick={() => setSelectedId(null)}
-            aria-label="Close preview"
+            aria-label={t('discover.mapView.closePreview')}
             className="absolute right-2 top-2 rounded-full p-1 text-neutral-500 hover:bg-neutral-100"
           >
             <X className="h-4 w-4" />
@@ -91,7 +87,7 @@ function GoogleMapView({ apiKey, companies, city, coords }: MapViewProps & { api
             href={`/discover/${selected.id}`}
             className="mt-3 flex h-10 items-center justify-center rounded-md bg-primary-600 text-sm font-semibold text-white hover:bg-primary-700"
           >
-            View company
+            {t('discover.mapView.viewCompany')}
           </Link>
         </div>
       )}
@@ -113,6 +109,7 @@ interface PricePillProps {
  * also keeps the map's own click (which deselects) from running.
  */
 function PricePill({ label, priceFrom, selected, onSelect }: PricePillProps) {
+  const t = useT()
   const ref = useRef<HTMLButtonElement>(null)
   const latest = useRef(onSelect)
   latest.current = onSelect
@@ -138,7 +135,7 @@ function PricePill({ label, priceFrom, selected, onSelect }: PricePillProps) {
         selected ? 'z-10 scale-110 bg-primary-600 text-white' : 'bg-white text-neutral-900'
       }`}
     >
-      from {priceFrom} RON
+      {t('discover.mapView.pillText', { price: priceFrom })}
     </button>
   )
 }

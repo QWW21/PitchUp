@@ -47,10 +47,7 @@ export async function startConnect(user: { id: string; email: string }): Promise
       accountId = account.id
     } catch (caught) {
       console.error('[onboarding] Stripe account creation failed:', (caught as Error).message)
-      throw new ApiException(
-        'SERVICE_UNAVAILABLE',
-        'Stripe could not be reached. Try again in a minute.'
-      )
+      throw new ApiException('SERVICE_UNAVAILABLE', 'api.stripeDown')
     }
     // Stored at once, so a retry reuses the same account.
     await prisma.company.update({ where: { id: company.id }, data: { stripeAccountId: accountId } })

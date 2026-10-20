@@ -1,20 +1,24 @@
 import type { Metadata } from 'next'
 import { stepContext } from '@/lib/onboarding/page-guard'
+import { getT } from '@/i18n/server'
 import { StepHeader } from '@/components/onboarding/StepHeader'
 import { CompanyInfoForm } from '@/components/onboarding/CompanyInfoForm'
 
-export const metadata: Metadata = { title: 'Company info | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('onboarding.step1.title') }
+}
 
 /** Onboarding step 1 — E09-06, PRD §8.1. */
 export default async function Step1() {
   const { session, company, status } = await stepContext(1)
+  const t = await getT()
   return (
     <>
       <StepHeader
         step={1}
         status={status}
-        title="Tell players about your venue"
-        intro="This is what players see on your page. You can change it later."
+        title={t('onboarding.step1.heading')}
+        intro={t('onboarding.step1.intro')}
       />
       <CompanyInfoForm
         // The logo is stored under the company once it exists, under the manager before.

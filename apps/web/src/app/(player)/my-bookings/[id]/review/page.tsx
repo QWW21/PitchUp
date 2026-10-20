@@ -1,21 +1,17 @@
 import type { Metadata } from 'next'
 import { notFound, redirect } from 'next/navigation'
-import { formatDateLong } from '@pitchup/shared'
+import { INTL_LOCALE, formatDateLong } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { getBookingForViewer } from '@/lib/bookings/read'
 import { ReviewForm } from '@/components/bookings/ReviewForm'
+import { getLocale, getT } from '@/i18n/server'
 
 export const dynamic = 'force-dynamic'
-export const metadata: Metadata = { title: 'Rate this pitch | PitchUp' }
 
-const until = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Bucharest',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('myBookings.review.title') }
+}
 
 type Props = {
   params: Promise<{ id: string }>
@@ -42,20 +38,32 @@ export default async function ReviewPage({ params, searchParams }: Props) {
 
   const editable = b.review && new Date(b.review.editableUntil).getTime() > Date.now()
   if (!b.canReview && !editable) redirect(fromMyReviews ? '/my-reviews' : `/my-bookings/${b.id}`)
+  const [t, locale] = [await getT(), await getLocale()]
+  const until = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  })
 
   return (
     <div className="mx-auto max-w-xl">
       <h1 className="text-2xl font-bold text-neutral-900">
-        {b.review ? 'Edit your review' : 'Rate this pitch'}
+        {b.review ? t('myBookings.review.edit') : t('myBookings.review.rate')}
       </h1>
       <div className="mt-4 rounded-lg bg-neutral-100 p-3 text-sm">
         <p className="font-medium text-neutral-900">{b.pitch.name}</p>
         <p className="text-neutral-700">{b.company.name}</p>
-        <p className="text-neutral-700">Played {formatDateLong(b.date)}</p>
+        <p className="text-neutral-700">
+          {t('myBookings.review.played', { date: formatDateLong(b.date, locale) })}
+        </p>
       </div>
       {b.review && (
         <p className="mt-2 text-sm text-neutral-500">
-          You can edit this until {until.format(new Date(b.review.editableUntil))}.
+          {t('myBookings.review.editableUntil', {
+            when: until.format(new Date(b.review.editableUntil)),
+          })}
         </p>
       )}
       <ReviewForm

@@ -8,6 +8,8 @@ import { PLATFORM_FEE_PERCENT } from './constants/penalties'
 import type { PitchSize } from './types'
 import type { SlotStatus } from './schemas/detail'
 import { fromMinutes, toMinutes } from './schedule'
+import { hoursText, sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -89,24 +91,23 @@ export function refundPolicyOf(stored: unknown): RefundPolicy {
     : DEFAULT_REFUND_POLICY
 }
 
-const hoursText = (h: number) => (h === 1 ? '1 hour' : `${h} hours`)
-
 /**
  * The policy in one sentence, for the pitch page, the summary and the
  * settings preview: "Free cancellation up to 12 hours before kick-off; 75%
  * back up to 2 hours before; nothing after."
  */
-export function describeRefundPolicy(policy: RefundPolicy = DEFAULT_REFUND_POLICY): string {
+export function describeRefundPolicy(policy: RefundPolicy, locale: Locale): string {
+  const t = sharedT(locale)
   const {
     fullRefundHours: full,
     partialRefundHours: partial,
     partialRefundPercent: percent,
   } = policy
-  if (full === 0) return 'Free cancellation until kick-off.'
-  const free = `Free cancellation up to ${hoursText(full)} before kick-off`
-  if (percent === 0 || partial >= full) return `${free}; nothing after.`
-  if (partial === 0) return `${free}; ${percent}% back until kick-off.`
-  return `${free}; ${percent}% back up to ${hoursText(partial)} before; nothing after.`
+  if (full === 0) return t('refundPolicy.untilKickOff')
+  const free = t('refundPolicy.free', { hours: hoursText(full, locale) })
+  if (percent === 0 || partial >= full) return t('refundPolicy.nothingAfter', { free })
+  if (partial === 0) return t('refundPolicy.partialUntilKickOff', { free, percent })
+  return t('refundPolicy.partial', { free, percent, hours: hoursText(partial, locale) })
 }
 
 /** "#AB12CD": a short reference a player can read out over the phone. */
@@ -235,34 +236,7 @@ export function rangeTimes(slots: Slot[], range: SlotRange) {
   return { startTime, endTime: endLabel(endMinutes), minutes: (range.end - range.start + 1) * SLOT }
 }
 
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-] as const
-
-/** "October 2026", from any YYYY-MM-DD in that month. */
-export const formatMonth = (date: string): string =>
-  `${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(0, 4)}`
-
-/**
- * "Thursday, 5 November 2026". Done by hand rather than with Intl, whose
- * support on React Native (Hermes) varies by platform and version.
- */
-export function formatDateLong(date: string): string {
-  const day = new Date(`${date}T12:00:00Z`).getUTCDay()
-  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-  return `${weekdays[day]}, ${Number(date.slice(8))} ${MONTH_NAMES[Number(date.slice(5, 7)) - 1]} ${date.slice(0, 4)}`
-}
+// formatMonth and formatDateLong moved to ./i18n, which names the months.
 
 /**
  * What cancelling now would refund: the booking's policy applied to what was
@@ -279,10 +253,11 @@ export function cancellationRefund(
 }
 
 /** "3h 20min", "45min", or "Starting now". The upcoming card's countdown (E06-06). */
-export function formatCountdown(start: Date, now: Date = new Date()): string {
+export function formatCountdown(start: Date, locale: Locale, now: Date = new Date()): string {
+  const t = sharedT(locale)
   const diff = start.getTime() - now.getTime()
-  if (diff <= 0) return 'Starting now'
+  if (diff <= 0) return t('duration.countdownNow')
   const h = Math.floor(diff / 3_600_000)
   const m = Math.floor((diff % 3_600_000) / 60_000)
-  return h > 0 ? `${h}h ${m}min` : `${m}min`
+  return h > 0 ? t('duration.hoursMinutes', { h, m }) : t('duration.minutes', { m })
 }

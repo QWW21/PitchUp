@@ -51,7 +51,7 @@ export function requireAuth(handler: AuthedHandler) {
   return async (request: NextRequest): Promise<NextResponse> => {
     const session = await sessionFor(request)
     if (!session?.user) {
-      return err('UNAUTHORIZED', 'Authentication required', 401)
+      return err('UNAUTHORIZED', 'api.authRequired', 401)
     }
     return handler(request, session)
   }
@@ -73,7 +73,7 @@ export function requireRole(...roles: Role[]) {
         (roles.includes('PLAYER') && userRole === 'MANAGER')
 
       if (!satisfied) {
-        return err('FORBIDDEN', 'Insufficient permissions', 403)
+        return err('FORBIDDEN', 'api.forbidden', 403)
       }
       return handler(request, session)
     })

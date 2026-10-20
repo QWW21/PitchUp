@@ -20,17 +20,25 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { formatDateLong, formatShortDuration, paymentStatusLine } from '@pitchup/shared'
+import {
+  formatDateLong,
+  formatShortDuration,
+  paymentStatusLine,
+  INTL_LOCALE,
+} from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
 import { ApiError } from '../../lib/apiClient'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
 import { STATUS_TEXT } from './ManagerBookingsScreen'
+import { useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ManagerBookingDetail'>
 
 export function ManagerBookingDetailScreen({ navigation, route }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const { id } = route.params
   const queryClient = useQueryClient()
   const detail = useQuery({
@@ -48,8 +56,8 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
     },
     onError: e =>
       Alert.alert(
-        'Not done',
-        e instanceof ApiError ? e.message : 'Something went wrong. Try again.'
+        t('manager.detail.notDone'),
+        e instanceof ApiError ? e.message : t('manager.detail.wentWrong')
       ),
   })
 
@@ -57,9 +65,8 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
   if (!detail.data) return <ActivityIndicator style={styles.loading} color={colors.primary[600]} />
   const b = detail.data
   const h = b.player.history
-  const [label, icon, tint] = b.attendedAt
-    ? ['Attended', 'check-circle', colors.primary[600]]
-    : STATUS_TEXT[b.status]
+  const [icon, tint] = b.attendedAt ? ['check-circle', colors.primary[600]] : STATUS_TEXT[b.status]
+  const label = b.attendedAt ? t('manager.status.attended') : t(`manager.status.${b.status}`)
 
   const confirm = (
     title: string,
@@ -68,9 +75,9 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
     destructive = false
   ) =>
     Alert.alert(title, message, [
-      { text: 'Cancel', style: 'cancel' },
+      { text: t('manager.detail.cancel'), style: 'cancel' },
       {
-        text: 'Confirm',
+        text: t('manager.detail.confirm'),
         style: destructive ? 'destructive' : 'default',
         onPress: () => act.mutate(action),
       },
@@ -83,12 +90,12 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('manager.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Booking {b.reference}
+          {t('manager.detail.title', { reference: b.reference })}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body}>
@@ -97,85 +104,99 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           <Text style={[styles.statusText, { color: tint }]}>{label}</Text>
         </View>
 
-        <Section title="Booking">
-          <Line label="Pitch" value={b.pitch.name} />
-          <Line label="Date" value={formatDateLong(b.date)} />
+        <Section title={t('manager.detail.booking')}>
+          <Line label={t('manager.detail.pitch')} value={b.pitch.name} />
+          <Line label={t('manager.detail.date')} value={formatDateLong(b.date, locale)} />
           <Line
-            label="Time"
+            label={t('manager.detail.time')}
             value={`${b.startTime}–${b.endTime} (${formatShortDuration(b.minutes)})`}
           />
           <Line
-            label="Teams"
-            value={b.teams.map(t => `${t.name}${t.players ? ` (${t.players})` : ''}`).join(' · ')}
+            label={t('manager.detail.teams')}
+            value={b.teams
+              .map(team => `${team.name}${team.players ? ` (${team.players})` : ''}`)
+              .join(' · ')}
           />
           <Line
-            label="Shirts"
-            value={b.shirtSets ? `${b.shirtSets} ${b.shirtSets === 1 ? 'set' : 'sets'}` : 'None'}
+            label={t('manager.detail.shirts')}
+            value={
+              b.shirtSets
+                ? t('manager.detail.sets', { count: b.shirtSets })
+                : t('manager.detail.none')
+            }
           />
-          {b.note ? <Line label="Note" value={b.note} /> : null}
+          {b.note ? <Line label={t('manager.detail.note')} value={b.note} /> : null}
         </Section>
 
-        <Section title="Player">
+        <Section title={t('manager.detail.player')}>
           <Text style={styles.strong}>{b.player.name}</Text>
           {b.player.phone ? (
             <Pressable
               onPress={() => void Linking.openURL(`tel:${b.player.phone}`)}
               accessibilityRole="link"
-              accessibilityLabel={`Call ${b.player.name}`}
+              accessibilityLabel={t('manager.detail.call', { name: b.player.name })}
             >
               <Text style={styles.link}>{b.player.phone}</Text>
             </Pressable>
           ) : null}
           <Text style={styles.muted}>
-            With you: {h.bookings} bookings, {h.completed} played, {h.noShows} no-shows,{' '}
-            {h.lateCancels} late cancellations.
+            {t('manager.detail.withYou', {
+              bookings: h.bookings,
+              completed: h.completed,
+              noShows: h.noShows,
+              late: h.lateCancels,
+            })}
           </Text>
         </Section>
 
-        <Section title="Payment">
-          <Line label="Price" value={`${b.total} RON`} />
-          <Line label="PitchUp commission" value={`${b.platformFee} RON`} />
-          <Line label="You receive" value={`${b.venuePayout} RON`} />
-          <Text style={styles.muted}>{paymentStatusLine(b)}</Text>
+        <Section title={t('manager.detail.payment')}>
+          <Line label={t('manager.detail.price')} value={`${b.total} RON`} />
+          <Line label={t('manager.detail.commission')} value={`${b.platformFee} RON`} />
+          <Line label={t('manager.detail.receive')} value={`${b.venuePayout} RON`} />
+          <Text style={styles.muted}>{paymentStatusLine(b, locale)}</Text>
         </Section>
 
-        <Section title="History">
+        <Section title={t('manager.detail.history')}>
           {b.statusHistory.map((e, i) => (
             <Text key={i} style={styles.muted}>
-              {STATUS_TEXT[e.status][0]} · {new Date(e.at).toLocaleString('en-GB')}
+              {t(`manager.status.${e.status}`)} ·{' '}
+              {new Date(e.at).toLocaleString(INTL_LOCALE[locale])}
             </Text>
           ))}
         </Section>
 
         {b.canAccept && b.approvalDeadline ? (
           <Text style={styles.muted}>
-            {b.player.name} has paid and waits for your answer. Without one by{' '}
-            {new Date(b.approvalDeadline).toLocaleString('en-GB')}, it is declined and refunded.
+            {t('manager.detail.waits', {
+              name: b.player.name,
+              deadline: new Date(b.approvalDeadline).toLocaleString(INTL_LOCALE[locale]),
+            })}
           </Text>
         ) : null}
         {why !== null ? (
           <View style={styles.reasonBox}>
             <Text style={styles.strong}>
-              {b.status === 'AWAITING_APPROVAL' ? 'Decline this booking?' : 'Cancel this booking?'}
+              {b.status === 'AWAITING_APPROVAL'
+                ? t('manager.detail.declineTitle')
+                : t('manager.detail.cancelTitle')}
             </Text>
-            <Text style={styles.muted}>
-              The player gets everything paid online back, loses no trust points, and reads your
-              reason.
-            </Text>
+            <Text style={styles.muted}>{t('manager.detail.refundNote')}</Text>
             <TextInput
               value={why}
               onChangeText={setWhy}
-              placeholder="Reason for the player"
-              accessibilityLabel="Reason for the player"
+              placeholder={t('manager.detail.reason')}
+              accessibilityLabel={t('manager.detail.reason')}
               maxLength={300}
               multiline
               style={styles.reasonInput}
             />
             <View style={styles.actions}>
-              <Action label="Keep it" busy={false} onPress={() => setWhy(null)} />
+              <Action label={t('manager.detail.keep')} busy={false} onPress={() => setWhy(null)} />
               <Action
                 label={
-                  b.status === 'AWAITING_APPROVAL' ? 'Decline and refund' : 'Cancel and refund'
+                  b.status === 'AWAITING_APPROVAL'
+                    ? t('manager.detail.declineRefund')
+                    : t('manager.detail.cancelRefund')
                 }
                 danger
                 busy={act.isPending || why.trim().length < 5}
@@ -188,7 +209,7 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
         <View style={styles.actions}>
           {b.canAccept ? (
             <Action
-              label="Accept booking"
+              label={t('manager.detail.accept')}
               primary
               busy={act.isPending}
               onPress={() => act.mutate('accept')}
@@ -196,7 +217,11 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           ) : null}
           {b.canCancel && why === null ? (
             <Action
-              label={b.status === 'AWAITING_APPROVAL' ? 'Decline' : 'Cancel booking'}
+              label={
+                b.status === 'AWAITING_APPROVAL'
+                  ? t('manager.detail.decline')
+                  : t('manager.detail.cancelBooking')
+              }
               danger
               busy={act.isPending}
               onPress={() => setWhy('')}
@@ -204,15 +229,15 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           ) : null}
           {b.canConfirmAttended ? (
             <Action
-              label="Confirm attended"
+              label={t('manager.detail.attended')}
               primary
               busy={act.isPending}
               onPress={() =>
                 confirm(
-                  'Confirm attended?',
+                  t('manager.detail.attendedTitle'),
                   b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && b.deposit
-                    ? `The player's ${b.deposit} RON deposit is refunded.`
-                    : 'Marks the booking as attended and paid at the venue.',
+                    ? t('manager.detail.depositBack', { amount: b.deposit })
+                    : t('manager.detail.marksPaid'),
                   'attended'
                 )
               }
@@ -220,20 +245,22 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
           ) : null}
           {b.canComplete ? (
             <Action
-              label="Mark as complete"
+              label={t('manager.detail.complete')}
               busy={act.isPending}
-              onPress={() => confirm('Mark as complete?', 'The game has been played.', 'complete')}
+              onPress={() =>
+                confirm(t('manager.detail.completeTitle'), t('manager.detail.played'), 'complete')
+              }
             />
           ) : null}
           {b.canReportNoShow ? (
             <Action
-              label="Report no-show"
+              label={t('manager.detail.noShow')}
               danger
               busy={act.isPending}
               onPress={() =>
                 confirm(
-                  'Report a no-show?',
-                  "The player loses 20 trust points and is told; they can dispute it. This can't be undone.",
+                  t('manager.detail.noShowTitle'),
+                  t('manager.detail.noShowBody'),
                   'noShow',
                   true
                 )

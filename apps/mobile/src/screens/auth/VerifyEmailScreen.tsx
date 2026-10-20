@@ -21,12 +21,14 @@ import { OtpInput } from '../../components/ui/OtpInput'
 import { verifyEmail, resendCode } from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'VerifyEmail'>
 
 const RESEND_COOLDOWN = 60
 
 export function VerifyEmailScreen({ navigation, route }: Props) {
+  const t = useT()
   const { email } = route.params
 
   const [code, setCode] = useState('')
@@ -58,7 +60,7 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
 
   async function handleVerify() {
     if (code.length < 6) {
-      setError('Enter the 6-digit code from your email.')
+      setError(t('auth.verify.enterCode'))
       return
     }
     setError('')
@@ -68,13 +70,9 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
       navigation.replace('Login')
     } catch (e) {
       if (e instanceof ApiError) {
-        setError(
-          e.code === 'RATE_LIMITED'
-            ? 'Too many attempts. Request a new code.'
-            : 'That code is not correct or has expired.'
-        )
+        setError(e.code === 'RATE_LIMITED' ? t('auth.verify.tooMany') : t('auth.verify.wrong'))
       } else {
-        setError('Could not connect. Check your internet and try again.')
+        setError(t('auth.connection'))
       }
     } finally {
       setLoading(false)
@@ -88,7 +86,7 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
       await resendCode(email, 'EMAIL')
       startCooldown()
     } catch {
-      setError('Could not resend. Try again shortly.')
+      setError(t('auth.verify.resendFailed'))
     } finally {
       setResendLoading(false)
     }
@@ -101,9 +99,10 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.wordmark}>PitchUp</Text>
-        <Text style={styles.heading}>Check your email</Text>
+        <Text style={styles.heading}>{t('auth.verify.heading')}</Text>
         <Text style={styles.sub}>
-          We sent a 6-digit code to{'\n'}
+          {t('auth.verify.sent')}
+          {'\n'}
           <Text style={styles.email}>{email}</Text>
         </Text>
 
@@ -113,21 +112,23 @@ export function VerifyEmailScreen({ navigation, route }: Props) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Button label="Verify" onPress={handleVerify} loading={loading} />
+        <Button label={t('auth.verify.verify')} onPress={handleVerify} loading={loading} />
 
         <View style={styles.resendRow}>
-          <Text style={styles.resendText}>Didn't get the code? </Text>
+          <Text style={styles.resendText}>{t('auth.verify.noCode')}</Text>
           {cooldown > 0 ? (
-            <Text style={styles.cooldown}>Resend in {cooldown}s</Text>
+            <Text style={styles.cooldown}>{t('auth.verify.resendIn', { n: cooldown })}</Text>
           ) : (
             <Pressable onPress={handleResend} disabled={resendLoading}>
-              <Text style={styles.resendLink}>{resendLoading ? 'Sending…' : 'Resend'}</Text>
+              <Text style={styles.resendLink}>
+                {resendLoading ? t('auth.verify.sending') : t('auth.verify.resend')}
+              </Text>
             </Pressable>
           )}
         </View>
 
         <Pressable onPress={() => navigation.navigate('Login')} style={styles.backRow}>
-          <Text style={styles.backText}>← Back to login</Text>
+          <Text style={styles.backText}>{t('auth.backToLogin')}</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

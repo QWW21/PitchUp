@@ -1,20 +1,22 @@
 import Link from 'next/link'
 import { Check } from 'lucide-react'
-import { ONBOARDING_STEPS, ONBOARDING_STEP_LABELS, type OnboardingStep } from '@pitchup/shared'
+import { ONBOARDING_STEPS, type OnboardingStep } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 
 /**
  * Four connected steps — E09-06. Done steps are links back; the current one
  * is filled; later ones are grey.
  */
-export function StepProgress({
+export async function StepProgress({
   current,
   done,
 }: {
   current: 1 | 2 | 3 | 4
   done: OnboardingStep[]
 }) {
+  const t = await getT()
   return (
-    <nav aria-label="Onboarding progress">
+    <nav aria-label={t('onboarding.progress')}>
       <ol className="flex items-start">
         {ONBOARDING_STEPS.map((step, i) => {
           const n = i + 1
@@ -35,7 +37,7 @@ export function StepProgress({
             <span
               className={`mt-2 block text-center text-xs ${isCurrent ? 'font-semibold text-neutral-900' : 'text-neutral-500'}`}
             >
-              {ONBOARDING_STEP_LABELS[step]}
+              {t(`onboarding.steps.${step}`)}
             </span>
           )
           return (
@@ -54,7 +56,7 @@ export function StepProgress({
                   <Link href={`/onboarding/step/${n}`} className="flex flex-col items-center">
                     {dot}
                     {label}
-                    <span className="sr-only"> (done, edit)</span>
+                    <span className="sr-only">{t('onboarding.doneEdit')}</span>
                   </Link>
                 ) : (
                   <span

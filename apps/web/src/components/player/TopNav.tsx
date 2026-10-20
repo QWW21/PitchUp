@@ -1,10 +1,13 @@
 import Link from 'next/link'
 import { auth, signOut } from '@/auth'
 import { NotificationBell } from '@/components/notifications/NotificationBell'
+import { LanguageSwitch } from '@/components/LanguageSwitch'
+import { getT } from '@/i18n/server'
 import { UserMenu } from './UserMenu'
 
 export async function TopNav() {
   const session = await auth()
+  const t = await getT()
 
   async function signOutAction() {
     'use server'
@@ -19,28 +22,30 @@ export async function TopNav() {
         </Link>
         {session?.user ? (
           <div className="flex items-center gap-1">
+            <LanguageSwitch signedIn />
             <NotificationBell />
             <UserMenu
-              name={session.user.name ?? session.user.email ?? 'Account'}
+              name={session.user.name ?? session.user.email ?? t('nav.account')}
               isManager={session.user.role !== 'PLAYER'}
               signOutAction={signOutAction}
             />
           </div>
         ) : (
           <div className="flex items-center gap-3">
+            <LanguageSwitch />
             <Link
               // No callbackUrl: after signing in, players land on Discover and
               // managers on their dashboard (/dashboard sends players on).
               href="/login"
               className="rounded-md px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100"
             >
-              Sign in
+              {t('nav.signIn')}
             </Link>
             <Link
               href="/register"
               className="rounded-md bg-primary-600 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-700"
             >
-              Register
+              {t('nav.register')}
             </Link>
           </div>
         )}

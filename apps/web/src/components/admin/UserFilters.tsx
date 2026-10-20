@@ -3,8 +3,9 @@
 /** Search and filters for the user list — E15-07, kept in the URL. */
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
+import { useT } from '@/i18n/client'
 
-const TIERS = ['Excellent', 'Good', 'Fair', 'Poor', 'Suspended']
+const TIERS = ['Excellent', 'Good', 'Fair', 'Poor', 'Suspended'] as const
 
 export function UserFilters(initial: {
   search: string
@@ -12,6 +13,7 @@ export function UserFilters(initial: {
   tier: string
   status: string
 }) {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const [text, setText] = useState(initial.search)
@@ -29,7 +31,7 @@ export function UserFilters(initial: {
   return (
     <form
       role="search"
-      aria-label="Find users"
+      aria-label={t('admin.users.filters.label')}
       onSubmit={e => {
         e.preventDefault()
         go({})
@@ -37,7 +39,7 @@ export function UserFilters(initial: {
       className="mt-4 flex flex-wrap items-end gap-3"
     >
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Name or email
+        {t('admin.users.filters.search')}
         <input
           type="search"
           value={text}
@@ -46,47 +48,47 @@ export function UserFilters(initial: {
         />
       </label>
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Role
+        {t('admin.users.filters.role')}
         <select
           value={initial.role}
           disabled={pending}
           onChange={e => go({ role: e.target.value })}
           className={select}
         >
-          <option value="">Anyone</option>
-          <option value="PLAYER">Players</option>
-          <option value="MANAGER">Managers</option>
-          <option value="ADMIN">Admins</option>
+          <option value="">{t('admin.users.filters.anyone')}</option>
+          <option value="PLAYER">{t('admin.users.filters.players')}</option>
+          <option value="MANAGER">{t('admin.users.filters.managers')}</option>
+          <option value="ADMIN">{t('admin.users.filters.admins')}</option>
         </select>
       </label>
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Trust tier
+        {t('admin.users.filters.tier')}
         <select
           value={initial.tier}
           disabled={pending}
           onChange={e => go({ tier: e.target.value })}
           className={select}
         >
-          <option value="">Any tier</option>
-          {TIERS.map(t => (
-            <option key={t} value={t}>
-              {t}
+          <option value="">{t('admin.users.filters.anyTier')}</option>
+          {TIERS.map(tier => (
+            <option key={tier} value={tier}>
+              {t(`trust.tier.${tier}`)}
             </option>
           ))}
         </select>
       </label>
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Status
+        {t('admin.users.filters.status')}
         <select
           value={initial.status}
           disabled={pending}
           onChange={e => go({ status: e.target.value })}
           className={select}
         >
-          <option value="">Any</option>
-          <option value="active">Active</option>
-          <option value="suspended">Suspended</option>
-          <option value="deleted">Deleted</option>
+          <option value="">{t('admin.users.filters.any')}</option>
+          <option value="active">{t('admin.users.active')}</option>
+          <option value="suspended">{t('admin.users.suspended')}</option>
+          <option value="deleted">{t('admin.users.deleted')}</option>
         </select>
       </label>
       <button
@@ -94,7 +96,7 @@ export function UserFilters(initial: {
         disabled={pending}
         className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {pending ? 'Searching…' : 'Search'}
+        {pending ? t('admin.searching') : t('admin.search')}
       </button>
     </form>
   )

@@ -8,24 +8,14 @@ import { useState } from 'react'
 import { VENUE_PAYMENT, type VenuePaymentMode, type VenuePaymentSettings } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
-const MODES: { value: VenuePaymentMode; label: string; hint: string }[] = [
-  { value: 'ONLINE', label: 'Online only', hint: 'Players pay the full price by card.' },
-  {
-    value: 'ONLINE_OR_VENUE',
-    label: 'Online or at the venue',
-    hint: 'Players with a trust score of 70+ may pay at the venue instead.',
-  },
-  {
-    value: 'VENUE',
-    label: 'At the venue only',
-    hint: 'Cash or your card terminal. Only players with a trust score of 70+ can book.',
-  },
-]
+const MODES: VenuePaymentMode[] = ['ONLINE', 'ONLINE_OR_VENUE', 'VENUE']
 
 const PERCENTS = Array.from({ length: VENUE_PAYMENT.MAX_DEPOSIT_PERCENT / 5 + 1 }, (_, i) => i * 5)
 
 export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings }) {
+  const t = useT()
   const [v, setV] = useState(initial)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,31 +38,35 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
   return (
     <form
       onSubmit={save}
-      aria-label="How players pay"
+      aria-label={t('manager.settings.payments.heading')}
       className="max-w-xl space-y-5 rounded-xl bg-white p-5 shadow-sm"
     >
       <fieldset>
-        <legend className="text-lg font-semibold text-neutral-900">How players pay</legend>
+        <legend className="text-lg font-semibold text-neutral-900">
+          {t('manager.settings.payments.heading')}
+        </legend>
         <div className="mt-3 space-y-2">
           {MODES.map(m => (
             <label
-              key={m.value}
+              key={m}
               className={`flex cursor-pointer gap-3 rounded-lg border p-3 focus-within:ring-2 focus-within:ring-primary-600 ${
-                v.paymentMode === m.value
-                  ? 'border-primary-600 bg-primary-50'
-                  : 'border-neutral-200'
+                v.paymentMode === m ? 'border-primary-600 bg-primary-50' : 'border-neutral-200'
               }`}
             >
               <input
                 type="radio"
                 name="paymentMode"
                 className="mt-1 accent-primary-600"
-                checked={v.paymentMode === m.value}
-                onChange={() => setV(p => ({ ...p, paymentMode: m.value }))}
+                checked={v.paymentMode === m}
+                onChange={() => setV(p => ({ ...p, paymentMode: m }))}
               />
               <span>
-                <span className="block text-sm font-medium text-neutral-900">{m.label}</span>
-                <span className="block text-sm text-neutral-700">{m.hint}</span>
+                <span className="block text-sm font-medium text-neutral-900">
+                  {t(`manager.settings.payments.modes.${m}.label`)}
+                </span>
+                <span className="block text-sm text-neutral-700">
+                  {t(`manager.settings.payments.modes.${m}.hint`)}
+                </span>
               </span>
             </label>
           ))}
@@ -82,7 +76,7 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
       {v.paymentMode !== 'ONLINE' && (
         <div>
           <label htmlFor="deposit" className="block text-sm font-medium text-neutral-900">
-            Deposit paid online
+            {t('manager.settings.payments.deposit')}
           </label>
           <select
             id="deposit"
@@ -92,14 +86,14 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
           >
             {PERCENTS.map(n => (
               <option key={n} value={n}>
-                {n === 0 ? 'No deposit' : `${n}%`}
+                {n === 0 ? t('manager.settings.payments.noDeposit') : `${n}%`}
               </option>
             ))}
           </select>
           <p className="mt-2 text-sm text-neutral-700">
             {v.depositPercent === 0
-              ? 'With no deposit, nothing is paid online: you take the risk that players don’t come. PitchUp’s commission is invoiced to you.'
-              : 'Players choose: the deposit counts towards the price, or it is refunded once you confirm they came and they pay in full here. If they don’t come, you keep it.'}
+              ? t('manager.settings.payments.noDepositHint')
+              : t('manager.settings.payments.depositHint')}
           </p>
         </div>
       )}
@@ -107,7 +101,7 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
       {error && <Alert>{error}</Alert>}
       {saved && (
         <p role="status" className="text-sm font-medium text-primary-700">
-          Saved.
+          {t('manager.settings.saved')}
         </p>
       )}
       <button
@@ -115,7 +109,7 @@ export function PaymentSettingsForm({ initial }: { initial: VenuePaymentSettings
         disabled={busy}
         className="h-11 rounded-md bg-primary-600 px-5 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : 'Save'}
+        {busy ? t('manager.settings.saving') : t('manager.settings.save')}
       </button>
     </form>
   )

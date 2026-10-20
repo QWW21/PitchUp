@@ -12,11 +12,14 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { formatDateLong, type MyReview } from '@pitchup/shared'
 import { Stars, formatReviewDate } from '@/components/venue/bits'
 import { send } from '@/lib/http'
+import { useLocale, useT } from '@/i18n/client'
 
 /** Roughly three lines at this width; shorter texts need no toggle. */
 const FOLD_AT = 180
 
 export function MyReviewCard({ review: r }: { review: MyReview }) {
+  const t = useT()
+  const locale = useLocale()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -24,7 +27,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
   const long = (r.text?.length ?? 0) > FOLD_AT
 
   const remove = async () => {
-    if (!window.confirm('Delete this review? This cannot be undone.')) return
+    if (!window.confirm(t('myBookings.myReviews.deleteConfirm'))) return
     setBusy(true)
     setError(null)
     try {
@@ -51,8 +54,11 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
         <Stars rating={r.rating} />
       </div>
       <p className="mt-1 text-xs text-neutral-500">
-        Played {formatDateLong(r.bookingDate)} · reviewed {formatReviewDate(r.createdAt)}
-        {r.isAnonymous && ' · posted anonymously'}
+        {t('myBookings.myReviews.played', {
+          date: formatDateLong(r.bookingDate, locale),
+          reviewed: formatReviewDate(r.createdAt, locale),
+        })}
+        {r.isAnonymous && t('myBookings.myReviews.anonymous')}
       </p>
 
       {r.text && (
@@ -67,7 +73,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
               aria-expanded={open}
               className="mt-1 text-sm font-medium text-primary-700 hover:underline"
             >
-              {open ? 'Show less' : 'Show more'}
+              {open ? t('venue.showLess') : t('venue.showMore')}
             </button>
           )}
         </>
@@ -79,7 +85,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
             <img
               key={url}
               src={url}
-              alt="Review photo"
+              alt={t('myBookings.myReviews.photoAlt')}
               className="h-[60px] w-[60px] rounded object-cover"
             />
           ))}
@@ -89,7 +95,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
       {r.reply && (
         <div className="ml-3 mt-3 rounded-md bg-neutral-50 p-2">
           <p className="mb-1 text-[11px] font-medium uppercase text-neutral-500">
-            Response from the venue
+            {t('myBookings.myReviews.venueResponse')}
           </p>
           <p className="text-sm text-neutral-700">{r.reply.text}</p>
         </div>
@@ -102,7 +108,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
             className="inline-flex items-center gap-1 font-medium text-primary-700 hover:underline"
           >
             <Pencil className="h-4 w-4" aria-hidden="true" />
-            Edit
+            {t('myBookings.myReviews.edit')}
           </Link>
         )}
         <button
@@ -112,7 +118,7 @@ export function MyReviewCard({ review: r }: { review: MyReview }) {
           className="ml-auto inline-flex items-center gap-1 font-medium text-error-600 hover:underline disabled:opacity-60"
         >
           <Trash2 className="h-4 w-4" aria-hidden="true" />
-          {busy ? 'Deleting…' : 'Delete'}
+          {busy ? t('myBookings.myReviews.deleting') : t('myBookings.myReviews.delete')}
         </button>
       </div>
       {error && (

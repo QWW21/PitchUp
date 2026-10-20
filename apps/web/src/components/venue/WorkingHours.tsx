@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { ChevronDown, Clock } from 'lucide-react'
-import { DAY_LONG, formatDayHours, todayStatus, venueClock, type DayHours } from '@pitchup/shared'
+import {
+  formatDayHours,
+  todayStatus,
+  venueClock,
+  weekdayLong,
+  type DayHours,
+} from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
 /**
  * Today's status with the full week underneath. UIUX_SPEC §6.1.
@@ -11,6 +18,8 @@ import { DAY_LONG, formatDayHours, todayStatus, venueClock, type DayHours } from
  * page cached for a while does not keep saying "Open" after closing time.
  */
 export function WorkingHours({ week }: { week: DayHours[] }) {
+  const t = useT()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
@@ -34,14 +43,20 @@ export function WorkingHours({ week }: { week: DayHours[] }) {
         <Clock className="h-4 w-4 text-neutral-500" aria-hidden="true" />
         {status.kind === 'open' && (
           <span>
-            <span className="font-medium text-primary-700">Open</span>
-            <span className="text-neutral-700"> · Closes at {status.closesAt}</span>
+            <span className="font-medium text-primary-700">{t('venue.hours.open')}</span>
+            <span className="text-neutral-700">
+              {t('venue.hours.closesAt', { time: status.closesAt })}
+            </span>
           </span>
         )}
         {status.kind === 'opensLater' && (
-          <span className="text-neutral-700">Opens at {status.opensAt}</span>
+          <span className="text-neutral-700">
+            {t('venue.hours.opensAt', { time: status.opensAt })}
+          </span>
         )}
-        {status.kind === 'closedToday' && <span className="text-error-600">Closed today</span>}
+        {status.kind === 'closedToday' && (
+          <span className="text-error-600">{t('venue.hours.closedToday')}</span>
+        )}
         <ChevronDown
           className={`h-4 w-4 text-neutral-500 transition-transform ${open ? 'rotate-180' : ''}`}
           aria-hidden="true"
@@ -55,7 +70,7 @@ export function WorkingHours({ week }: { week: DayHours[] }) {
             return (
               <div key={d} className="contents">
                 <dt className={isToday ? 'font-semibold text-neutral-900' : 'text-neutral-500'}>
-                  {DAY_LONG[d]}
+                  {weekdayLong(d, locale)}
                 </dt>
                 <dd
                   className={
@@ -66,7 +81,7 @@ export function WorkingHours({ week }: { week: DayHours[] }) {
                         : 'text-neutral-900'
                   }
                 >
-                  {formatDayHours(day)}
+                  {formatDayHours(day, locale)}
                 </dd>
               </div>
             )

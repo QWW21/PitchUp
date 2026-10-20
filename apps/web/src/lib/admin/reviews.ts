@@ -84,14 +84,14 @@ export async function deleteReview(reviewId: string, reason: string): Promise<vo
     where: { id: reviewId },
     select: { id: true, playerId: true, deletedAt: true, pitch: { select: { name: true } } },
   })
-  if (!review || review.deletedAt) throw notFound('Review not found')
+  if (!review || review.deletedAt) throw notFound('api.reviewNotFound')
   await prisma.$transaction(async tx => {
     await tx.review.delete({ where: { id: review.id } })
     await notify(tx, {
       userId: review.playerId,
       type: 'ADMIN_NOTICE',
-      title: 'Your review was removed',
-      body: `PitchUp removed your review of ${review.pitch.name}: ${reason}`,
+      title: t => t('notify.reviewRemoved.title'),
+      body: t => t('notify.reviewRemoved.body', { pitch: review.pitch.name, reason }),
       data: { link: '/my-reviews' },
     })
   })

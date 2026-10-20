@@ -15,7 +15,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     windowMs: 15 * 60 * 1000,
   })
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many refresh attempts', 429, {
+    return err('RATE_LIMITED', 'api.tooManyRefresh', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -31,7 +31,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if ('failure' in result) {
     // The client's only correct response to any of these is to sign in
     // again, so the distinction is for its UX, not an access decision.
-    return err('UNAUTHORIZED', 'Session expired, please sign in again', 401, {
+    return err('UNAUTHORIZED', 'api.sessionExpired', 401, {
       reason: result.failure,
     })
   }

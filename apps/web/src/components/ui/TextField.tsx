@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useState, type InputHTMLAttributes } from 'react'
+import { useT } from '@/i18n/client'
 
 interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'id'> {
   label: string
@@ -24,6 +25,7 @@ export function TextField({
   className = '',
   ...props
 }: TextFieldProps) {
+  const t = useT()
   const id = useId()
   const errorId = `${id}-error`
   const [revealed, setRevealed] = useState(false)
@@ -59,7 +61,7 @@ export function TextField({
             // tabIndex -1 keeps the tab order email -> password -> submit,
             // which the ticket asks for; the toggle is still clickable.
             tabIndex={-1}
-            aria-label={revealed ? 'Hide password' : 'Show password'}
+            aria-label={revealed ? t('auth.field.hide') : t('auth.field.show')}
             className="absolute right-0 top-0 flex h-12 w-12 items-center justify-center text-neutral-500 hover:text-neutral-700"
           >
             {revealed ? (

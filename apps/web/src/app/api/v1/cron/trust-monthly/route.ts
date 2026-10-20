@@ -11,7 +11,7 @@ import { runMonthlyTrust } from '@/lib/trust/monthly'
 export const dynamic = 'force-dynamic'
 
 const run = withErrorHandling(async (request: NextRequest) => {
-  if (!cronAuthorised(request)) return err('UNAUTHORIZED', 'Not authorised', 401)
+  if (!cronAuthorised(request)) return err('UNAUTHORIZED', 'api.notAuthorised', 401)
   const result = await runMonthlyTrust()
   console.warn(
     `[trust-monthly] ${result.players} players: ${result.recovered} recovered, ${result.corrected} corrected, ${result.failed} failed`

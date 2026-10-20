@@ -9,10 +9,12 @@ import { headers } from 'next/headers'
 import { auth } from '@/auth'
 import { maintenanceMessage } from '@/lib/maintenance'
 import { Maintenance } from '@/components/Maintenance'
+import { INTL_LOCALE } from '@pitchup/shared'
+import { getLocale, getT } from '@/i18n/server'
+import { LocaleProvider } from '@/i18n/client'
 
-export const metadata: Metadata = {
-  title: 'PitchUp',
-  description: 'Book a football pitch near you',
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: 'PitchUp', description: (await getT())('common.metaDescription') }
 }
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
@@ -22,9 +24,14 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     const session = await auth()
     return session?.user.role === 'ADMIN'
   })
+  const locale = await getLocale()
   return (
-    <html lang="en">
-      <body>{message ? <Maintenance message={message} /> : children}</body>
+    <html lang={INTL_LOCALE[locale]}>
+      <body>
+        <LocaleProvider locale={locale}>
+          {message ? <Maintenance message={message} /> : children}
+        </LocaleProvider>
+      </body>
     </html>
   )
 }

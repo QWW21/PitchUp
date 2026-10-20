@@ -12,7 +12,7 @@ import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 import {
   AUTH,
-  TRUST_REASON_LABELS,
+  trustReasonLabel,
   TRUST_TIERS,
   TRUST_TIER_COLOURS,
   tierDescription,
@@ -25,6 +25,7 @@ import {
   type UpdateProfileInput,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale, userLocale } from '@/i18n/server'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { getEmailProvider } from '@/lib/notifications'
 import { renderPasswordChangedEmail } from '@/lib/emails/password-reset'
@@ -65,7 +66,7 @@ const toProfile = (u: ProfileRow): Profile => ({
 
 async function liveUser(userId: string) {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: profileSelect })
-  if (!user || user.deletedAt) throw notFound('Account not found')
+  if (!user || user.deletedAt) throw notFound('api.accountNotFound')
   return user
 }
 
@@ -84,6 +85,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.city !== undefined ? { city: input.city } : {}),
         ...(input.avatarUrl !== undefined ? { profilePhotoUrl: input.avatarUrl } : {}),
+        ...(input.locale !== undefined ? { locale: input.locale } : {}),
         ...(phoneChanged && input.phone ? { phone: input.phone, phoneVerified: false } : {}),
       },
       select: profileSelect,
@@ -91,7 +93,7 @@ export async function updateProfile(userId: string, input: UpdateProfileInput): 
     return toProfile(user)
   } catch (caught) {
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
-      throw new ApiException('CONFLICT', 'That phone number belongs to another account', {
+      throw new ApiException('CONFLICT', 'api.phoneTaken', {
         reason: 'PHONE_TAKEN',
       })
     }
@@ -106,6 +108,7 @@ export async function getTrustScore(
 ): Promise<TrustScoreDetail> {
   const user = await liveUser(userId)
   const tier = trustTier(user.trustScore)
+  const locale = await getLocale()
   const rows = await prisma.trustScoreEvent.findMany({
     where: { userId },
     orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -116,7 +119,7 @@ export async function getTrustScore(
   return {
     score: user.trustScore,
     tier: tier.label,
-    tierDescription: tierDescription(tier),
+    tierDescription: tierDescription(tier, locale),
     canBook: tier.canBook,
     maxActiveBookings: tier.maxActiveBookings,
     requiresCardOnFile: tier.requiresCardOnFile,
@@ -125,7 +128,7 @@ export async function getTrustScore(
       id: e.id,
       delta: e.delta,
       reason: e.reason,
-      label: TRUST_REASON_LABELS[e.reason],
+      label: trustReasonLabel(e.reason, locale),
       bookingId: e.relatedBookingId,
       createdAt: e.createdAt.toISOString(),
     })),
@@ -134,7 +137,7 @@ export async function getTrustScore(
     tiers: TRUST_TIERS.map(t => ({
       name: t.label,
       range: tierRange(t),
-      description: tierDescription(t),
+      description: tierDescription(t, locale),
       colour: TRUST_TIER_COLOURS[t.label],
     })),
   }
@@ -146,10 +149,10 @@ async function checkPassword(userId: string, password: string): Promise<void> {
     where: { id: userId },
     select: { passwordHash: true, deletedAt: true },
   })
-  if (!user || user.deletedAt) throw notFound('Account not found')
+  if (!user || user.deletedAt) throw notFound('api.accountNotFound')
   // bcrypt.compare does the same work whether or not it matches.
   if (!(await bcrypt.compare(password, user.passwordHash))) {
-    throw new ApiException('VALIDATION_ERROR', 'Your password is not correct', {
+    throw new ApiException('VALIDATION_ERROR', 'api.wrongPassword', {
       reason: 'WRONG_PASSWORD',
     })
   }
@@ -167,7 +170,7 @@ export async function changePassword(userId: string, input: ChangeOwnPasswordInp
     prisma.user.update({
       where: { id: userId },
       data: { passwordHash, passwordChangedAt: new Date() },
-      select: { email: true },
+      select: { email: true, locale: true },
     }),
     prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
@@ -176,7 +179,10 @@ export async function changePassword(userId: string, input: ChangeOwnPasswordInp
   ])
   // Best-effort, as after a reset: how someone learns their password changed.
   try {
-    await getEmailProvider().send({ to: user.email, ...renderPasswordChangedEmail() })
+    await getEmailProvider().send({
+      to: user.email,
+      ...renderPasswordChangedEmail(userLocale(user)),
+    })
   } catch (caught) {
     console.error('[profile] Could not send the password-changed notice:', caught)
   }
@@ -204,11 +210,9 @@ export async function deleteAccount(
   now: Date = new Date()
 ): Promise<void> {
   if (user.role !== 'PLAYER') {
-    throw new ApiException(
-      'VALIDATION_ERROR',
-      'Venue and admin accounts are closed through support',
-      { reason: 'NOT_A_PLAYER' }
-    )
+    throw new ApiException('VALIDATION_ERROR', 'api.closeThroughSupport', {
+      reason: 'NOT_A_PLAYER',
+    })
   }
   await checkPassword(user.id, input.password)
   await closePlayerAccount(user, input.reason ?? null, now)

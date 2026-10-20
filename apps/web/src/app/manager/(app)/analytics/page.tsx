@@ -13,8 +13,11 @@ import { KpiCards } from '@/components/analytics/KpiCards'
 import { RevenueChart } from '@/components/analytics/RevenueChart'
 import { OccupancyHeatmap } from '@/components/analytics/OccupancyHeatmap'
 import { PitchPerformanceTable } from '@/components/analytics/PitchPerformanceTable'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Analytics | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('analytics.title') }
+}
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
@@ -24,6 +27,8 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
  * that view, in the venue's own days and hours.
  */
 export default async function AnalyticsPage({ searchParams }: Props) {
+  const locale = await getLocale()
+  const t = await getT()
   const { company } = await requireActiveManager()
   const raw = await searchParams
   const parsed = AnalyticsQuerySchema.safeParse({
@@ -47,14 +52,17 @@ export default async function AnalyticsPage({ searchParams }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-2xl font-bold text-neutral-900">Analytics</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">{t('analytics.heading')}</h1>
         <AnalyticsFilters period={period} pitchId={pitchId ?? ''} pitches={pitches} />
       </div>
       <KpiCards summary={summary} />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <RevenueChart
           groupBy={revenue.groupBy}
-          points={revenue.data.map(p => ({ ...p, label: bucketLabel(p.period, revenue.groupBy) }))}
+          points={revenue.data.map(p => ({
+            ...p,
+            label: bucketLabel(p.period, revenue.groupBy, locale),
+          }))}
         />
         <OccupancyHeatmap grid={occupancy.grid} />
       </div>

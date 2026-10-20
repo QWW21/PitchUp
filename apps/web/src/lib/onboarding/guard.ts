@@ -14,7 +14,7 @@ export function requireManager(
   handler: (request: NextRequest, session: Session) => Promise<NextResponse>
 ) {
   return requireAuth(async (request, session) => {
-    if (session.user.role !== 'MANAGER') return err('FORBIDDEN', 'Venue managers only', 403)
+    if (session.user.role !== 'MANAGER') return err('FORBIDDEN', 'api.managersOnly', 403)
     return handler(request, session)
   })
 }

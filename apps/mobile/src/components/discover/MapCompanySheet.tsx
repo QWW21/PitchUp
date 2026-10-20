@@ -4,6 +4,7 @@ import type { CompanyListItem } from '@pitchup/shared'
 import { Button } from '../ui/Button'
 import { CompanyCard } from './CompanyCard'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export const MAP_SHEET_HEIGHT = 200
 
@@ -17,6 +18,7 @@ interface MapCompanySheetProps {
 
 /** Preview of the tapped marker's company. UIUX_SPEC §5.2, E03-07. */
 export function MapCompanySheet({ company, bottomInset, onView, onDismiss }: MapCompanySheetProps) {
+  const t = useT()
   const height = MAP_SHEET_HEIGHT + bottomInset
   const translateY = useRef(new Animated.Value(height)).current
   // Keeps the last company on screen while the sheet slides out.
@@ -66,7 +68,7 @@ export function MapCompanySheet({ company, bottomInset, onView, onDismiss }: Map
         <CompanyCard company={shown} bare />
       </View>
       <View style={styles.button}>
-        <Button label="View company" onPress={() => onView(shown)} />
+        <Button label={t('discover.home.viewCompany')} onPress={() => onView(shown)} />
       </View>
     </Animated.View>
   )

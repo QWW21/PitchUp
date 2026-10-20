@@ -1,0 +1,93 @@
+/** Email and SMS text, English. */
+export const emailEn = {
+  layout: {
+    tagline: 'PitchUp · Book a football pitch near you',
+    openPitchUp: 'Open PitchUp',
+    choose: 'Choose which emails you get in your notification settings: {url}',
+    chooseText: 'Choose which emails you get: {url}',
+    footer: 'You are receiving this because you use PitchUp.',
+  },
+  verification: {
+    subject: 'Confirm your PitchUp email',
+    heading: 'Verify your email address',
+    intro: 'Enter this code in the app to finish setting up your account:',
+    expires: 'This code expires in {minutes} minutes.',
+    footer: 'If you did not create a PitchUp account, you can ignore this email.',
+    textCode: 'Enter this code in the app: {code}',
+    textExpires: 'It expires in {minutes} minutes.',
+    textIgnore: 'If you did not create a PitchUp account, ignore this email.',
+  },
+  alreadyRegistered: {
+    subject: 'You already have a PitchUp account',
+    heading: 'You already have an account',
+    tried:
+      'Someone just tried to create a PitchUp account with this email address. You already have one, so nothing has changed.',
+    signIn: 'If that was you, sign in instead — or use "Forgot password" if you cannot get in.',
+    notYou: 'If it was not you, no action is needed.',
+    footer: 'This message was sent because an account already exists for this address.',
+  },
+  passwordReset: {
+    subject: 'Reset your PitchUp password',
+    heading: 'Reset your password',
+    intro: 'Use the button below to choose a new password.',
+    button: 'Reset password',
+    expires: 'This link expires in {minutes} minutes and can be used once.',
+    paste: 'If the button does not work, paste this into your browser: {url}',
+    footer:
+      'If you did not ask to reset your password, ignore this email — your password has not changed.',
+    textOpen: 'Open this link to choose a new password:',
+    textIgnore: 'If you did not ask for this, ignore this email — nothing has changed.',
+  },
+  passwordChanged: {
+    subject: 'Your PitchUp password was changed',
+    heading: 'Your password was changed',
+    changed: 'The password on your PitchUp account has just been changed.',
+    wasYou:
+      'If that was you, there is nothing to do. You have been signed out on your other devices and will need to sign in again.',
+    notYou:
+      'If it was not you, someone else may have access to your email. Reset your password again immediately and contact support.',
+    footer: 'This message is sent whenever an account password changes.',
+  },
+  bookingConfirmed: {
+    subject: 'Booking confirmed: {pitch}, {date} {time}',
+    heading: 'Your booking is confirmed',
+    reference: 'Reference {reference}. See you on the pitch!',
+    pitchAt: '{pitch} at {company}',
+    when: '{date}, {start}–{end} ({duration})',
+    teams: '{count} teams',
+    shirts: {
+      one: 'Free shirts: {count} set, ready at the venue.',
+      other: 'Free shirts: {count} sets, ready at the venue.',
+    },
+    paid: 'Paid: {total} RON',
+    depositPaid: 'Deposit paid: {deposit} RON{refund}. To pay at the venue: {due} RON.',
+    depositRefunded: ', refunded after the game',
+    toPay: 'To pay at the venue: {due} RON.',
+    policy: 'Cancelling: {policy}',
+    footer: 'You are receiving this because you booked a pitch on PitchUp.',
+    textHeading: 'Your booking is confirmed ({reference})',
+  },
+  companyApproved: {
+    subject: '{company} is approved on PitchUp',
+    heading: 'Your venue is approved',
+    live: '{company} is now live on PitchUp. Players can find it on Discover.',
+    next: 'Add your pitches and their prices, and bookings can start.',
+    button: 'Open your dashboard',
+    footer: 'You receive this because you registered a venue on PitchUp.',
+    textLive: 'Your venue is live. Add your pitches and their prices, and bookings can start.',
+    textButton: 'Open your dashboard: {url}',
+  },
+  companyRejected: {
+    subject: '{company} needs a few changes',
+    heading: 'Your venue needs a few changes',
+    reviewed: "We reviewed {company} and it isn't ready to go live yet:",
+    next: 'Update your details and submit again; we review within 1–2 business days.',
+    button: 'Update your venue',
+    questions: 'Questions? Reply to this email.',
+    footer: 'You receive this because you registered a venue on PitchUp.',
+    textButton: 'Update your details and submit again: {url}',
+  },
+  sms: {
+    phoneCode: '{code} is your PitchUp verification code. It expires in {minutes} minutes.',
+  },
+} as const

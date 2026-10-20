@@ -2,6 +2,7 @@ import React, { useRef } from 'react'
 import { StyleSheet, TextInput, View } from 'react-native'
 import { AUTH } from '@pitchup/shared'
 import { colors, radius, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface OtpInputProps {
   value: string
@@ -17,6 +18,7 @@ interface OtpInputProps {
  * a clean UI.
  */
 export function OtpInput({ value, onChange, error = false }: OtpInputProps) {
+  const t = useT()
   const inputRef = useRef<TextInput>(null)
   const digits = value.padEnd(AUTH.OTP_LENGTH, ' ').split('')
 
@@ -25,9 +27,9 @@ export function OtpInput({ value, onChange, error = false }: OtpInputProps) {
       {/* Hidden full-width input captures all keystrokes */}
       <TextInput
         ref={inputRef}
-        accessibilityLabel="Verification code"
+        accessibilityLabel={t('auth.verify.code')}
         value={value}
-        onChangeText={t => onChange(t.replace(/\D/g, '').slice(0, AUTH.OTP_LENGTH))}
+        onChangeText={text => onChange(text.replace(/\D/g, '').slice(0, AUTH.OTP_LENGTH))}
         keyboardType="number-pad"
         maxLength={AUTH.OTP_LENGTH}
         style={styles.hidden}

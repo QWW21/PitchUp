@@ -24,8 +24,7 @@ import {
   DEFAULT_FILTERS,
   DISCOVER,
   FILTERABLE_SIZES,
-  SIZE_LABELS,
-  SURFACE_LABELS,
+  sharedEn,
   priceBound,
   type DiscoverFilters,
   type SurfaceType,
@@ -39,6 +38,7 @@ import { effectiveSort, useDiscoverStore } from '../../stores/discoverStore'
 import { useCompanyCount } from '../../hooks/useCompanies'
 import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 const SURFACE_COLORS: Record<SurfaceType, ChipColors> = {
   NATURAL_GRASS: { background: '#F0FDF4', text: '#15803D' },
@@ -60,7 +60,7 @@ const AMENITY_ICONS: Record<string, string> = {
   wheelchair: 'wheelchair-accessibility',
 }
 
-const SURFACES = Object.keys(SURFACE_LABELS) as SurfaceType[]
+const SURFACES = Object.keys(sharedEn.surface) as SurfaceType[]
 
 function toggle<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter(v => v !== value) : [...list, value]
@@ -72,6 +72,7 @@ interface FiltersSheetProps {
 }
 
 export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
+  const t = useT()
   const { height: screenHeight } = useWindowDimensions()
   const sheetHeight = Math.round(screenHeight * 0.8)
   const insets = useSafeAreaInsets()
@@ -157,8 +158,8 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
 
   const buttonLabel =
     count.data === undefined
-      ? 'Show results'
-      : `Show ${count.data} ${count.data === 1 ? 'result' : 'results'}`
+      ? t('discover.filters.showResults')
+      : t('discover.filters.showCount', { count: count.data })
 
   return (
     <Modal
@@ -168,26 +169,30 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
       onRequestClose={close}
       statusBarTranslucent
     >
-      <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close filters" />
+      <Pressable
+        style={styles.backdrop}
+        onPress={close}
+        accessibilityLabel={t('discover.filters.close')}
+      />
       <Animated.View style={[styles.sheet, { height: sheetHeight, transform: [{ translateY }] }]}>
         <View {...drag.panHandlers} style={styles.handleArea}>
           <View style={styles.handle} />
         </View>
 
         <View style={styles.header}>
-          <Text style={styles.title}>Filters</Text>
+          <Text style={styles.title}>{t('discover.filters.title')}</Text>
           <Pressable onPress={resetAll} style={styles.reset} accessibilityRole="button">
-            <Text style={styles.resetText}>Reset all</Text>
+            <Text style={styles.resetText}>{t('discover.filters.reset')}</Text>
           </Pressable>
         </View>
 
         <ScrollView style={styles.content} contentContainerStyle={styles.contentInner}>
-          <FilterSection title="Surface type" first>
+          <FilterSection title={t('discover.filters.surface')} first>
             <View style={styles.chipRow}>
               {SURFACES.map(s => (
                 <FilterChip
                   key={s}
-                  label={SURFACE_LABELS[s]}
+                  label={t(`surface.${s}`)}
                   selected={draft.surfaces.includes(s)}
                   selectedColors={SURFACE_COLORS[s]}
                   onPress={() => set({ surfaces: toggle(draft.surfaces, s) })}
@@ -196,12 +201,12 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
             </View>
           </FilterSection>
 
-          <FilterSection title="Pitch size" titleAccessory={<SizeInfo />}>
+          <FilterSection title={t('discover.filters.size')} titleAccessory={<SizeInfo />}>
             <View style={styles.chipRow}>
               {FILTERABLE_SIZES.map(s => (
                 <FilterChip
                   key={s}
-                  label={SIZE_LABELS[s]}
+                  label={t(`size.${s}`)}
                   selected={draft.sizes.includes(s)}
                   onPress={() => set({ sizes: toggle(draft.sizes, s) })}
                 />
@@ -209,12 +214,12 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
             </View>
           </FilterSection>
 
-          <FilterSection title="Amenities">
+          <FilterSection title={t('discover.filters.amenities')}>
             <View style={styles.grid}>
               {AMENITY_FILTERS.map(a => (
                 <FilterChip
                   key={a.key}
-                  label={a.label}
+                  label={t(`amenityFilter.${a.key}`)}
                   icon={AMENITY_ICONS[a.key]}
                   height={36}
                   style={styles.gridCell}
@@ -225,7 +230,10 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
             </View>
           </FilterSection>
 
-          <FilterSection title="Price per hour" aside={`${price.low} – ${price.high} RON`}>
+          <FilterSection
+            title={t('discover.filters.price')}
+            aside={`${price.low} – ${price.high} RON`}
+          >
             <RangeSlider
               min={DISCOVER.PRICE_MIN}
               max={DISCOVER.PRICE_MAX}
@@ -236,9 +244,9 @@ export function FiltersSheet({ visible, onClose }: FiltersSheetProps) {
             />
           </FilterSection>
 
-          <FilterSection title="Availability">
+          <FilterSection title={t('discover.filters.availability')}>
             <ToggleRow
-              label="Available now"
+              label={t('discover.filters.availableNow')}
               value={draft.availableNow}
               onChange={v => set({ availableNow: v })}
             />

@@ -156,7 +156,7 @@ test('from no pitches to a live one: every tab of the editor', async ({ page }, 
   await page.getByLabel('Date', { exact: true }).fill(blockDay)
   await page.getByLabel(/Reason/).fill('Resurfacing')
   await page.getByRole('button', { name: 'Add', exact: true }).click()
-  await expect(page.getByText(formatDateLong(blockDay))).toBeVisible()
+  await expect(page.getByText(formatDateLong(blockDay, 'en'))).toBeVisible()
   await snap(page, info, AREA, '06-availability', { fullPage: true })
   await audit(page)
 

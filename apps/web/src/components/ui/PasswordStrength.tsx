@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * Four-segment password strength meter.
  *
@@ -6,11 +8,12 @@
  * the actual requirements are enforced by the shared Zod schema.
  */
 import { scorePassword } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
-const LABELS = ['', 'Weak', 'Fair', 'Good', 'Strong'] as const
 const COLOURS = ['', 'bg-error-500', 'bg-warning-500', 'bg-accent-500', 'bg-primary-600'] as const
 
 export function PasswordStrength({ password }: { password: string }) {
+  const t = useT()
   const score = scorePassword(password)
   if (!password) return null
 
@@ -29,7 +32,9 @@ export function PasswordStrength({ password }: { password: string }) {
       {/* polite, not assertive: this updates on every keystroke and would
           otherwise talk over the user as they type. */}
       <p className="mt-1 text-xs text-neutral-500" aria-live="polite">
-        Password strength: {LABELS[score]}
+        {t('auth.strength.label', {
+          level: score ? t(`auth.strength.levels.${score as 1 | 2 | 3 | 4}`) : '',
+        })}
       </p>
     </div>
   )

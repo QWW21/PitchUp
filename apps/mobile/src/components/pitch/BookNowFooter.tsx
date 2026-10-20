@@ -2,6 +2,7 @@ import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export const FOOTER_HEIGHT = 72
 
@@ -13,10 +14,10 @@ interface BookNowFooterProps {
   onBook: () => void
 }
 
-const LABELS: Record<Exclude<BookBlock, null>, string> = {
-  unavailable: 'Not available',
-  restricted: 'Account restricted',
-}
+const LABELS = {
+  unavailable: 'notAvailableBtn',
+  restricted: 'restricted',
+} as const satisfies Record<Exclude<BookBlock, null>, string>
 
 /**
  * Price and Book Now, fixed above the safe area. UIUX_SPEC §6.2, E04-06.
@@ -24,6 +25,7 @@ const LABELS: Record<Exclude<BookBlock, null>, string> = {
  * state cannot occur here; it exists on the web, where browsing is public.
  */
 export function BookNowFooter({ hourlyRate, block, onBook }: BookNowFooterProps) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   return (
     <View style={[styles.footer, { paddingBottom: 12 + insets.bottom }]}>
@@ -41,7 +43,7 @@ export function BookNowFooter({ hourlyRate, block, onBook }: BookNowFooterProps)
         ]}
       >
         <Text style={[styles.label, block && styles.labelDisabled]}>
-          {block ? LABELS[block] : 'Book Now'}
+          {block ? t(`discover.pitch.${LABELS[block]}`) : t('discover.pitch.bookNow')}
         </Text>
       </Pressable>
     </View>

@@ -3,6 +3,7 @@ import { Animated, StyleSheet, Text, View } from 'react-native'
 import type { ReviewPage } from '@pitchup/shared'
 import { Stars } from '../common/Stars'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 function Bar({ share }: { share: number }) {
   const fill = useRef(new Animated.Value(0)).current
@@ -24,17 +25,16 @@ function Bar({ share }: { share: number }) {
 
 /** Big rating, stars, count, and a 5★→1★ bar chart. UIUX_SPEC §6.1, E04-07. */
 export function RatingBreakdown({ page }: { page: ReviewPage }) {
+  const t = useT()
   const total = page.total || 1
   return (
     <View style={styles.root}>
       <View style={styles.headline}>
         <Text style={styles.big}>{page.avgRating !== null ? page.avgRating.toFixed(1) : '–'}</Text>
-        <Text style={styles.outOf}>out of 5</Text>
+        <Text style={styles.outOf}>{t('discover.reviews.outOf')}</Text>
       </View>
       {page.avgRating !== null ? <Stars rating={page.avgRating} size={24} /> : null}
-      <Text style={styles.count}>
-        ({page.total} {page.total === 1 ? 'review' : 'reviews'})
-      </Text>
+      <Text style={styles.count}>{t('discover.reviews.count', { count: page.total })}</Text>
       <View style={styles.bars}>
         {([5, 4, 3, 2, 1] as const).map(star => (
           <View key={star} style={styles.barRow}>

@@ -4,10 +4,13 @@
  * Attaches the access token to every request and refreshes it transparently
  * on a 401, so no screen has to handle expiry itself.
  */
+import { LOCALE_HEADER } from '@pitchup/shared'
+import { useLocaleStore } from '../stores/localeStore'
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
 import { API_BASE_URL } from '../config'
 import { authEvents } from './authEvents'
 import { tokenStorage } from './tokenStorage'
+import { currentT } from '../i18n'
 
 /** Marks a request that has already been retried, so a failed refresh
  *  cannot loop forever. */
@@ -22,6 +25,8 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use(async config => {
+  // Server messages come back in the app's language.
+  config.headers[LOCALE_HEADER] = useLocaleStore.getState().locale
   const token = await tokenStorage.getAccessToken()
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
@@ -155,7 +160,7 @@ export async function apiRequest<T>(config: AxiosRequestConfig): Promise<T> {
     // than showing an axios message.
     throw new ApiError(
       'NETWORK_ERROR',
-      'Could not reach PitchUp. Check your connection and try again.',
+      currentT()('network'),
       undefined,
       axiosError.response?.status
     )

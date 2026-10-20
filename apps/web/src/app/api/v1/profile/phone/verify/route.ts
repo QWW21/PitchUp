@@ -25,11 +25,11 @@ export const POST = withErrorHandling(
         detail.attemptsRemaining = result.attemptsRemaining
       switch (result.failure) {
         case 'CODE_EXPIRED':
-          return err('NOT_FOUND', 'That code has expired, send a new one', 410, detail)
+          return err('NOT_FOUND', 'api.codeExpiredSend', 410, detail)
         case 'TOO_MANY_ATTEMPTS':
-          return err('RATE_LIMITED', 'Too many incorrect attempts, send a new code', 429, detail)
+          return err('RATE_LIMITED', 'api.tooManyWrongSend', 429, detail)
         default:
-          return err('VALIDATION_ERROR', 'That code is not correct', 400, detail)
+          return err('VALIDATION_ERROR', 'api.codeWrong', 400, detail)
       }
     }
     return ok({ verified: true })

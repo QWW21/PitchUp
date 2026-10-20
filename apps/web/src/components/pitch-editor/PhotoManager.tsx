@@ -13,13 +13,15 @@ import { PITCH_LIMITS } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
 import { uploadImageFile } from '@/lib/upload-client'
+import { useT } from '@/i18n/client'
+import type { WebT } from '@/i18n/catalog'
 
 type Photo = { id: string; url: string; order: number }
 type Upload = { name: string; state: 'uploading' | 'done' | 'failed'; message?: string }
 
 const TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-function imageSize(file: File): Promise<{ width: number; height: number }> {
+function imageSize(file: File, t: WebT): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
@@ -28,19 +30,22 @@ function imageSize(file: File): Promise<{ width: number; height: number }> {
       URL.revokeObjectURL(url)
     }
     img.onerror = () => {
-      reject(new Error('not an image we can read'))
+      reject(new Error(t('editor.photos.unreadable')))
       URL.revokeObjectURL(url)
     }
     img.src = url
   })
 }
 
-async function check(file: File): Promise<string | null> {
-  if (!TYPES.includes(file.type)) return 'Use a JPEG, PNG or WebP image'
-  if (file.size > PITCH_LIMITS.PHOTO_MAX_BYTES) return 'File too large (at most 5 MB)'
-  const { width, height } = await imageSize(file).catch(() => ({ width: 0, height: 0 }))
+async function check(file: File, t: WebT): Promise<string | null> {
+  if (!TYPES.includes(file.type)) return t('editor.photos.type')
+  if (file.size > PITCH_LIMITS.PHOTO_MAX_BYTES) return t('editor.photos.tooLarge')
+  const { width, height } = await imageSize(file, t).catch(() => ({ width: 0, height: 0 }))
   if (width < PITCH_LIMITS.PHOTO_MIN_WIDTH || height < PITCH_LIMITS.PHOTO_MIN_HEIGHT) {
-    return `Too small: at least ${PITCH_LIMITS.PHOTO_MIN_WIDTH}×${PITCH_LIMITS.PHOTO_MIN_HEIGHT} px`
+    return t('editor.photos.tooSmall', {
+      w: PITCH_LIMITS.PHOTO_MIN_WIDTH,
+      h: PITCH_LIMITS.PHOTO_MIN_HEIGHT,
+    })
   }
   return null
 }
@@ -54,6 +59,7 @@ export function PhotoManager({
   photos: Photo[]
   uploadsEnabled: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const [photos, setPhotos] = useState(initial)
   const [uploads, setUploads] = useState<Upload[]>([])
@@ -102,7 +108,7 @@ export function PhotoManager({
     setError(null)
     const room = PITCH_LIMITS.MAX_PHOTOS - photos.length
     if (files.length > room) {
-      setError(`Only ${room} more photo${room === 1 ? '' : 's'} fit.`)
+      setError(t('editor.photos.onlyMore', { count: room }))
       files = files.slice(0, room)
     }
     const update = (name: string, patch: Partial<Upload>) =>
@@ -110,7 +116,7 @@ export function PhotoManager({
     setUploads(files.map(f => ({ name: f.name, state: 'uploading' })))
     await Promise.all(
       files.map(async file => {
-        const problem = await check(file)
+        const problem = await check(file, t)
         if (problem) return update(file.name, { state: 'failed', message: problem })
         try {
           const up = await uploadImageFile('PITCH', pitchId, file)
@@ -131,9 +137,7 @@ export function PhotoManager({
   return (
     <div className="mt-4 space-y-4 rounded-xl bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-neutral-700">
-          The first photo is the cover players see. Drag to reorder.
-        </p>
+        <p className="text-sm text-neutral-700">{t('editor.photos.cover')}</p>
         <span className="text-xs font-medium text-neutral-500">
           {photos.length} / {PITCH_LIMITS.MAX_PHOTOS}
         </span>
@@ -155,7 +159,11 @@ export function PhotoManager({
               }}
               className={`relative overflow-hidden rounded-md border border-neutral-200 ${dragging === p.id ? 'opacity-50' : ''}`}
             >
-              <img src={p.url} alt={`Photo ${i + 1}`} className="h-40 w-full object-cover" />
+              <img
+                src={p.url}
+                alt={t('editor.photos.photo', { n: i + 1 })}
+                className="h-40 w-full object-cover"
+              />
               <span
                 aria-hidden="true"
                 className="absolute left-2 top-2 cursor-grab rounded bg-white/90 p-1 text-neutral-700"
@@ -164,19 +172,19 @@ export function PhotoManager({
               </span>
               <button
                 type="button"
-                aria-label={`Delete photo ${i + 1}`}
+                aria-label={t('editor.photos.delete', { n: i + 1 })}
                 onClick={() => void remove(p)}
                 className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-error-600 hover:bg-white"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
               </button>
               <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs font-medium text-white">
-                {i === 0 ? '1 · Cover' : i + 1}
+                {i === 0 ? t('editor.photos.coverBadge') : i + 1}
               </span>
               <span className="absolute bottom-2 right-2 flex gap-1">
                 <button
                   type="button"
-                  aria-label={`Move photo ${i + 1} earlier`}
+                  aria-label={t('editor.photos.earlier', { n: i + 1 })}
                   disabled={i === 0}
                   onClick={() => move(i, i - 1)}
                   className="rounded bg-white/90 p-1 text-neutral-700 disabled:hidden"
@@ -185,7 +193,7 @@ export function PhotoManager({
                 </button>
                 <button
                   type="button"
-                  aria-label={`Move photo ${i + 1} later`}
+                  aria-label={t('editor.photos.later', { n: i + 1 })}
                   disabled={i === photos.length - 1}
                   onClick={() => move(i, i + 1)}
                   className="rounded bg-white/90 p-1 text-neutral-700 disabled:hidden"
@@ -219,7 +227,7 @@ export function PhotoManager({
         >
           <ImagePlus className="h-6 w-6 text-neutral-400" aria-hidden="true" />
           <p className="mt-1 text-sm text-neutral-500">
-            {full ? 'Ten photos is the most a pitch can have.' : 'Drag photos here, or'}
+            {full ? t('editor.photos.full') : t('editor.photos.drag')}
           </p>
           {!full && (
             <button
@@ -227,19 +235,17 @@ export function PhotoManager({
               onClick={() => input.current?.click()}
               className="mt-1 text-sm font-semibold text-primary-700 underline"
             >
-              choose files
+              {t('editor.photos.choose')}
             </button>
           )}
-          <p className="mt-1 text-xs text-neutral-500">
-            JPEG, PNG or WebP, at most 5 MB, at least 800×600 px.
-          </p>
+          <p className="mt-1 text-xs text-neutral-500">{t('editor.photos.rules')}</p>
           <input
             ref={input}
             type="file"
             accept={TYPES.join(',')}
             multiple
             hidden
-            aria-label="Add photos"
+            aria-label={t('editor.photos.add')}
             onChange={e => {
               void addFiles([...(e.target.files ?? [])])
               e.target.value = ''
@@ -248,8 +254,7 @@ export function PhotoManager({
         </div>
       ) : (
         <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-          Photo uploads aren&rsquo;t set up here yet (Cloudinary). Photos already added can still be
-          reordered and removed.
+          {t('editor.photos.noUploads')}
         </p>
       )}
 
@@ -261,7 +266,11 @@ export function PhotoManager({
               className={u.state === 'failed' ? 'text-error-600' : 'text-neutral-700'}
             >
               {u.name}:{' '}
-              {u.state === 'uploading' ? 'uploading…' : u.state === 'done' ? 'added' : u.message}
+              {u.state === 'uploading'
+                ? t('editor.photos.uploading')
+                : u.state === 'done'
+                  ? t('editor.photos.added')
+                  : u.message}
             </li>
           ))}
         </ul>

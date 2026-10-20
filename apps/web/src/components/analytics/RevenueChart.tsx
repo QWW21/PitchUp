@@ -8,15 +8,16 @@
  */
 import { useState } from 'react'
 import type { AnalyticsGroupBy, RevenuePoint } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 import { compact, ron } from './format'
 
 type Point = RevenuePoint & { label: string }
 type Series = 'gross' | 'payout' | 'fees'
 
-const SERIES: { key: Series; label: string; stroke: string; fill?: string; dashed?: boolean }[] = [
-  { key: 'gross', label: 'Revenue', stroke: '#15803D', fill: 'rgba(22,163,74,0.18)' },
-  { key: 'payout', label: 'Your payout', stroke: '#4F46E5', fill: 'rgba(99,102,241,0.12)' },
-  { key: 'fees', label: 'PitchUp fee', stroke: '#C2410C', dashed: true },
+const SERIES: { key: Series; stroke: string; fill?: string; dashed?: boolean }[] = [
+  { key: 'gross', stroke: '#15803D', fill: 'rgba(22,163,74,0.18)' },
+  { key: 'payout', stroke: '#4F46E5', fill: 'rgba(99,102,241,0.12)' },
+  { key: 'fees', stroke: '#C2410C', dashed: true },
 ]
 
 const W = 640
@@ -31,6 +32,7 @@ function niceMax(n: number) {
 }
 
 export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: AnalyticsGroupBy }) {
+  const t = useT()
   const [hidden, setHidden] = useState<Record<Series, boolean>>({
     gross: false,
     payout: false,
@@ -50,15 +52,15 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
   // At most about eight labels along the bottom.
   const every = Math.max(1, Math.ceil(points.length / 8))
   const shown = active === null ? null : points[active]!
-  const unit = groupBy === 'day' ? 'Day' : groupBy === 'week' ? 'Week of' : 'Month'
+  const unit = t(`analytics.chart.unit.${groupBy}`)
 
   return (
     <section aria-labelledby="revenue-heading" className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="revenue-heading" className="text-base font-semibold text-neutral-900">
-          Revenue
+          {t('analytics.chart.heading')}
         </h2>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Show or hide a line">
+        <div className="flex flex-wrap gap-2" role="group" aria-label={t('analytics.chart.toggle')}>
           {SERIES.map(s => (
             <button
               key={s.key}
@@ -76,7 +78,7 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                 className="h-2.5 w-2.5 rounded-full"
                 style={{ backgroundColor: s.stroke }}
               />
-              {s.label}
+              {t(`analytics.chart.series.${s.key}`)}
             </button>
           ))}
         </div>
@@ -89,29 +91,29 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
           role="img"
           aria-label={
             empty
-              ? 'Revenue chart: no revenue in this period'
-              : `Revenue chart, ${points.length} points; the figures are in the table below`
+              ? t('analytics.chart.emptyLabel')
+              : t('analytics.chart.label', { n: points.length })
           }
           onMouseLeave={() => setActive(null)}
         >
-          {[0, 0.25, 0.5, 0.75, 1].map(t => (
-            <g key={t}>
+          {[0, 0.25, 0.5, 0.75, 1].map(f => (
+            <g key={f}>
               <line
                 x1={PAD.left}
                 x2={W - PAD.right}
-                y1={y(max * t)}
-                y2={y(max * t)}
+                y1={y(max * f)}
+                y2={y(max * f)}
                 stroke="#E5E7EB"
-                strokeDasharray={t ? '3 3' : undefined}
+                strokeDasharray={f ? '3 3' : undefined}
               />
               <text
                 x={PAD.left - 6}
-                y={y(max * t) + 4}
+                y={y(max * f) + 4}
                 textAnchor="end"
                 fontSize="11"
                 fill="#4B5563"
               >
-                {compact(max * t)}
+                {compact(max * f)}
               </text>
             </g>
           ))}
@@ -164,7 +166,7 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
         </svg>
         {empty && (
           <p className="absolute inset-0 flex items-center justify-center text-sm text-neutral-500">
-            No revenue in this period
+            {t('analytics.chart.empty')}
           </p>
         )}
         {shown && (
@@ -178,18 +180,18 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
             <p className="font-semibold">
               {unit} {shown.label}
             </p>
-            <p>Revenue {ron(shown.gross)}</p>
-            <p>Payout {ron(shown.payout)}</p>
-            <p>PitchUp fee {ron(shown.fees)}</p>
-            <p>
-              {shown.bookings} {shown.bookings === 1 ? 'booking' : 'bookings'}
-            </p>
+            <p>{t('analytics.chart.tipRevenue', { amount: ron(shown.gross) })}</p>
+            <p>{t('analytics.chart.tipPayout', { amount: ron(shown.payout) })}</p>
+            <p>{t('analytics.chart.tipFee', { amount: ron(shown.fees) })}</p>
+            <p>{t('analytics.chart.bookings', { count: shown.bookings })}</p>
           </div>
         )}
       </div>
 
       <details className="mt-3 text-sm">
-        <summary className="cursor-pointer font-medium text-primary-700">Show as a table</summary>
+        <summary className="cursor-pointer font-medium text-primary-700">
+          {t('analytics.chart.asTable')}
+        </summary>
         <div className="mt-2 max-h-64 overflow-auto">
           <table className="w-full text-left text-sm">
             <thead className="text-xs text-neutral-700">
@@ -198,19 +200,19 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                   {unit}
                 </th>
                 <th scope="col" className="py-1 pr-3 text-right font-medium">
-                  Revenue
+                  {t('analytics.chart.revenue')}
                 </th>
                 <th scope="col" className="py-1 pr-3 text-right font-medium">
-                  Online
+                  {t('analytics.chart.online')}
                 </th>
                 <th scope="col" className="py-1 pr-3 text-right font-medium">
-                  At the venue
+                  {t('analytics.chart.atVenue')}
                 </th>
                 <th scope="col" className="py-1 pr-3 text-right font-medium">
-                  Payout
+                  {t('analytics.chart.payout')}
                 </th>
                 <th scope="col" className="py-1 text-right font-medium">
-                  Bookings
+                  {t('analytics.chart.bookingsCol')}
                 </th>
               </tr>
             </thead>

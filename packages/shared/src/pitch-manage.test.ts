@@ -18,24 +18,24 @@ const day = (openTime: string, closeTime: string, isClosed = false) => ({
 describe('pitchDayError (E10-10)', () => {
   const venue = day('08:00', '23:00')
   it('allows hours inside the venue’s, and a closed pitch on any day', () => {
-    expect(pitchDayError(day('10:00', '22:00'), venue)).toBeNull()
-    expect(pitchDayError(day('08:00', '23:00'), venue)).toBeNull()
-    expect(pitchDayError(day('00:00', '00:00', true), day('00:00', '00:00', true))).toBeNull()
+    expect(pitchDayError(day('10:00', '22:00'), venue, 'en')).toBeNull()
+    expect(pitchDayError(day('08:00', '23:00'), venue, 'en')).toBeNull()
+    expect(pitchDayError(day('00:00', '00:00', true), day('00:00', '00:00', true), 'en')).toBeNull()
   })
 
   it('refuses opening earlier, closing later, or opening when the venue is closed', () => {
-    expect(pitchDayError(day('07:00', '22:00'), venue)).toBe('Opens before the venue (08:00)')
-    expect(pitchDayError(day('09:00', '23:30'), venue)).toBe('Closes after the venue (23:00)')
-    expect(pitchDayError(day('09:00', '01:00'), venue)).toBe('Closes after the venue (23:00)')
-    expect(pitchDayError(day('10:00', '12:00'), day('00:00', '00:00', true))).toBe(
+    expect(pitchDayError(day('07:00', '22:00'), venue, 'en')).toBe('Opens before the venue (08:00)')
+    expect(pitchDayError(day('09:00', '23:30'), venue, 'en')).toBe('Closes after the venue (23:00)')
+    expect(pitchDayError(day('09:00', '01:00'), venue, 'en')).toBe('Closes after the venue (23:00)')
+    expect(pitchDayError(day('10:00', '12:00'), day('00:00', '00:00', true), 'en')).toBe(
       'The venue is closed on this day'
     )
   })
 
   it('understands a venue open past midnight', () => {
     const late = day('16:00', '02:00')
-    expect(pitchDayError(day('18:00', '01:00'), late)).toBeNull()
-    expect(pitchDayError(day('18:00', '03:00'), late)).toBe('Closes after the venue (02:00)')
+    expect(pitchDayError(day('18:00', '01:00'), late, 'en')).toBeNull()
+    expect(pitchDayError(day('18:00', '03:00'), late, 'en')).toBe('Closes after the venue (02:00)')
   })
 })
 

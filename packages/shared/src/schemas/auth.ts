@@ -24,23 +24,19 @@ function isAtLeastMinAge(dateOfBirth: string): boolean {
 
 const dateOfBirthSchema = z
   .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Must be a date in YYYY-MM-DD format')
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'v.dateFormat')
   .refine(value => !Number.isNaN(new Date(`${value}T00:00:00Z`).getTime()), {
-    message: 'Must be a valid date',
+    message: 'v.validDate',
   })
   .refine(value => new Date(`${value}T00:00:00Z`) <= new Date(), {
-    message: 'Date of birth cannot be in the future',
+    message: 'v.dobFuture',
   })
   .refine(isAtLeastMinAge, {
-    message: `Must be at least ${AUTH.MIN_AGE_YEARS} years old`,
+    message: 'v.minAge',
   })
 
 /** Shown under the name field on web and mobile, so it is worded for people. */
-const nameSchema = z
-  .string()
-  .trim()
-  .min(2, 'Enter your full name')
-  .max(100, 'Name must be 100 characters or fewer')
+const nameSchema = z.string().trim().min(2, 'v.fullName').max(100, 'v.nameTooLong')
 
 export const RegisterPlayerSchema = z.object({
   name: nameSchema,
@@ -61,7 +57,7 @@ export const RegisterManagerSchema = z.object({
 export const LoginSchema = z.object({
   email: emailSchema,
   /** Not passwordSchema: never reveal policy details on the login form. */
-  password: z.string().min(1, 'Password is required'),
+  password: z.string().min(1, 'v.passwordRequired'),
 })
 
 export const ForgotPasswordSchema = z.object({
@@ -75,14 +71,12 @@ export const ResetPasswordSchema = z
     confirmPassword: z.string().min(1),
   })
   .refine(data => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: 'v.passwordsMismatch',
     path: ['confirmPassword'],
   })
 
 export const VerifyOtpSchema = z.object({
-  code: z
-    .string()
-    .regex(new RegExp(`^\\d{${AUTH.OTP_LENGTH}}$`), `Code must be ${AUTH.OTP_LENGTH} digits`),
+  code: z.string().regex(new RegExp(`^\\d{${AUTH.OTP_LENGTH}}$`), 'v.otpDigits'),
 })
 
 export const ChangePasswordSchema = z
@@ -92,7 +86,7 @@ export const ChangePasswordSchema = z
     confirmPassword: z.string().min(1),
   })
   .refine(data => data.password === data.confirmPassword, {
-    message: 'Passwords do not match',
+    message: 'v.passwordsMismatch',
     path: ['confirmPassword'],
   })
 

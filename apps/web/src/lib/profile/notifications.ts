@@ -56,7 +56,7 @@ export async function markRead(userId: string, id: string): Promise<void> {
     where: { id, userId },
     data: { isRead: true },
   })
-  if (!count) throw notFound('Notification not found')
+  if (!count) throw notFound('api.notificationNotFound')
 }
 
 export async function markAllRead(userId: string): Promise<number> {
@@ -69,7 +69,7 @@ export async function markAllRead(userId: string): Promise<number> {
 
 export async function deleteNotification(userId: string, id: string): Promise<void> {
   const { count } = await prisma.notification.deleteMany({ where: { id, userId } })
-  if (!count) throw notFound('Notification not found')
+  if (!count) throw notFound('api.notificationNotFound')
 }
 
 /** The token now belongs to whoever registered it last (a shared phone). */

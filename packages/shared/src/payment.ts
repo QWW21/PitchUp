@@ -10,6 +10,8 @@
  */
 import { z } from 'zod'
 import type { RefundPolicy } from './constants/cancellation'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 const round2 = (n: number) => Math.round(n * 100) / 100
 
@@ -83,21 +85,18 @@ export function paymentSplit(
 }
 
 /** "Pay 54 RON deposit now · 216 RON at the venue", and the other cases. */
-export function describePayment(s: PaymentSplit): string {
-  if (s.method === 'ONLINE') return `Pay ${s.payNow} RON now`
-  if (!s.payNow) return `Nothing to pay now · ${s.dueAtVenue} RON at the venue`
-  if (s.depositRefunded) {
-    return `${s.payNow} RON deposit now, refunded after the game · ${s.dueAtVenue} RON at the venue`
-  }
-  return `Pay ${s.payNow} RON deposit now · ${s.dueAtVenue} RON at the venue`
+export function describePayment(s: PaymentSplit, locale: Locale): string {
+  const t = sharedT(locale)
+  const amounts = { now: s.payNow, venue: s.dueAtVenue }
+  if (s.method === 'ONLINE') return t('payment.describe.online', amounts)
+  if (!s.payNow) return t('payment.describe.nothingNow', amounts)
+  if (s.depositRefunded) return t('payment.describe.refundedDeposit', amounts)
+  return t('payment.describe.deposit', amounts)
 }
 
-/** The choices' names, as the summary step lists them. */
-export const PAYMENT_METHOD_LABELS: Record<BookingPaymentMethod, string> = {
-  ONLINE: 'Pay online now',
-  VENUE_DEPOSIT_TOWARDS: 'Pay at the venue, the deposit counts',
-  VENUE_REFUND_DEPOSIT: 'Pay in full at the venue, deposit back after the game',
-}
+/** A choice's name, as the summary step lists them. */
+export const paymentMethodLabel = (method: BookingPaymentMethod, locale: Locale): string =>
+  sharedT(locale)(`payment.method.${method}`)
 
 /** GET /api/v1/pitches/:id/payment-options — what this player may choose here. */
 export interface PaymentOptions {
@@ -119,7 +118,7 @@ export const VenuePaymentSettingsSchema = z.object({
     .number()
     .int()
     .min(VENUE_PAYMENT.MIN_DEPOSIT_PERCENT)
-    .max(VENUE_PAYMENT.MAX_DEPOSIT_PERCENT, 'At most 50%'),
+    .max(VENUE_PAYMENT.MAX_DEPOSIT_PERCENT, 'v.max50Percent'),
 })
 export type VenuePaymentSettings = z.infer<typeof VenuePaymentSettingsSchema>
 
@@ -132,16 +131,20 @@ export const ReportNoShowSchema = z.object({
  * What a booking's player has paid and still owes, in one line: the
  * confirmation, My Bookings and the booking detail all say it the same way.
  */
-export function paymentStatusLine(b: {
-  total: number
-  paymentMethod: BookingPaymentMethod
-  deposit: number | null
-  dueAtVenue: number
-  attendedAt?: string | null
-}): string {
-  if (b.paymentMethod === 'ONLINE') return `Total paid: ${b.total} RON`
-  if (b.attendedAt) return `Paid at the venue: ${b.dueAtVenue} RON`
-  if (!b.deposit) return `To pay at the venue: ${b.dueAtVenue} RON`
-  const refund = b.paymentMethod === 'VENUE_REFUND_DEPOSIT' ? ' (refunded after the game)' : ''
-  return `Deposit paid: ${b.deposit} RON${refund} · To pay at the venue: ${b.dueAtVenue} RON`
+export function paymentStatusLine(
+  b: {
+    total: number
+    paymentMethod: BookingPaymentMethod
+    deposit: number | null
+    dueAtVenue: number
+    attendedAt?: string | null
+  },
+  locale: Locale
+): string {
+  const t = sharedT(locale)
+  if (b.paymentMethod === 'ONLINE') return t('payment.status.totalPaid', { total: b.total })
+  if (b.attendedAt) return t('payment.status.paidAtVenue', { amount: b.dueAtVenue })
+  if (!b.deposit) return t('payment.status.toPayAtVenue', { amount: b.dueAtVenue })
+  const refund = b.paymentMethod === 'VENUE_REFUND_DEPOSIT' ? t('payment.status.refundedAfter') : ''
+  return t('payment.status.depositPaid', { deposit: b.deposit, refund, amount: b.dueAtVenue })
 }

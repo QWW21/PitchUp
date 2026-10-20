@@ -9,19 +9,15 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { ChevronDown, ChevronUp, ImageOff, Pencil, Plus, Star, Trash2, Trophy } from 'lucide-react'
-import {
-  SIZE_LABELS,
-  SURFACE_COLORS,
-  SURFACE_LABELS,
-  deriveTier,
-  type ManagerPitchRow,
-} from '@pitchup/shared'
+import { SURFACE_COLORS, deriveTier, type ManagerPitchRow } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 type SortKey = 'name' | 'rating' | 'today'
 
 export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] }) {
+  const t = useT()
   const router = useRouter()
   const [pitches, setPitches] = useState(initial)
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({ key: 'name', asc: true })
@@ -44,7 +40,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
     setMessage(null)
     try {
       const pitch = await send<{ id: string }>('/api/v1/pitches', 'POST', {
-        name: 'New pitch',
+        name: t('mVenue.pitches.newName'),
         surfaceType: 'ARTIFICIAL_GRASS',
         size: 'FIVE_A_SIDE',
       })
@@ -58,7 +54,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
   const toggle = async (p: ManagerPitchRow) => {
     setMessage(null)
     if (!p.isActive && p.photoCount === 0) {
-      setMessage(`Add at least one photo to ${p.name} before activating it.`)
+      setMessage(t('mVenue.pitches.needPhoto', { name: p.name }))
       return
     }
     const set = (isActive: boolean) =>
@@ -93,7 +89,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
       className="inline-flex h-10 items-center gap-2 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
     >
       <Plus className="h-4 w-4" aria-hidden="true" />
-      {adding ? 'Adding…' : 'Add pitch'}
+      {adding ? t('mVenue.pitches.adding') : t('mVenue.pitches.add')}
     </button>
   )
 
@@ -101,10 +97,8 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
     return (
       <div className="flex flex-col items-center rounded-xl bg-white px-6 py-16 text-center shadow-sm">
         <Trophy className="h-16 w-16 text-primary-600" aria-hidden="true" />
-        <h2 className="mt-4 text-lg font-semibold text-neutral-900">No pitches yet</h2>
-        <p className="mt-1 text-sm text-neutral-500">
-          Add your first pitch to start taking bookings.
-        </p>
+        <h2 className="mt-4 text-lg font-semibold text-neutral-900">{t('mVenue.pitches.none')}</h2>
+        <p className="mt-1 text-sm text-neutral-500">{t('mVenue.pitches.first')}</p>
         <div className="mt-6">{addButton}</div>
         {message && (
           <div className="mt-4 w-full max-w-md">
@@ -141,8 +135,8 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-neutral-500">
-          {pitches.length} {pitches.length === 1 ? 'pitch' : 'pitches'} ·{' '}
-          {pitches.filter(p => p.isActive).length} active
+          {t('mVenue.pitches.count', { count: pitches.length })} ·{' '}
+          {t('mVenue.pitches.active', { count: pitches.filter(p => p.isActive).length })}
         </p>
         {addButton}
       </div>
@@ -156,25 +150,25 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
           <thead className="bg-neutral-50 text-xs font-medium uppercase text-neutral-500">
             <tr>
               <th scope="col" className="px-4 py-3">
-                <span className="sr-only">Photo</span>
+                <span className="sr-only">{t('mVenue.pitches.photo')}</span>
               </th>
-              {header('name', 'Name')}
+              {header('name', t('mVenue.pitches.name'))}
               <th scope="col" className="px-4 py-3">
-                Surface
-              </th>
-              <th scope="col" className="px-4 py-3">
-                Size
+                {t('mVenue.pitches.surface')}
               </th>
               <th scope="col" className="px-4 py-3">
-                Status
+                {t('mVenue.pitches.size')}
               </th>
               <th scope="col" className="px-4 py-3">
-                Min. tier
+                {t('mVenue.pitches.status')}
               </th>
-              {header('today', "Today's bookings", 'text-center')}
-              {header('rating', 'Rating')}
               <th scope="col" className="px-4 py-3">
-                <span className="sr-only">Actions</span>
+                {t('mVenue.pitches.minTier')}
+              </th>
+              {header('today', t('mVenue.pitches.today'), 'text-center')}
+              {header('rating', t('mVenue.pitches.rating'))}
+              <th scope="col" className="px-4 py-3">
+                <span className="sr-only">{t('mVenue.pitches.actions')}</span>
               </th>
             </tr>
           </thead>
@@ -207,17 +201,17 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
                       className="rounded-full px-2.5 py-0.5 text-xs font-medium"
                       style={{ background: surface.background, color: surface.text }}
                     >
-                      {SURFACE_LABELS[p.surfaceType]}
+                      {t(`surface.${p.surfaceType}`)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-neutral-700">{SIZE_LABELS[p.size]}</td>
+                  <td className="px-4 py-3 text-neutral-700">{t(`size.${p.size}`)}</td>
                   <td className="px-4 py-3">
                     <span className="flex items-center gap-2">
                       <button
                         type="button"
                         role="switch"
                         aria-checked={p.isActive}
-                        aria-label={`${p.name} active`}
+                        aria-label={t('mVenue.pitches.activeLabel', { name: p.name })}
                         onClick={() => void toggle(p)}
                         className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${p.isActive ? 'bg-primary-600' : 'bg-neutral-300'}`}
                       >
@@ -228,17 +222,17 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.isActive ? 'bg-success-50 text-primary-700' : 'bg-neutral-100 text-neutral-500'}`}
                       >
-                        {p.isActive ? 'Active' : 'Inactive'}
+                        {p.isActive ? t('mVenue.pitches.isActive') : t('mVenue.pitches.inactive')}
                       </span>
                     </span>
                   </td>
                   <td className="px-4 py-3 text-neutral-700">
                     {p.minTrustScore > 0 ? (
                       <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium">
-                        {deriveTier(p.minTrustScore)}+
+                        {t(`trust.tier.${deriveTier(p.minTrustScore)}`)}+
                       </span>
                     ) : (
-                      <span aria-label="Anyone">–</span>
+                      <span aria-label={t('mVenue.pitches.anyone')}>–</span>
                     )}
                   </td>
                   <td className="px-4 py-3 text-center text-neutral-900">{p.bookingsToday}</td>
@@ -260,14 +254,14 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
                     <span className="flex justify-end gap-1">
                       <Link
                         href={edit}
-                        aria-label={`Edit ${p.name}`}
+                        aria-label={t('mVenue.pitches.edit', { name: p.name })}
                         className="flex h-9 w-9 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100"
                       >
                         <Pencil className="h-4 w-4" aria-hidden="true" />
                       </Link>
                       <button
                         type="button"
-                        aria-label={`Delete ${p.name}`}
+                        aria-label={t('mVenue.pitches.delete', { name: p.name })}
                         onClick={() => {
                           setDeleting(p)
                           dialog.current?.showModal()
@@ -292,12 +286,12 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
         onClick={e => e.target === dialog.current && dialog.current?.close()}
       >
         <h2 id="delete-pitch-heading" className="text-lg font-semibold text-neutral-900">
-          Delete {deleting?.name}?
+          {t('mVenue.pitches.deleteTitle', { name: deleting?.name ?? '' })}
         </h2>
         <p className="mt-2 text-sm text-neutral-700">
           {deleting?.upcomingBookings
-            ? `This pitch has ${deleting.upcomingBookings} upcoming booking${deleting.upcomingBookings === 1 ? '' : 's'}. Cancel them first.`
-            : 'Players will no longer see it. This cannot be undone.'}
+            ? t('mVenue.pitches.hasUpcoming', { count: deleting.upcomingBookings })
+            : t('mVenue.pitches.gone')}
         </p>
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -305,7 +299,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
             onClick={() => dialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('mVenue.pitches.cancel')}
           </button>
           {!deleting?.upcomingBookings && (
             <button
@@ -313,7 +307,7 @@ export function PitchTable({ pitches: initial }: { pitches: ManagerPitchRow[] })
               onClick={() => void confirmDelete()}
               className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90"
             >
-              Delete pitch
+              {t('mVenue.pitches.confirm')}
             </button>
           )}
         </div>

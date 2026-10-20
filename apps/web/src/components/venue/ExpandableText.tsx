@@ -1,12 +1,14 @@
 'use client'
 
 import { useLayoutEffect, useRef, useState } from 'react'
+import { useT } from '@/i18n/client'
 
 /**
  * Clamped to four lines with "Show more" — but only when the text actually
  * overflows, which is measured after layout rather than guessed from length.
  */
 export function ExpandableText({ text }: { text: string }) {
+  const t = useT()
   const ref = useRef<HTMLParagraphElement>(null)
   const [expanded, setExpanded] = useState(false)
   const [overflows, setOverflows] = useState(false)
@@ -28,7 +30,7 @@ export function ExpandableText({ text }: { text: string }) {
             onClick={() => setExpanded(e => !e)}
             className="text-[13px] font-medium text-primary-600 hover:underline"
           >
-            {expanded ? 'Show less' : 'Show more'}
+            {expanded ? t('venue.showLess') : t('venue.showMore')}
           </button>
         </div>
       )}

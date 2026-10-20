@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export const GET = withErrorHandling(async (request: NextRequest) => {
   const rate = checkRateLimit(`health:${getClientIp(request)}`, GENERAL_RATE_LIMIT)
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many requests', 429, {
+    return err('RATE_LIMITED', 'api.tooManyRequests', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }

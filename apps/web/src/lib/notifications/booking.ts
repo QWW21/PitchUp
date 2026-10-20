@@ -7,14 +7,9 @@
  * every new booking, and is asked to answer the ones that wait for it.
  */
 import 'server-only'
-import { formatDateLong, fromMinutes, venueClock } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { deliverSoon, notify } from './dispatch'
-
-const when = (start: Date) => {
-  const c = venueClock(start)
-  return `${formatDateLong(c.date)} at ${fromMinutes(c.minutes)}`
-}
+import { slotText } from './text'
 
 const load = (bookingId: string) =>
   prisma.booking.findUnique({
@@ -32,36 +27,41 @@ const load = (bookingId: string) =>
 export async function notifyBookingPaid(bookingId: string): Promise<void> {
   const b = await load(bookingId)
   if (!b || (b.status !== 'CONFIRMED' && b.status !== 'AWAITING_APPROVAL')) return
-  const slot = `${b.pitch.name}, ${when(b.startTime)}`
   const managerLink = `/manager/bookings/${bookingId}`
+  const about = (locale: Parameters<typeof slotText>[1]) => ({
+    pitch: b.pitch.name,
+    company: b.pitch.company.name,
+    player: b.player.name,
+    slot: slotText(b.startTime, locale),
+  })
   if (b.status === 'CONFIRMED') {
     await notify(prisma, {
       userId: b.playerId,
       type: 'BOOKING_CONFIRMED',
-      title: 'Booking confirmed',
-      body: `${b.pitch.name} at ${b.pitch.company.name}, ${when(b.startTime)}.`,
+      title: t => t('notify.bookingConfirmed.title'),
+      body: (t, locale) => t('notify.bookingConfirmed.body', about(locale)),
       data: { bookingId },
     })
     await notify(prisma, {
       userId: b.pitch.company.ownerId,
       type: 'BOOKING_RECEIVED',
-      title: 'New booking',
-      body: `${b.player.name} booked ${slot}.`,
+      title: t => t('notify.bookingReceived.title'),
+      body: (t, locale) => t('notify.bookingReceived.body', about(locale)),
       data: { bookingId, link: managerLink },
     })
   } else {
     await notify(prisma, {
       userId: b.playerId,
       type: 'BOOKING_AWAITING_APPROVAL',
-      title: 'Booking sent to the venue',
-      body: `${b.pitch.company.name} confirms each booking. You'll hear about ${slot} soon; if they decline, you get all your money back.`,
+      title: t => t('notify.awaitingApproval.title'),
+      body: (t, locale) => t('notify.awaitingApproval.body', about(locale)),
       data: { bookingId },
     })
     await notify(prisma, {
       userId: b.pitch.company.ownerId,
       type: 'BOOKING_REQUESTED',
-      title: 'A booking waits for your answer',
-      body: `${b.player.name} wants ${slot}. Accept or decline it.`,
+      title: t => t('notify.bookingRequested.title'),
+      body: (t, locale) => t('notify.bookingRequested.body', about(locale)),
       data: { bookingId, link: managerLink },
     })
   }
@@ -75,8 +75,13 @@ export async function notifyAccepted(bookingId: string): Promise<void> {
   await notify(prisma, {
     userId: b.playerId,
     type: 'BOOKING_CONFIRMED',
-    title: 'Booking confirmed',
-    body: `${b.pitch.company.name} accepted your booking: ${b.pitch.name}, ${when(b.startTime)}.`,
+    title: t => t('notify.bookingConfirmed.title'),
+    body: (t, locale) =>
+      t('notify.bookingConfirmed.acceptedBody', {
+        company: b.pitch.company.name,
+        pitch: b.pitch.name,
+        slot: slotText(b.startTime, locale),
+      }),
     data: { bookingId },
   })
   deliverSoon([b.playerId])

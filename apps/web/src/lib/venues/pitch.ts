@@ -6,6 +6,7 @@ import { describeRefundPolicy, normalizeWeek, type PitchDetail } from '@pitchup/
 import { prisma } from '@/lib/prisma'
 import { publicRating } from './ratings'
 import { reviewInclude, toReviewItem } from './reviews'
+import { getLocale } from '@/i18n/server'
 
 const RECENT_REVIEWS = 3
 
@@ -15,6 +16,7 @@ const RECENT_REVIEWS = 3
  * `isBookable: false`.
  */
 export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
+  const locale = await getLocale()
   const pitch = await prisma.pitch.findFirst({
     where: { id, deletedAt: null, company: { status: 'ACTIVE' } },
     include: {
@@ -76,17 +78,20 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
       : [],
     avgRating: publicRating(agg._avg.rating, agg._count._all),
     reviewCount: agg._count._all,
-    recentReviews: pitch.reviews.map(toReviewItem),
+    recentReviews: pitch.reviews.map(r => toReviewItem(r, locale)),
     company: {
       id: pitch.company.id,
       name: pitch.company.name,
       logoUrl: pitch.company.logoUrl,
       isVerified: pitch.company.status === 'ACTIVE',
-      refundPolicy: describeRefundPolicy({
-        fullRefundHours: pitch.company.refundFullHours,
-        partialRefundHours: pitch.company.refundPartialHours,
-        partialRefundPercent: pitch.company.refundPartialPercent,
-      }),
+      refundPolicy: describeRefundPolicy(
+        {
+          fullRefundHours: pitch.company.refundFullHours,
+          partialRefundHours: pitch.company.refundPartialHours,
+          partialRefundPercent: pitch.company.refundPartialPercent,
+        },
+        locale
+      ),
       autoApproveBookings: pitch.company.autoApproveBookings,
     },
     workingHours: normalizeWeek(pitch.workingHours ?? pitch.company.workingHours),

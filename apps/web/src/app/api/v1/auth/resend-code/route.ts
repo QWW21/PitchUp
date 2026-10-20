@@ -33,7 +33,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     windowMs: 15 * 60 * 1000,
   })
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many requests, try again shortly', 429, {
+    return err('RATE_LIMITED', 'api.tooManyRequestsShortly', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -49,7 +49,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
       // The per-recipient cap. Reported as the same 429 as the per-IP one,
       // so it does not reveal whether the quota belongs to this caller or
       // to the recipient — which would confirm the account exists.
-      return err('RATE_LIMITED', 'Too many requests, try again shortly', 429, {
+      return err('RATE_LIMITED', 'api.tooManyRequestsShortly', 429, {
         retryAfterSeconds: caught.retryAfterSeconds,
       })
     }

@@ -63,7 +63,7 @@ export const CreatePitchSchema = z
     hasShirts: z.boolean().default(false),
   })
   .refine(data => data.minBookingHours <= data.maxBookingHours, {
-    message: 'Minimum booking hours cannot exceed maximum',
+    message: 'v.minMaxBooking',
     path: ['minBookingHours'],
   })
 
@@ -98,7 +98,7 @@ export const UpdatePitchSchema = z
   })
   .partial()
   .refine(data => Object.keys(data).length > 0, {
-    message: 'At least one field must be provided',
+    message: 'v.oneField',
   })
 
 export const PitchAmenitySchema = z
@@ -108,7 +108,7 @@ export const PitchAmenitySchema = z
     price: priceSchema.optional(),
   })
   .refine(data => !data.isPaid || data.price !== undefined, {
-    message: 'Price is required for a paid amenity',
+    message: 'v.paidAmenityPrice',
     path: ['price'],
   })
 

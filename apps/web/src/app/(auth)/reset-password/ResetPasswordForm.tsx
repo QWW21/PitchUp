@@ -8,6 +8,7 @@ import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { PasswordStrength } from '@/components/ui/PasswordStrength'
 import { TextField } from '@/components/ui/TextField'
+import { useT } from '@/i18n/client'
 
 /** The emailed token: randomBytes(32) as hex. Checked here so a mangled link fails fast. */
 const TOKEN_PATTERN = /^[a-f0-9]{64}$/
@@ -15,6 +16,7 @@ const TOKEN_PATTERN = /^[a-f0-9]{64}$/
 type FieldErrors = Partial<Record<'password' | 'confirm', string>>
 
 export function ResetPasswordForm() {
+  const t = useT()
   const token = useSearchParams().get('token') ?? ''
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -31,8 +33,9 @@ export function ResetPasswordForm() {
 
     const errors: FieldErrors = {}
     const parsed = passwordSchema.safeParse(password)
-    if (!parsed.success) errors.password = parsed.error.issues[0]?.message ?? 'Invalid password'
-    if (password !== confirm) errors.confirm = 'Passwords do not match'
+    if (!parsed.success)
+      errors.password = t.text(parsed.error.issues[0]?.message ?? t('auth.reset.invalidPassword'))
+    if (password !== confirm) errors.confirm = t('auth.register.mismatch')
     setFieldErrors(errors)
     if (Object.keys(errors).length > 0) return
 
@@ -50,7 +53,7 @@ export function ResetPasswordForm() {
         return
       }
       if (response.status === 429) {
-        setError('Too many attempts. Try again in a few minutes.')
+        setError(t('auth.reset.tooMany'))
         return
       }
       if (body?.error?.details?.reason) {
@@ -59,9 +62,9 @@ export function ResetPasswordForm() {
         setLinkDead(true)
         return
       }
-      setError(body?.error?.message ?? 'Could not change your password. Please try again.')
+      setError(body?.error?.message ?? t('auth.reset.failed'))
     } catch {
-      setError('Could not connect. Check your connection and try again.')
+      setError(t('common.connectionError'))
     } finally {
       setLoading(false)
     }
@@ -70,14 +73,12 @@ export function ResetPasswordForm() {
   if (done) {
     return (
       <div className="mt-8 space-y-6">
-        <Alert tone="success">
-          Your password has been changed. Sign in with your new password.
-        </Alert>
+        <Alert tone="success">{t('auth.reset.done')}</Alert>
         <Link
           href="/login"
           className="flex h-12 w-full items-center justify-center rounded-md bg-primary-600 text-base font-semibold text-white hover:bg-primary-700"
         >
-          Sign in
+          {t('auth.reset.signIn')}
         </Link>
       </div>
     )
@@ -86,14 +87,12 @@ export function ResetPasswordForm() {
   if (linkDead) {
     return (
       <div className="mt-8 space-y-6">
-        <Alert>
-          {error ?? 'This reset link is not valid. It may be incomplete or already used.'}
-        </Alert>
+        <Alert>{error ?? t('auth.reset.deadLink')}</Alert>
         <Link
           href="/forgot-password"
           className="flex h-12 w-full items-center justify-center rounded-md bg-primary-600 text-base font-semibold text-white hover:bg-primary-700"
         >
-          Request a new link
+          {t('auth.reset.newLink')}
         </Link>
       </div>
     )
@@ -103,7 +102,7 @@ export function ResetPasswordForm() {
     <form onSubmit={handleSubmit} noValidate className="mt-8 space-y-4">
       <div>
         <TextField
-          label="New password"
+          label={t('auth.reset.newPassword')}
           name="password"
           autoComplete="new-password"
           revealable
@@ -117,7 +116,7 @@ export function ResetPasswordForm() {
       </div>
 
       <TextField
-        label="Confirm new password"
+        label={t('auth.reset.confirm')}
         name="confirmPassword"
         autoComplete="new-password"
         revealable
@@ -131,7 +130,7 @@ export function ResetPasswordForm() {
       {error && <Alert>{error}</Alert>}
 
       <Button type="submit" size="lg" loading={loading}>
-        {loading ? 'Saving…' : 'Change password'}
+        {loading ? t('auth.reset.saving') : t('auth.reset.change')}
       </Button>
     </form>
   )

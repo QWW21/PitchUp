@@ -5,7 +5,7 @@
  */
 import 'server-only'
 import { Prisma } from '@prisma/client'
-import { REPORT_CATEGORY_LABELS, type ReportReviewInput } from '@pitchup/shared'
+import type { ReportReviewInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
@@ -21,10 +21,10 @@ export async function reportReview(
   })
   // Only what the public can see can be reported.
   if (!review || review.deletedAt || review.moderationStatus !== 'APPROVED') {
-    throw notFound('Review not found')
+    throw notFound('api.reviewNotFound')
   }
   if (review.playerId === reporterId) {
-    throw new ApiException('VALIDATION_ERROR', 'You cannot report your own review', {
+    throw new ApiException('VALIDATION_ERROR', 'api.reportOwn', {
       reason: 'OWN_REVIEW',
     })
   }
@@ -33,7 +33,6 @@ export async function reportReview(
     where: { role: 'ADMIN', deletedAt: null },
     select: { id: true },
   })
-  const label = REPORT_CATEGORY_LABELS[input.category]
   try {
     await prisma.$transaction(async tx => {
       await tx.reviewReport.create({
@@ -53,8 +52,11 @@ export async function reportReview(
         await notify(tx, {
           userId: a.id,
           type: 'REVIEW_REPORTED',
-          title: 'Review reported',
-          body: `A review was reported: ${label}.`,
+          title: t => t('notify.reviewReported.title'),
+          body: t =>
+            t('notify.reviewReported.body', {
+              category: t(`reportCategory.${input.category}`),
+            }),
           data: { reviewId, category: input.category, link: '/admin/companies' },
         })
       }
@@ -62,7 +64,7 @@ export async function reportReview(
     deliverSoon(admins.map(a => a.id))
   } catch (caught) {
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
-      throw new ApiException('CONFLICT', 'You have already reported this review', {
+      throw new ApiException('CONFLICT', 'api.alreadyReported', {
         reason: 'ALREADY_REPORTED',
       })
     }

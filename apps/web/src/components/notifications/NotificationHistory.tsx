@@ -4,17 +4,19 @@
 import { useRouter } from 'next/navigation'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { notificationWebPath, type NotificationItem, type NotificationPage } from '@pitchup/shared'
+import { INTL_LOCALE } from '@pitchup/shared'
 import { send } from '@/lib/http'
-
-const stamp = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Bucharest',
-})
+import { useLocale, useT } from '@/i18n/client'
 
 export function NotificationHistory() {
+  const t = useT()
+  const stamp = new Intl.DateTimeFormat(INTL_LOCALE[useLocale()], {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  })
   const router = useRouter()
   const queryClient = useQueryClient()
   const list = useInfiniteQuery({
@@ -38,12 +40,12 @@ export function NotificationHistory() {
   return (
     <section aria-labelledby="history-h" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
       <h2 id="history-h" className="text-base font-semibold text-neutral-900">
-        All notifications
+        {t('profile.notifications.all')}
       </h2>
       {list.isLoading ? (
-        <p className="mt-3 text-sm text-neutral-500">Loading…</p>
+        <p className="mt-3 text-sm text-neutral-500">{t('profile.notifications.loading')}</p>
       ) : items.length === 0 ? (
-        <p className="mt-3 text-sm text-neutral-500">No notifications yet.</p>
+        <p className="mt-3 text-sm text-neutral-500">{t('profile.notifications.none')}</p>
       ) : (
         <ul className="mt-3 divide-y divide-neutral-100">
           {items.map(n => (
@@ -74,7 +76,9 @@ export function NotificationHistory() {
           disabled={list.isFetchingNextPage}
           className="mt-3 h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
         >
-          {list.isFetchingNextPage ? 'Loading…' : 'Load more'}
+          {list.isFetchingNextPage
+            ? t('profile.notifications.loading')
+            : t('profile.notifications.more')}
         </button>
       )}
     </section>

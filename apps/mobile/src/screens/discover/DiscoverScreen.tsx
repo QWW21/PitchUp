@@ -19,13 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
-import {
-  COMPANY_SORTS,
-  DISCOVER,
-  SORT_LABELS,
-  hasActiveFilters,
-  type CompanyListItem,
-} from '@pitchup/shared'
+import { COMPANY_SORTS, DISCOVER, hasActiveFilters, type CompanyListItem } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { FilterChip } from '../../components/filters/FilterChip'
 import { effectiveSort, useDiscoverStore } from '../../stores/discoverStore'
@@ -40,10 +34,12 @@ import { CitySelector } from './CitySelector'
 import { DiscoverListView } from './DiscoverListView'
 import { DiscoverMapView } from './DiscoverMapView'
 import { FiltersSheet } from './FiltersSheet'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Discover'>
 
 export function DiscoverScreen({ navigation }: Props) {
+  const t = useT()
   const store = useDiscoverStore()
   const { requestAndDetect } = useLocation()
 
@@ -121,7 +117,11 @@ export function DiscoverScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Notifications')}
           style={styles.iconButton}
           accessibilityRole="button"
-          accessibilityLabel={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+          accessibilityLabel={
+            unread
+              ? t('discover.home.notificationsUnread', { count: unread })
+              : t('discover.home.notifications')
+          }
         >
           <Icon name="bell-outline" size={24} color={colors.neutral[900]} />
           {unread ? (
@@ -134,7 +134,11 @@ export function DiscoverScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('MyBookings')}
           style={styles.iconButton}
           accessibilityRole="button"
-          accessibilityLabel={upcoming ? `My bookings, ${upcoming} upcoming` : 'My bookings'}
+          accessibilityLabel={
+            upcoming
+              ? t('discover.home.myBookingsUpcoming', { count: upcoming })
+              : t('discover.home.myBookings')
+          }
         >
           <Icon name="calendar-check" size={24} color={colors.neutral[900]} />
           {upcoming ? (
@@ -147,7 +151,9 @@ export function DiscoverScreen({ navigation }: Props) {
           onPress={() => setFiltersOpen(true)}
           style={styles.iconButton}
           accessibilityRole="button"
-          accessibilityLabel={filtersActive ? 'Filters, active' : 'Filters'}
+          accessibilityLabel={
+            filtersActive ? t('discover.home.filtersActive') : t('discover.home.filters')
+          }
           disabled={!store.selectedCity}
         >
           <Icon name="tune" size={24} color={colors.neutral[900]} />
@@ -157,7 +163,7 @@ export function DiscoverScreen({ navigation }: Props) {
           onPress={() => navigation.navigate('Profile')}
           style={styles.iconButton}
           accessibilityRole="button"
-          accessibilityLabel="Profile"
+          accessibilityLabel={t('discover.home.profile')}
         >
           <Icon name="account-circle-outline" size={26} color={colors.neutral[900]} />
         </Pressable>
@@ -167,13 +173,15 @@ export function DiscoverScreen({ navigation }: Props) {
         onPress={() => setCitySelectorOpen(true)}
         style={styles.banner}
         accessibilityRole="button"
-        accessibilityLabel={`Pitches in ${store.selectedCity ?? 'no city'}. Change city`}
+        accessibilityLabel={t('discover.home.cityLabel', {
+          city: store.selectedCity ?? t('discover.home.noCity'),
+        })}
       >
         <Icon name="map-marker" size={18} color={colors.primary[600]} />
         <Text style={styles.bannerText} numberOfLines={1}>
           Pitches in <Text style={styles.bannerCity}>{store.selectedCity ?? '—'}</Text>
         </Text>
-        <Text style={styles.change}>Change</Text>
+        <Text style={styles.change}>{t('discover.home.change')}</Text>
       </Pressable>
 
       <View style={styles.search}>
@@ -181,19 +189,19 @@ export function DiscoverScreen({ navigation }: Props) {
         <TextInput
           value={searchInput}
           onChangeText={setSearchInput}
-          placeholder="Search companies..."
+          placeholder={t('discover.home.search')}
           placeholderTextColor={colors.neutral[400]}
           returnKeyType="search"
           autoCorrect={false}
           style={styles.searchInput}
-          accessibilityLabel="Search companies"
+          accessibilityLabel={t('discover.home.searchLabel')}
         />
         {searchInput ? (
           <Pressable
             onPress={() => setSearchInput('')}
             style={styles.clear}
             accessibilityRole="button"
-            accessibilityLabel="Clear search"
+            accessibilityLabel={t('discover.home.clearSearch')}
           >
             <Icon name="close-circle" size={18} color={colors.neutral[400]} />
           </Pressable>
@@ -209,7 +217,7 @@ export function DiscoverScreen({ navigation }: Props) {
           {sorts.map(s => (
             <FilterChip
               key={s}
-              label={SORT_LABELS[s]}
+              label={t(`sort.${s}`)}
               selected={s === sort}
               onPress={() => store.setSort(s)}
             />
@@ -219,7 +227,9 @@ export function DiscoverScreen({ navigation }: Props) {
           onPress={toggleView}
           style={styles.toggle}
           accessibilityRole="button"
-          accessibilityLabel={store.viewMode === 'list' ? 'Show map' : 'Show list'}
+          accessibilityLabel={
+            store.viewMode === 'list' ? t('discover.home.showMap') : t('discover.home.showList')
+          }
         >
           <Icon
             name={store.viewMode === 'list' ? 'map-outline' : 'format-list-bulleted'}
@@ -267,7 +277,7 @@ export function DiscoverScreen({ navigation }: Props) {
         {!store.hydrated || detecting ? (
           <View style={styles.detecting}>
             <ActivityIndicator size="large" color={colors.primary[600]} />
-            <Text style={styles.detectingText}>Finding pitches near you…</Text>
+            <Text style={styles.detectingText}>{t('discover.home.finding')}</Text>
           </View>
         ) : null}
       </View>

@@ -295,5 +295,5 @@ test('export: every booking of the period as CSV, names escaped', async () => {
   )
   expect(lines).toHaveLength(2)
   expect(lines[1]).toContain(`,${day},18:00,20:00,Pitch A,`)
-  expect(lines[1]).toContain(',"Pop, Ioana",COMPLETED,200,Online,200,200,0,16,184,,2')
+  expect(lines[1]).toContain(',"Pop, Ioana",Completed,200,Online,200,200,0,16,184,,2')
 })

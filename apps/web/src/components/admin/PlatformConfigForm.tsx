@@ -9,8 +9,10 @@ import { useState } from 'react'
 import type { PlatformConfigView } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function PlatformConfigForm({ initial }: { initial: PlatformConfigView }) {
+  const t = useT()
   const router = useRouter()
   const [saved, setSaved] = useState(initial)
   const [fee, setFee] = useState(String(initial.platformFeePercent))
@@ -34,12 +36,7 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (
-      changes.maintenanceMode === true &&
-      !window.confirm(
-        'Turn maintenance mode on? Everyone except admins will see the maintenance message.'
-      )
-    ) {
+    if (changes.maintenanceMode === true && !window.confirm(t('admin.config.confirmMaintenance'))) {
       return
     }
     setBusy(true)
@@ -61,7 +58,7 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
     <form onSubmit={save} className="mt-6 max-w-xl space-y-6 rounded-xl bg-white p-5 shadow-sm">
       <div>
         <label htmlFor="fee" className="block text-sm font-medium text-neutral-900">
-          PitchUp commission (%)
+          {t('admin.config.fee')}
         </label>
         <input
           id="fee"
@@ -75,14 +72,15 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
           className="mt-1 h-11 w-32 rounded-md border border-neutral-200 px-3 text-sm"
         />
         <p id="fee-hint" className="mt-1 text-sm text-neutral-700">
-          0–20%, taken from what venues receive. Applies to new bookings; earlier ones keep theirs.
-          Now: {saved.platformFeePercent}%.
+          {t('admin.config.feeHint', { n: saved.platformFeePercent })}
         </p>
-        {!feeValid && <p className="mt-1 text-sm text-error-600">A whole number from 0 to 20.</p>}
+        {!feeValid && <p className="mt-1 text-sm text-error-600">{t('admin.config.feeInvalid')}</p>}
       </div>
 
       <fieldset>
-        <legend className="text-sm font-medium text-neutral-900">Maintenance mode</legend>
+        <legend className="text-sm font-medium text-neutral-900">
+          {t('admin.config.maintenance')}
+        </legend>
         <label className="mt-2 flex items-center gap-3 text-sm text-neutral-900">
           <input
             type="checkbox"
@@ -91,10 +89,10 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
             onChange={e => setMaintenance(e.target.checked)}
             className="h-5 w-5 accent-primary-600"
           />
-          {maintenance ? 'On: everyone but admins sees the message' : 'Off'}
+          {maintenance ? t('admin.config.on') : t('admin.config.off')}
         </label>
         <label htmlFor="message" className="mt-4 block text-sm font-medium text-neutral-900">
-          Maintenance message
+          {t('admin.config.message')}
         </label>
         <textarea
           id="message"
@@ -105,14 +103,14 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
           className="mt-1 w-full rounded-md border border-neutral-200 p-3 text-sm"
         />
         {!messageValid && (
-          <p className="mt-1 text-sm text-error-600">Between 10 and 500 characters.</p>
+          <p className="mt-1 text-sm text-error-600">{t('admin.config.messageInvalid')}</p>
         )}
       </fieldset>
 
       {error && <Alert>{error}</Alert>}
       {done && !dirty && (
         <p role="status" className="text-sm font-medium text-primary-700">
-          Settings saved.
+          {t('admin.config.saved')}
         </p>
       )}
       <button
@@ -120,7 +118,7 @@ export function PlatformConfigForm({ initial }: { initial: PlatformConfigView })
         disabled={busy || !dirty || !feeValid || !messageValid}
         className="h-11 rounded-md bg-primary-600 px-5 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : 'Save settings'}
+        {busy ? t('admin.config.saving') : t('admin.config.save')}
       </button>
     </form>
   )

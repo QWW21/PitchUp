@@ -16,17 +16,12 @@ import { useAuthStore } from '../../stores/authStore'
 import { Button } from '../../components/ui/Button'
 import { Input } from '../../components/ui/Input'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'DeleteAccount'>
 
-const CONSEQUENCES = [
-  'Your name, email, phone and photo are deleted',
-  'Upcoming bookings are cancelled and paid ones refunded in full',
-  'Your reviews stay up, shown as "Former player"',
-  'You cannot sign in again or recover the account',
-]
-
 export function DeleteAccountScreen({ navigation }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const logout = useAuthStore(s => s.logout)
@@ -53,13 +48,13 @@ export function DeleteAccountScreen({ navigation }: Props) {
 
   const press = () => {
     if (!password) {
-      setPasswordError('Enter your password')
+      setPasswordError(t('profile.deleteAccount.enterPassword'))
       return
     }
     setPasswordError(undefined)
-    Alert.alert('Are you absolutely sure?', 'Your account cannot be recovered.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate() },
+    Alert.alert(t('profile.deleteAccount.sureTitle'), t('profile.deleteAccount.sureBody'), [
+      { text: t('profile.cancel'), style: 'cancel' },
+      { text: t('profile.delete'), style: 'destructive', onPress: () => remove.mutate() },
     ])
   }
 
@@ -67,7 +62,7 @@ export function DeleteAccountScreen({ navigation }: Props) {
     remove.isError && !passwordError
       ? remove.error instanceof ApiError
         ? remove.error.message
-        : 'Could not delete the account. Try again.'
+        : t('profile.deleteAccount.failed')
       : null
 
   return (
@@ -77,25 +72,25 @@ export function DeleteAccountScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Delete account
+          {t('profile.deleteAccount.title')}
         </Text>
       </View>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.warning}>
-          <Text style={styles.warningTitle}>This action is permanent and cannot be undone</Text>
-          {CONSEQUENCES.map(c => (
-            <Text key={c} style={styles.bullet}>
-              • {c}
+          <Text style={styles.warningTitle}>{t('profile.deleteAccount.warning')}</Text>
+          {([0, 1, 2, 3] as const).map(i => (
+            <Text key={i} style={styles.bullet}>
+              • {t(`profile.deleteAccount.points.${i}`)}
             </Text>
           ))}
         </View>
         <Input
-          label="Password"
+          label={t('profile.deleteAccount.password')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -103,14 +98,14 @@ export function DeleteAccountScreen({ navigation }: Props) {
           {...(passwordError ? { error: passwordError } : {})}
         />
         <View style={styles.gap}>
-          <Text style={styles.label}>Why are you leaving? (optional)</Text>
+          <Text style={styles.label}>{t('profile.deleteAccount.why')}</Text>
           <TextInput
             value={reason}
             onChangeText={setReason}
             maxLength={300}
             multiline
             style={styles.reason}
-            accessibilityLabel="Why are you leaving? (optional)"
+            accessibilityLabel={t('profile.deleteAccount.why')}
           />
         </View>
         {otherError ? <Text style={styles.error}>{otherError}</Text> : null}
@@ -121,13 +116,19 @@ export function DeleteAccountScreen({ navigation }: Props) {
           disabled={remove.isPending}
           style={[styles.destructive, remove.isPending && styles.disabled]}
           accessibilityRole="button"
-          accessibilityLabel="Permanently delete my account"
+          accessibilityLabel={t('profile.deleteAccount.submit')}
         >
           <Text style={styles.destructiveText}>
-            {remove.isPending ? 'Deleting…' : 'Permanently delete my account'}
+            {remove.isPending
+              ? t('profile.deleteAccount.deleting')
+              : t('profile.deleteAccount.submit')}
           </Text>
         </Pressable>
-        <Button label="Never mind" variant="ghost" onPress={() => navigation.goBack()} />
+        <Button
+          label={t('profile.deleteAccount.never')}
+          variant="ghost"
+          onPress={() => navigation.goBack()}
+        />
       </View>
     </SafeAreaView>
   )

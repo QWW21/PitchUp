@@ -86,8 +86,19 @@ export async function applyTrustEvent(
     await notify(tx, {
       userId,
       type: 'TRUST_TIER_CHANGED',
-      title: score > before.trustScore ? `You're now ${is}` : `Your trust tier is now ${is}`,
-      body: `Your trust score is ${score} (was ${before.trustScore}). ${tierDescription(trustTier(score))}`,
+      title: t =>
+        t(
+          score > before.trustScore ? 'notify.tierChanged.upTitle' : 'notify.tierChanged.downTitle',
+          {
+            tier: t(`trust.tier.${is}`),
+          }
+        ),
+      body: (t, locale) =>
+        t('notify.tierChanged.body', {
+          score,
+          was: before.trustScore,
+          description: tierDescription(trustTier(score), locale),
+        }),
       data: { score: String(score) },
     })
   }

@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 interface Props {
   user: {
@@ -25,6 +26,7 @@ interface Props {
 const input = 'mt-1 w-full rounded-md border border-neutral-200 px-3 text-sm'
 
 export function UserAdminActions({ user, isSelf }: Props) {
+  const t = useT()
   const router = useRouter()
   const suspendDialog = useRef<HTMLDialogElement>(null)
   const deleteDialog = useRef<HTMLDialogElement>(null)
@@ -72,18 +74,16 @@ export function UserAdminActions({ user, isSelf }: Props) {
       )}
       <section aria-labelledby="adjust" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="adjust" className="text-lg font-semibold text-neutral-900">
-          Adjust the trust score
+          {t('admin.actions.adjust')}
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          The change is kept to 0–100, shows in their history, and they&rsquo;re told why.
-        </p>
+        <p className="mt-1 text-sm text-neutral-700">{t('admin.actions.adjustHint')}</p>
         <form
           className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-[8rem_1fr_auto] sm:items-end"
           onSubmit={e => {
             e.preventDefault()
             void run(
               () => send(url, 'PUT', { trustScoreAdjust: points, trustAdjustReason: why.trim() }),
-              'Trust score adjusted.'
+              t('admin.actions.adjusted')
             ).then(() => {
               setDelta('')
               setWhy('')
@@ -91,7 +91,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
           }}
         >
           <label className="text-sm font-medium text-neutral-700">
-            Points (−100 to +100)
+            {t('admin.actions.points')}
             <input
               type="number"
               inputMode="numeric"
@@ -103,7 +103,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
             />
           </label>
           <label className="text-sm font-medium text-neutral-700">
-            Reason
+            {t('admin.actions.reason')}
             <input
               type="text"
               maxLength={200}
@@ -117,17 +117,17 @@ export function UserAdminActions({ user, isSelf }: Props) {
             disabled={busy || !validDelta || why.trim().length < 5}
             className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
           >
-            Apply
+            {t('admin.actions.apply')}
           </button>
         </form>
       </section>
 
       <section aria-labelledby="account" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="account" className="text-lg font-semibold text-neutral-900">
-          Account
+          {t('admin.actions.account')}
         </h2>
         {isSelf ? (
-          <p className="mt-2 text-sm text-neutral-700">This is your account.</p>
+          <p className="mt-2 text-sm text-neutral-700">{t('admin.actions.yours')}</p>
         ) : (
           <div className="mt-3 flex flex-wrap gap-2">
             {user.suspended ? (
@@ -135,11 +135,14 @@ export function UserAdminActions({ user, isSelf }: Props) {
                 type="button"
                 disabled={busy}
                 onClick={() =>
-                  void run(() => send(url, 'PUT', { suspended: false }), 'Account reinstated.')
+                  void run(
+                    () => send(url, 'PUT', { suspended: false }),
+                    t('admin.actions.reinstated')
+                  )
                 }
                 className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
               >
-                Reinstate account
+                {t('admin.actions.reinstate')}
               </button>
             ) : (
               <button
@@ -148,7 +151,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
                 onClick={() => suspendDialog.current?.showModal()}
                 className="h-10 rounded-md border border-error-500 px-4 text-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60"
               >
-                Suspend account…
+                {t('admin.actions.suspendDots')}
               </button>
             )}
             {user.role === 'PLAYER' && (
@@ -158,7 +161,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
                 onClick={() => deleteDialog.current?.showModal()}
                 className="h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
               >
-                Delete account…
+                {t('admin.actions.deleteDots')}
               </button>
             )}
           </div>
@@ -172,14 +175,11 @@ export function UserAdminActions({ user, isSelf }: Props) {
         onClick={e => e.target === suspendDialog.current && suspendDialog.current?.close()}
       >
         <h2 id="suspend-title" className="text-lg font-semibold text-neutral-900">
-          Suspend {user.name}?
+          {t('admin.actions.suspendTitle', { name: user.name })}
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          They&rsquo;re signed out everywhere and can&rsquo;t sign in until reinstated. Bookings
-          already made stay.
-        </p>
+        <p className="mt-1 text-sm text-neutral-700">{t('admin.actions.suspendHint')}</p>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Reason (for the record)
+          {t('admin.actions.forRecord')}
           <textarea
             rows={3}
             maxLength={300}
@@ -194,7 +194,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
             onClick={() => suspendDialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('admin.cancel')}
           </button>
           <button
             type="button"
@@ -202,12 +202,12 @@ export function UserAdminActions({ user, isSelf }: Props) {
             onClick={() =>
               void run(
                 () => send(url, 'PUT', { suspended: true, suspensionReason: suspendWhy.trim() }),
-                'Account suspended.'
+                t('admin.actions.suspended')
               )
             }
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            Suspend
+            {t('admin.actions.suspend')}
           </button>
         </div>
       </dialog>
@@ -219,14 +219,11 @@ export function UserAdminActions({ user, isSelf }: Props) {
         onClick={e => e.target === deleteDialog.current && deleteDialog.current?.close()}
       >
         <h2 id="delete-title" className="text-lg font-semibold text-neutral-900">
-          Delete {user.name}&rsquo;s account?
+          {t('admin.actions.deleteTitle', { name: user.name })}
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          Upcoming bookings are cancelled and refunded, and their details are wiped. This
-          can&rsquo;t be undone.
-        </p>
+        <p className="mt-1 text-sm text-neutral-700">{t('admin.actions.deleteHint')}</p>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Reason
+          {t('admin.actions.reason')}
           <input
             type="text"
             maxLength={300}
@@ -236,7 +233,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
           />
         </label>
         <label className="mt-3 block text-sm font-medium text-neutral-700">
-          Type their email to confirm
+          {t('admin.actions.typeEmail')}
           <input
             type="email"
             value={confirmEmail}
@@ -250,7 +247,7 @@ export function UserAdminActions({ user, isSelf }: Props) {
             onClick={() => deleteDialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('admin.cancel')}
           </button>
           <button
             type="button"
@@ -260,11 +257,14 @@ export function UserAdminActions({ user, isSelf }: Props) {
               confirmEmail.trim().toLowerCase() !== user.email.toLowerCase()
             }
             onClick={() =>
-              void run(() => send(url, 'DELETE', { reason: deleteWhy.trim() }), 'Account deleted.')
+              void run(
+                () => send(url, 'DELETE', { reason: deleteWhy.trim() }),
+                t('admin.actions.deleted')
+              )
             }
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            Delete for good
+            {t('admin.actions.deleteForGood')}
           </button>
         </div>
       </dialog>

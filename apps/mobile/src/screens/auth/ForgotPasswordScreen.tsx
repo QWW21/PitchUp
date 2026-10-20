@@ -21,10 +21,12 @@ import { Input } from '../../components/ui/Input'
 import { forgotPassword } from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ForgotPassword'>
 
 export function ForgotPasswordScreen({ navigation }: Props) {
+  const t = useT()
   const [email, setEmail] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -33,7 +35,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
   async function handleSubmit() {
     const trimmed = email.trim().toLowerCase()
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError('Enter a valid email address.')
+      setError(t('auth.forgot.badEmail'))
       return
     }
     setError('')
@@ -43,7 +45,7 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       setSent(true)
     } catch (e) {
       if (e instanceof ApiError && e.code === 'RATE_LIMITED') {
-        setError('Too many requests. Try again in a few minutes.')
+        setError(t('auth.forgot.tooMany'))
       } else {
         // On network error still show success — avoids revealing account existence.
         setSent(true)
@@ -58,12 +60,9 @@ export function ForgotPasswordScreen({ navigation }: Props) {
       <View style={styles.sentRoot}>
         <Text style={styles.wordmark}>PitchUp</Text>
         <Text style={styles.sentEmoji}>📬</Text>
-        <Text style={styles.sentHeading}>Check your inbox</Text>
-        <Text style={styles.sentSub}>
-          If that email is registered, a reset link is on its way. Check your spam folder if you
-          don't see it within a minute.
-        </Text>
-        <Button label="Back to login" onPress={() => navigation.navigate('Login')} />
+        <Text style={styles.sentHeading}>{t('auth.forgot.inbox')}</Text>
+        <Text style={styles.sentSub}>{t('auth.forgot.sent')}</Text>
+        <Button label={t('auth.forgot.backToLogin')} onPress={() => navigation.navigate('Login')} />
       </View>
     )
   }
@@ -75,14 +74,12 @@ export function ForgotPasswordScreen({ navigation }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.wordmark}>PitchUp</Text>
-        <Text style={styles.heading}>Reset your password</Text>
-        <Text style={styles.sub}>
-          Enter your email and we'll send you a link to reset your password.
-        </Text>
+        <Text style={styles.heading}>{t('auth.forgot.heading')}</Text>
+        <Text style={styles.sub}>{t('auth.forgot.sub')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={setEmail}
             placeholder="you@example.com"
@@ -96,9 +93,9 @@ export function ForgotPasswordScreen({ navigation }: Props) {
           />
         </View>
 
-        <Button label="Send reset link" onPress={handleSubmit} loading={loading} />
+        <Button label={t('auth.forgot.send')} onPress={handleSubmit} loading={loading} />
         <Pressable onPress={() => navigation.goBack()} style={styles.backRow}>
-          <Text style={styles.backText}>← Back to login</Text>
+          <Text style={styles.backText}>{t('auth.backToLogin')}</Text>
         </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>

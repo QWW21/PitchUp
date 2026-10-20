@@ -9,7 +9,8 @@
  */
 import { usePathname, useRouter } from 'next/navigation'
 import { useTransition } from 'react'
-import { ANALYTICS_PERIOD_LABELS, ANALYTICS_PERIODS, type AnalyticsPeriod } from '@pitchup/shared'
+import { ANALYTICS_PERIODS, type AnalyticsPeriod } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 export function AnalyticsFilters({
   period,
@@ -20,6 +21,7 @@ export function AnalyticsFilters({
   pitchId: string
   pitches: { id: string; name: string }[]
 }) {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const [pending, startTransition] = useTransition()
@@ -35,14 +37,14 @@ export function AnalyticsFilters({
   return (
     <div className="flex flex-wrap gap-3" aria-busy={pending}>
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Pitch
+        {t('analytics.filters.pitch')}
         <select
           value={pitchId}
           onChange={e => go({ pitchId: e.target.value })}
           disabled={pending}
           className={select}
         >
-          <option value="">All pitches</option>
+          <option value="">{t('analytics.filters.allPitches')}</option>
           {pitches.map(p => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -51,7 +53,7 @@ export function AnalyticsFilters({
         </select>
       </label>
       <label className="flex flex-col text-xs font-medium text-neutral-700">
-        Period
+        {t('analytics.filters.period')}
         <select
           value={period}
           onChange={e => go({ period: e.target.value })}
@@ -60,13 +62,13 @@ export function AnalyticsFilters({
         >
           {ANALYTICS_PERIODS.map(p => (
             <option key={p} value={p}>
-              {ANALYTICS_PERIOD_LABELS[p]}
+              {t(`analyticsPeriod.${p}`)}
             </option>
           ))}
         </select>
       </label>
       <p role="status" className="self-end pb-2 text-xs text-neutral-700">
-        {pending ? 'Updating…' : ''}
+        {pending ? t('analytics.filters.updating') : ''}
       </p>
     </div>
   )

@@ -18,7 +18,6 @@ import {
   rangeTimes,
   startOptions,
   type DayPeriod,
-  type StartOption,
 } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { useBookingStore } from '../../stores/bookingStore'
@@ -28,15 +27,9 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
+import { useT } from '../../i18n'
 
 const PERIODS: DayPeriod[] = ['Morning', 'Afternoon', 'Evening']
-const STATE_LABEL: Record<StartOption['state'], string> = {
-  available: 'available',
-  booked: 'booked',
-  past: 'already passed',
-  short: 'not enough time',
-}
-
 function Chip({
   label,
   accessibilityLabel,
@@ -70,6 +63,7 @@ function Chip({
 }
 
 export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'>) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const pitch = useBookingStore(s => s.pitch)!
   const date = useBookingStore(s => s.date)!
@@ -127,21 +121,21 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
       ) : noneFree ? (
         <EmptyState
           illustration={<Icon name="calendar-remove" size={64} color={colors.neutral[300]} />}
-          title="No slots available for this date"
-          description="Every time on this day is booked or has passed."
-          ctaLabel="← Change date"
+          title={t('booking.time.noSlots')}
+          description={t('booking.time.allGone')}
+          ctaLabel={t('booking.time.changeDate')}
           onCta={() => navigation.goBack()}
         />
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
-          <Text style={styles.heading}>Choose a start time</Text>
+          <Text style={styles.heading}>{t('booking.time.heading')}</Text>
           {PERIODS.map(period => {
             const group = starts.filter(s => s.period === period)
             if (!group.length) return null
             return (
               <View key={period} style={styles.group}>
                 <Text style={styles.period} accessibilityRole="header">
-                  {period.toUpperCase()}
+                  {t(`dayPeriod.${period}`).toUpperCase()}
                 </Text>
                 <View style={styles.chips}>
                   {group.map(o => (
@@ -149,7 +143,7 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
                       key={o.time}
                       testID={`start-${o.time}`}
                       label={o.time}
-                      accessibilityLabel={`${o.time}, ${start === o.index ? 'selected' : STATE_LABEL[o.state]}`}
+                      accessibilityLabel={`${o.time}, ${start === o.index ? t('booking.time.selected') : t(`booking.time.state.${o.state}`)}`}
                       on={start === o.index}
                       disabled={o.state !== 'available'}
                       onPress={() => pickStart(o.index)}
@@ -160,16 +154,16 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
             )
           })}
 
-          <Text style={styles.heading}>How long?</Text>
+          <Text style={styles.heading}>{t('booking.time.howLong')}</Text>
           {start === null ? (
-            <Text style={styles.hint}>Choose a start time first.</Text>
+            <Text style={styles.hint}>{t('booking.time.startFirst')}</Text>
           ) : (
             <View style={styles.chips}>
               {durations.map(d => (
                 <Chip
                   key={d.minutes}
                   label={formatShortDuration(d.minutes)}
-                  accessibilityLabel={`${formatShortDuration(d.minutes)}${d.fits ? '' : ', doesn’t fit'}`}
+                  accessibilityLabel={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.noFit')}`}
                   on={minutes === d.minutes}
                   disabled={!d.fits}
                   onPress={() => setMinutes(d.minutes)}
@@ -184,10 +178,10 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
         <Text style={styles.summary} accessibilityLiveRegion="polite">
           {chosen && price
             ? `${chosen.startTime}–${chosen.endTime} · ${formatShortDuration(chosen.minutes)} · ${price.total} RON`
-            : 'Choose a start time and how long'}
+            : t('booking.time.choose')}
         </Text>
         <Button
-          label="Next"
+          label={t('booking.next')}
           disabled={!chosen}
           onPress={() => {
             if (!chosen) return

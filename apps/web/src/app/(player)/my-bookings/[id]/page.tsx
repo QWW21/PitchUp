@@ -18,16 +18,16 @@ import {
   XCircle,
 } from 'lucide-react'
 import {
+  INTL_LOCALE,
   SHIRT_COLOUR_HEX,
-  SIZE_LABELS,
-  SURFACE_LABELS,
   formatDateLong,
   formatDuration,
   type BookingDetail,
   type BookingStatus,
-  type PitchSize,
   type ShirtColour,
 } from '@pitchup/shared'
+import { getLocale, getT } from '@/i18n/server'
+import type { WebT } from '@/i18n/catalog'
 import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { getBookingForViewer } from '@/lib/bookings/read'
@@ -52,56 +52,38 @@ const load = cache(async (id: string) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const b = await load((await params).id)
-  return { title: b ? `Booking ${b.reference} | PitchUp` : 'Booking not found | PitchUp' }
+  const t = await getT()
+  return {
+    title: b
+      ? t('myBookings.detail.title', { reference: b.reference })
+      : t('myBookings.detail.notFoundTitle'),
+  }
 }
 
-const BANNER: Record<
-  BookingStatus,
-  { label: string; className: string; Icon: typeof CheckCircle2 }
-> = {
-  CONFIRMED: {
-    label: 'Confirmed',
-    className: 'bg-primary-50 text-primary-700',
-    Icon: CheckCircle2,
-  },
-  PENDING: { label: 'Awaiting payment', className: 'bg-warning-50 text-amber-800', Icon: Clock },
-  AWAITING_APPROVAL: {
-    label: 'Waiting for the venue',
-    className: 'bg-warning-50 text-amber-800',
-    Icon: Clock,
-  },
-  COMPLETED: {
-    label: 'Completed',
-    className: 'bg-primary-50 text-primary-700',
-    Icon: CheckCircle2,
-  },
-  CANCELLED: { label: 'Cancelled', className: 'bg-neutral-100 text-neutral-700', Icon: XCircle },
-  NO_SHOW: { label: 'No-show', className: 'bg-error-50 text-error-600', Icon: AlertCircle },
+/** The banner's look; its words are `bookingStatus.<STATUS>`. */
+const BANNER: Record<BookingStatus, { className: string; Icon: typeof CheckCircle2 }> = {
+  CONFIRMED: { className: 'bg-primary-50 text-primary-700', Icon: CheckCircle2 },
+  PENDING: { className: 'bg-warning-50 text-amber-800', Icon: Clock },
+  AWAITING_APPROVAL: { className: 'bg-warning-50 text-amber-800', Icon: Clock },
+  COMPLETED: { className: 'bg-primary-50 text-primary-700', Icon: CheckCircle2 },
+  CANCELLED: { className: 'bg-neutral-100 text-neutral-700', Icon: XCircle },
+  NO_SHOW: { className: 'bg-error-50 text-error-600', Icon: AlertCircle },
 }
-
-const STATUS_WORDS: Record<BookingStatus, string> = {
-  PENDING: 'Booked, awaiting payment',
-  AWAITING_APPROVAL: 'Paid, sent to the venue',
-  CONFIRMED: 'Paid and confirmed',
-  COMPLETED: 'Played',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Marked as a no-show',
-}
-
-const stamp = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Bucharest',
-})
 
 /** Booking detail — E06-10 (UIUX_SPEC §8.2, adapted for the web). */
 export default async function BookingDetailPage({ params, searchParams }: Props) {
   const [{ id }, flags] = await Promise.all([params, searchParams])
   const b = await load(id)
   if (!b) notFound()
+  const [t, locale] = [await getT(), await getLocale()]
+  const stamp = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  })
 
   const banner = BANNER[b.status]
   const players = b.teams.reduce((n, t) => n + (t.players ?? 0), 0)
@@ -113,20 +95,20 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         className="inline-flex h-11 items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-900"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-        My bookings
+        {t('myBookings.detail.back')}
       </Link>
 
       {flags.reviewed && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Thanks! Your review is published.
+          {t('myBookings.detail.reviewed')}
         </p>
       )}
       {flags.cancelled && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Booking cancelled.
+          {t('myBookings.detail.cancelled')}
           {b.payment.refundAmount
-            ? ` ${b.payment.refundAmount} RON will be refunded to your card within 5–10 business days.`
-            : ' No refund applies.'}
+            ? t('myBookings.detail.refundComing', { amount: b.payment.refundAmount })
+            : t('myBookings.detail.noRefund')}
         </p>
       )}
 
@@ -134,23 +116,23 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         className={`flex h-12 items-center justify-center gap-1.5 rounded-lg text-sm font-medium ${banner.className}`}
       >
         <banner.Icon className="h-4 w-4" aria-hidden="true" />
-        {banner.label}
+        {t(`bookingStatus.${b.status}`)}
       </div>
       {b.status === 'AWAITING_APPROVAL' && (
         <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-          {b.company.name} confirms each booking.
+          {t('myBookings.detail.confirmsEach', { company: b.company.name })}
           {b.approvalDeadline &&
-            ` If they haven't answered by ${stamp.format(new Date(b.approvalDeadline))}, it is declined.`}{' '}
-          If declined, all your money comes back.
+            t('myBookings.detail.declinedBy', { when: stamp.format(new Date(b.approvalDeadline)) })}
+          {t('myBookings.detail.moneyBack')}
         </p>
       )}
 
       <header className="text-center">
-        <h1 className="text-2xl font-bold text-neutral-900">Booking details</h1>
+        <h1 className="text-2xl font-bold text-neutral-900">{t('myBookings.detail.heading')}</h1>
         <p className="font-mono text-xs text-neutral-700">{b.reference}</p>
       </header>
 
-      <section aria-label="Venue" className="flex items-center gap-4">
+      <section aria-label={t('myBookings.detail.venue')} className="flex items-center gap-4">
         {b.company.logoUrl ? (
           // Venue logos come from Cloudinary or seed URLs; next/image would need each host configured.
           <img src={b.company.logoUrl} alt="" className="h-14 w-14 rounded-md object-cover" />
@@ -182,7 +164,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
       </section>
 
       <ul className="space-y-3 rounded-xl bg-neutral-100 p-4 text-sm text-neutral-900">
-        <Row icon={<CalendarDays />}>{formatDateLong(b.date)}</Row>
+        <Row icon={<CalendarDays />}>{formatDateLong(b.date, locale)}</Row>
         <Row icon={<Clock />}>
           {b.startTime}–{b.endTime} · {formatDuration(b.minutes)}
         </Row>
@@ -190,28 +172,34 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
           <Link href={`/discover/${b.company.id}/${b.pitch.id}`} className="hover:underline">
             {b.pitch.name}
           </Link>{' '}
-          · {SURFACE_LABELS[b.pitch.surfaceType]} ·{' '}
-          {SIZE_LABELS[b.pitch.size as PitchSize] ?? b.pitch.size}
+          · {t(`surface.${b.pitch.surfaceType}`)} ·{' '}
+          {t.has(`size.${b.pitch.size}`)
+            ? t(`size.${b.pitch.size}` as 'size.CUSTOM')
+            : b.pitch.size}
         </Row>
         <Row icon={<Users />}>
-          {b.teamCount} teams{players ? ` · ${players} players` : ''}
+          {t('myBookings.detail.teams', { count: b.teamCount })}
+          {players ? t('myBookings.detail.players', { count: players }) : ''}
         </Row>
         {b.shirtSets > 0 && (
           <Row icon={<Shirt />}>
             <span>
-              Free shirts: {b.shirtSets} {b.shirtSets === 1 ? 'set' : 'sets'}
-              {b.teams.some(t => t.colour) && (
+              {t('myBookings.detail.freeShirts', { count: b.shirtSets })}
+              {b.teams.some(team => team.colour) && (
                 <span className="mt-1 block space-y-1">
                   {b.teams
-                    .filter(t => t.colour)
-                    .map(t => (
-                      <span key={t.name} className="flex items-center gap-2">
+                    .filter(team => team.colour)
+                    .map(team => (
+                      <span key={team.name} className="flex items-center gap-2">
                         <span
                           aria-hidden="true"
                           className="h-4 w-4 rounded-full border border-neutral-200"
-                          style={{ background: SHIRT_COLOUR_HEX[t.colour as ShirtColour] }}
+                          style={{ background: SHIRT_COLOUR_HEX[team.colour as ShirtColour] }}
                         />
-                        {t.name}: {t.colour!.toLowerCase()} shirts
+                        {t('myBookings.detail.teamShirts', {
+                          team: team.name,
+                          colour: t(`shirt.${team.colour as ShirtColour}`),
+                        })}
                       </span>
                     ))}
                 </span>
@@ -224,60 +212,68 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
 
       <section aria-labelledby="payment-heading" className="rounded-xl bg-white p-4 shadow-sm">
         <h2 id="payment-heading" className="text-base font-semibold text-neutral-900">
-          Payment
+          {t('myBookings.detail.payment')}
         </h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between text-neutral-700">
-            <dt>Pitch ({formatDuration(b.minutes)})</dt>
+            <dt>{t('myBookings.detail.pitchLine', { duration: formatDuration(b.minutes) })}</dt>
             <dd>{b.total} RON</dd>
           </div>
           {b.shirtSets > 0 && (
             <div className="flex justify-between text-neutral-700">
-              <dt>Shirts</dt>
-              <dd>Free</dd>
+              <dt>{t('myBookings.detail.shirts')}</dt>
+              <dd>{t('myBookings.detail.free')}</dd>
             </div>
           )}
           <div className="flex justify-between border-t border-neutral-200 pt-2 text-base font-semibold text-neutral-900">
-            <dt>{b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}</dt>
+            <dt>
+              {b.paidAt && b.paymentMethod === 'ONLINE'
+                ? t('myBookings.detail.totalPaid')
+                : t('myBookings.detail.total')}
+            </dt>
             <dd className="font-mono">{b.total} RON</dd>
           </div>
           {b.paymentMethod !== 'ONLINE' && !!b.deposit && (
             <div className="flex justify-between text-neutral-700">
               <dt>
-                Deposit paid online
-                {b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && ', refunded after the game'}
+                {t('myBookings.detail.depositOnline')}
+                {b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && t('myBookings.detail.refundedAfter')}
               </dt>
               <dd>{b.deposit} RON</dd>
             </div>
           )}
           {b.paymentMethod !== 'ONLINE' && (
             <div className="flex justify-between font-medium text-neutral-900">
-              <dt>{b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}</dt>
+              <dt>
+                {b.attendedAt
+                  ? t('myBookings.detail.paidAtVenue')
+                  : t('myBookings.detail.toPayAtVenue')}
+              </dt>
               <dd>{b.dueAtVenue} RON</dd>
             </div>
           )}
           {b.paidAt && (
             <div className="flex justify-between text-neutral-700">
-              <dt>Card</dt>
+              <dt>{t('myBookings.detail.card')}</dt>
               <dd className="flex items-center gap-1.5">
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
                 {b.payment.cardLast4
-                  ? `${b.payment.cardBrand ?? 'Card'} ···· ${b.payment.cardLast4}`
+                  ? `${b.payment.cardBrand ?? t('myBookings.detail.card')} ···· ${b.payment.cardLast4}`
                   : b.payment.provider === 'test'
-                    ? 'Test payment'
-                    : 'Card'}
+                    ? t('myBookings.detail.testPayment')
+                    : t('myBookings.detail.card')}
               </dd>
             </div>
           )}
           {b.paidAt && (
             <div className="flex justify-between text-neutral-700">
-              <dt>Paid on</dt>
+              <dt>{t('myBookings.detail.paidOn')}</dt>
               <dd>{stamp.format(new Date(b.paidAt))}</dd>
             </div>
           )}
           {b.payment.refundAmount !== null && (
             <div className="flex justify-between font-medium text-primary-700">
-              <dt>Refund</dt>
+              <dt>{t('myBookings.detail.refund')}</dt>
               <dd>{b.payment.refundAmount} RON</dd>
             </div>
           )}
@@ -286,7 +282,7 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
 
       <section aria-labelledby="history-heading">
         <h2 id="history-heading" className="text-base font-semibold text-neutral-900">
-          History
+          {t('myBookings.detail.history')}
         </h2>
         <ol className="mt-3">
           {b.statusHistory.map((s, i) => (
@@ -302,7 +298,9 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
                 className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-primary-600"
               />
               <span className="text-sm">
-                <span className="font-medium text-neutral-900">{STATUS_WORDS[s.status]}</span>
+                <span className="font-medium text-neutral-900">
+                  {t(`myBookings.detail.statusWords.${s.status}`)}
+                </span>
                 <span className="block text-neutral-700">{stamp.format(new Date(s.at))}</span>
               </span>
             </li>
@@ -312,11 +310,13 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
           <p className="mt-2 text-sm text-neutral-700">{b.cancellationReason}</p>
         )}
         {b.cancellation && (
-          <p className="mt-2 text-xs text-neutral-500">Refund policy: {b.refundPolicy}</p>
+          <p className="mt-2 text-xs text-neutral-500">
+            {t('myBookings.detail.policy', { policy: b.refundPolicy })}
+          </p>
         )}
       </section>
 
-      {b.review && <ReviewSection booking={b} />}
+      {b.review && <ReviewSection booking={b} t={t} />}
 
       <BookingActions booking={b} />
     </article>
@@ -334,16 +334,18 @@ function Row({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   )
 }
 
-function ReviewSection({ booking: b }: { booking: BookingDetail }) {
+function ReviewSection({ booking: b, t }: { booking: BookingDetail; t: WebT }) {
   const r = b.review!
   return (
     <section aria-labelledby="review-heading" className="rounded-xl bg-white p-4 shadow-sm">
       <h2 id="review-heading" className="text-base font-semibold text-neutral-900">
-        Your review
+        {t('myBookings.detail.yourReview')}
       </h2>
       <div className="mt-2 flex items-center gap-2">
         <Stars rating={r.rating} size={18} />
-        {r.isAnonymous && <span className="text-xs text-neutral-700">Posted anonymously</span>}
+        {r.isAnonymous && (
+          <span className="text-xs text-neutral-700">{t('myBookings.detail.anonymous')}</span>
+        )}
       </div>
       {r.text && <p className="mt-2 text-sm text-neutral-900">{r.text}</p>}
       <ReviewActions bookingId={b.id} reviewId={r.id} editableUntil={r.editableUntil} />

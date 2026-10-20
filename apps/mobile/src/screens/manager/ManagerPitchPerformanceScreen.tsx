@@ -8,15 +8,16 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
-import { ANALYTICS_PERIOD_LABELS } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ManagerPitchPerformance'>
 
 export function ManagerPitchPerformanceScreen({ navigation, route }: Props) {
+  const t = useT()
   const { period } = route.params
   const rows = useQuery({
     queryKey: ['analytics-pitches', period],
@@ -31,15 +32,15 @@ export function ManagerPitchPerformanceScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('manager.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <View>
           <Text style={styles.title} accessibilityRole="header">
-            Pitch performance
+            {t('manager.performance.title')}
           </Text>
-          <Text style={styles.muted}>{ANALYTICS_PERIOD_LABELS[period]}</Text>
+          <Text style={styles.muted}>{t(`analyticsPeriod.${period}`)}</Text>
         </View>
       </View>
       {rows.isError ? (
@@ -51,21 +52,28 @@ export function ManagerPitchPerformanceScreen({ navigation, route }: Props) {
           data={sorted}
           keyExtractor={r => r.pitchId}
           contentContainerStyle={styles.list}
-          ListEmptyComponent={<Text style={styles.muted}>No pitches yet.</Text>}
+          ListEmptyComponent={<Text style={styles.muted}>{t('manager.performance.none')}</Text>}
           renderItem={({ item: r }) => (
             <View style={styles.card}>
               <Text style={styles.name}>
                 {r.name}
-                {r.isActive ? '' : ' (inactive)'}
+                {r.isActive ? '' : t('manager.performance.inactive')}
               </Text>
               <Text style={styles.muted}>
-                {Math.round(r.revenue * 100) / 100} RON · {r.totalBookings}{' '}
-                {r.totalBookings === 1 ? 'booking' : 'bookings'}
-                {r.occupancy === null ? '' : ` · ${r.occupancy}% booked`}
+                {t('manager.performance.line1', {
+                  revenue: Math.round(r.revenue * 100) / 100,
+                  bookings: t('manager.analytics.bookings', { count: r.totalBookings }),
+                })}
+                {r.occupancy === null ? '' : t('manager.performance.booked', { n: r.occupancy })}
               </Text>
               <Text style={styles.muted}>
-                {r.avgRating === null ? 'No reviews' : `★ ${r.avgRating.toFixed(1)}`} ·{' '}
-                {r.cancellationRate}% cancelled · {r.noShowRate}% no-shows
+                {r.avgRating === null
+                  ? t('manager.performance.noReviews')
+                  : `★ ${r.avgRating.toFixed(1)}`}
+                {t('manager.performance.line2', {
+                  cancelled: r.cancellationRate,
+                  noShows: r.noShowRate,
+                })}
               </Text>
             </View>
           )}

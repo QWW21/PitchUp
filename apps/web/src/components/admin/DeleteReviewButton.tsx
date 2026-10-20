@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 export function DeleteReviewButton({ reviewId, pitch }: { reviewId: string; pitch: string }) {
+  const t = useT()
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
   const [reason, setReason] = useState('')
@@ -33,7 +35,7 @@ export function DeleteReviewButton({ reviewId, pitch }: { reviewId: string; pitc
         onClick={() => dialog.current?.showModal()}
         className="mt-3 h-9 rounded-md border border-error-500 px-3 text-sm font-semibold text-error-600 hover:bg-error-50"
       >
-        Delete…
+        {t('admin.reviews.deleteDots')}
       </button>
       <dialog
         ref={dialog}
@@ -42,13 +44,11 @@ export function DeleteReviewButton({ reviewId, pitch }: { reviewId: string; pitc
         onClick={e => e.target === dialog.current && dialog.current?.close()}
       >
         <h2 id={`del-${reviewId}`} className="text-lg font-semibold text-neutral-900">
-          Delete this review of {pitch}?
+          {t('admin.reviews.deleteTitle', { pitch })}
         </h2>
-        <p className="mt-1 text-sm text-neutral-700">
-          It&rsquo;s removed for good, with its reports. The author reads your reason.
-        </p>
+        <p className="mt-1 text-sm text-neutral-700">{t('admin.reviews.deleteHint')}</p>
         <label className="mt-4 block text-sm font-medium text-neutral-700">
-          Reason
+          {t('admin.reviews.reason')}
           <textarea
             rows={3}
             maxLength={300}
@@ -68,7 +68,7 @@ export function DeleteReviewButton({ reviewId, pitch }: { reviewId: string; pitc
             onClick={() => dialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('admin.cancel')}
           </button>
           <button
             type="button"
@@ -76,7 +76,7 @@ export function DeleteReviewButton({ reviewId, pitch }: { reviewId: string; pitc
             onClick={() => void remove()}
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? 'Deleting…' : 'Delete review'}
+            {busy ? t('admin.reviews.deleting') : t('admin.reviews.delete')}
           </button>
         </div>
       </dialog>

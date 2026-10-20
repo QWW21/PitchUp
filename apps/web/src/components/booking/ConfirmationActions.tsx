@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Printer, Share2 } from 'lucide-react'
 import { clearDraft } from './draft'
+import { useT } from '@/i18n/client'
 
 /** Buttons under a confirmed booking. The draft is done with, so it is cleared. */
 export function ConfirmationActions({
@@ -16,6 +17,7 @@ export function ConfirmationActions({
   bookingId: string
   shareText: string
 }) {
+  const t = useT()
   const [canShare, setCanShare] = useState(false)
 
   useEffect(() => {
@@ -29,25 +31,27 @@ export function ConfirmationActions({
         href={`/my-bookings/${bookingId}`}
         className="flex h-12 w-full items-center justify-center rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700"
       >
-        View my booking
+        {t('booking.confirmation.viewBooking')}
       </Link>
       <Link
         href="/discover"
         className="flex h-12 w-full items-center justify-center rounded-md font-semibold text-primary-700 hover:bg-primary-50"
       >
-        Back to Discover
+        {t('booking.confirmation.backToDiscover')}
       </Link>
       <div className="flex justify-center gap-4 pt-2">
         {canShare && (
           <button
             type="button"
             onClick={() =>
-              navigator.share({ title: 'PitchUp booking', text: shareText }).catch(() => {})
+              navigator
+                .share({ title: t('booking.confirmation.shareTitle'), text: shareText })
+                .catch(() => {})
             }
             className="flex h-10 items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
           >
             <Share2 className="h-4 w-4" aria-hidden="true" />
-            Share
+            {t('booking.confirmation.shareButton')}
           </button>
         )}
         <button
@@ -56,7 +60,7 @@ export function ConfirmationActions({
           className="flex h-10 items-center gap-1.5 text-sm font-medium text-neutral-700 hover:text-neutral-900"
         >
           <Printer className="h-4 w-4" aria-hidden="true" />
-          Print receipt
+          {t('booking.confirmation.print')}
         </button>
       </div>
     </div>

@@ -7,11 +7,16 @@ import { auth } from '@/auth'
 import { getProfile } from '@/lib/profile/account'
 import { Avatar } from '@/components/profile/Avatar'
 import { TrustScoreRing } from '@/components/profile/TrustScoreRing'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Profile | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('profile.overview.title') }
+}
 
 /** Profile overview — E08-08: who you are, your trust score, and shortcuts. */
 export default async function ProfilePage() {
+  const locale = await getLocale()
+  const t = await getT()
   // The layout redirects too, but layouts and pages render in parallel.
   const session = await auth()
   if (!session?.user) redirect('/login?callbackUrl=%2Fprofile')
@@ -20,10 +25,10 @@ export default async function ProfilePage() {
 
   return (
     <>
-      <h1 className="text-2xl font-bold text-neutral-900">Profile</h1>
+      <h1 className="text-2xl font-bold text-neutral-900">{t('profile.overview.heading')}</h1>
 
       <section
-        aria-label="Your details"
+        aria-label={t('profile.overview.details')}
         className="mt-4 flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 shadow-sm"
       >
         <Avatar name={p.name} url={p.avatarUrl} />
@@ -42,7 +47,7 @@ export default async function ProfilePage() {
           href="/profile/settings"
           className="w-full shrink-0 rounded-md border text-center sm:ml-auto sm:w-auto sm:self-start border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
         >
-          Edit profile
+          {t('profile.overview.edit')}
         </Link>
       </section>
 
@@ -59,31 +64,31 @@ export default async function ProfilePage() {
               className="h-2 w-2 rounded-full"
               style={{ backgroundColor: TRUST_TIER_COLOURS[tier.label] }}
             />
-            {tier.label}
+            {t(`trust.tier.${tier.label}`)}
           </span>
         </div>
         <div>
           <h2 id="trust-heading" className="font-semibold text-neutral-900">
-            Your trust score
+            {t('profile.overview.trustHeading')}
           </h2>
-          <p className="text-sm text-neutral-700">{tierDescription(tier)}</p>
+          <p className="text-sm text-neutral-700">{tierDescription(tier, locale)}</p>
           <Link
             href="/profile/trust-score"
             className="mt-1 inline-block text-sm font-medium text-primary-700 hover:underline"
           >
-            View history →
+            {t('profile.overview.history')}
           </Link>
         </div>
       </section>
 
       <nav
-        aria-label="Your activity"
+        aria-label={t('profile.overview.activity')}
         className="mt-4 overflow-hidden rounded-xl bg-white shadow-sm"
       >
         {[
-          { href: '/my-bookings', label: 'My bookings' },
-          { href: '/my-reviews', label: 'My reviews' },
-          { href: '/profile/payment-methods', label: 'Payment methods' },
+          { href: '/my-bookings', label: t('profile.overview.myBookings') },
+          { href: '/my-reviews', label: t('profile.overview.myReviews') },
+          { href: '/profile/payment-methods', label: t('profile.overview.payment') },
         ].map(l => (
           <Link
             key={l.href}

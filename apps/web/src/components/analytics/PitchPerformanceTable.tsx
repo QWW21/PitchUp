@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { ArrowDown, ArrowUp, Download } from 'lucide-react'
 import type { PitchPerformanceRow } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
+import { useT } from '@/i18n/client'
 import { ron } from './format'
 
 type Key =
@@ -19,14 +20,14 @@ type Key =
   | 'cancellationRate'
   | 'noShowRate'
 
-const COLUMNS: { key: Key; label: string; numeric: boolean }[] = [
-  { key: 'name', label: 'Pitch', numeric: false },
-  { key: 'revenue', label: 'Revenue', numeric: true },
-  { key: 'totalBookings', label: 'Bookings', numeric: true },
-  { key: 'occupancy', label: 'Occupancy', numeric: true },
-  { key: 'avgRating', label: 'Rating', numeric: true },
-  { key: 'cancellationRate', label: 'Cancelled', numeric: true },
-  { key: 'noShowRate', label: 'No-shows', numeric: true },
+const COLUMNS: { key: Key; numeric: boolean }[] = [
+  { key: 'name', numeric: false },
+  { key: 'revenue', numeric: true },
+  { key: 'totalBookings', numeric: true },
+  { key: 'occupancy', numeric: true },
+  { key: 'avgRating', numeric: true },
+  { key: 'cancellationRate', numeric: true },
+  { key: 'noShowRate', numeric: true },
 ]
 
 /** Under 10% fine, under 20% worth a look, above that a problem. */
@@ -44,6 +45,7 @@ export function PitchPerformanceTable({
   period: string
   pitchId: string
 }) {
+  const t = useT()
   const [sort, setSort] = useState<{ key: Key; dir: 'asc' | 'desc' }>({
     key: 'revenue',
     dir: 'desc',
@@ -76,7 +78,7 @@ export function PitchPerformanceTable({
       const q = new URLSearchParams({ period })
       if (pitchId) q.set('pitchId', pitchId)
       const res = await fetch(`/api/v1/manager/analytics/export?${q}`)
-      if (!res.ok) throw new Error('The export could not be made. Try again.')
+      if (!res.ok) throw new Error(t('analytics.table.exportFailed'))
       const name =
         /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ??
         'pitchup-analytics.csv'
@@ -87,9 +89,7 @@ export function PitchPerformanceTable({
       a.click()
       URL.revokeObjectURL(url)
       if (res.headers.get('X-Truncated')) {
-        setNote(
-          'Only the latest 10,000 bookings were exported. Pick a shorter period for all of them.'
-        )
+        setNote(t('analytics.table.truncated'))
       }
     } catch (caught) {
       setError((caught as Error).message)
@@ -101,7 +101,7 @@ export function PitchPerformanceTable({
     <section aria-labelledby="pitches-heading" className="rounded-xl bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id="pitches-heading" className="text-base font-semibold text-neutral-900">
-          Pitch performance
+          {t('analytics.table.heading')}
         </h2>
         <button
           type="button"
@@ -110,7 +110,7 @@ export function PitchPerformanceTable({
           className="flex h-10 items-center gap-2 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
         >
           <Download className="h-4 w-4" aria-hidden="true" />
-          {busy ? 'Preparing…' : 'Export CSV'}
+          {busy ? t('analytics.table.preparing') : t('analytics.table.export')}
         </button>
       </div>
       {note && (
@@ -124,7 +124,7 @@ export function PitchPerformanceTable({
         </div>
       )}
       {rows.length === 0 ? (
-        <p className="mt-4 text-sm text-neutral-700">No pitches yet.</p>
+        <p className="mt-4 text-sm text-neutral-700">{t('analytics.table.none')}</p>
       ) : (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[40rem] text-sm">
@@ -148,7 +148,7 @@ export function PitchPerformanceTable({
                       onClick={() => by(c.key)}
                       className="inline-flex h-8 items-center gap-1 hover:text-neutral-900"
                     >
-                      {c.label}
+                      {t(`analytics.table.columns.${c.key}`)}
                       {sort.key === c.key &&
                         (sort.dir === 'asc' ? (
                           <ArrowUp className="h-3 w-3" aria-hidden="true" />
@@ -166,7 +166,9 @@ export function PitchPerformanceTable({
                   <th scope="row" className="py-2 text-left font-medium text-neutral-900">
                     {r.name}
                     {!r.isActive && (
-                      <span className="ml-1 text-xs font-normal text-neutral-500">(inactive)</span>
+                      <span className="ml-1 text-xs font-normal text-neutral-500">
+                        {t('analytics.table.inactive')}
+                      </span>
                     )}
                   </th>
                   <td className="text-right">{ron(r.revenue)}</td>
@@ -174,7 +176,7 @@ export function PitchPerformanceTable({
                     {r.totalBookings}
                     {r.completedBookings !== r.totalBookings && (
                       <span className="block text-xs text-neutral-500">
-                        {r.completedBookings} played
+                        {t('analytics.table.played', { n: r.completedBookings })}
                       </span>
                     )}
                   </td>
@@ -183,7 +185,7 @@ export function PitchPerformanceTable({
                     {r.avgRating === null ? '—' : `★ ${r.avgRating.toFixed(1)}`}
                     {r.reviewCount > 0 && (
                       <span className="block text-xs text-neutral-500">
-                        {r.reviewCount} {r.reviewCount === 1 ? 'review' : 'reviews'}
+                        {t('analytics.table.reviews', { count: r.reviewCount })}
                       </span>
                     )}
                   </td>

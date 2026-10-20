@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export const POST = withErrorHandling(async (request: NextRequest) => {
   const rate = checkRateLimit(`login:${getClientIp(request)}`, AUTH_RATE_LIMIT)
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many login attempts', 429, {
+    return err('RATE_LIMITED', 'api.tooManyLogins', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -31,16 +31,16 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   if ('failure' in result) {
     switch (result.failure) {
       case 'EMAIL_NOT_VERIFIED':
-        return err('FORBIDDEN', 'Verify your email address before signing in', 403, {
+        return err('FORBIDDEN', 'api.verifyEmailFirst', 403, {
           reason: 'EMAIL_NOT_VERIFIED',
         })
       case 'ACCOUNT_SUSPENDED':
-        return err('FORBIDDEN', 'This account is not available', 403, {
+        return err('FORBIDDEN', 'api.accountUnavailable', 403, {
           reason: 'ACCOUNT_SUSPENDED',
         })
       default:
         // One response for both an unknown email and a wrong password.
-        return err('UNAUTHORIZED', 'Incorrect email or password', 401)
+        return err('UNAUTHORIZED', 'api.wrongLogin', 401)
     }
   }
 

@@ -3,6 +3,7 @@ import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { REVIEW, type CompanyListItem } from '@pitchup/shared'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface CompanyCardProps {
   company: CompanyListItem
@@ -13,6 +14,7 @@ interface CompanyCardProps {
 
 /** Discover list card. UIUX_SPEC §5.1, E03-05. */
 export function CompanyCard({ company, onPress, bare = false }: CompanyCardProps) {
+  const t = useT()
   const rated = company.avgRating !== null && company.reviewCount >= REVIEW.MIN_FOR_PUBLIC_RATING
 
   return (
@@ -21,7 +23,10 @@ export function CompanyCard({ company, onPress, bare = false }: CompanyCardProps
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${company.name}, from ${company.priceFrom} RON per hour`}
+      accessibilityLabel={t('discover.card.label', {
+        name: company.name,
+        price: company.priceFrom,
+      })}
       style={[styles.row, !bare && styles.card]}
     >
       {company.logoUrl ? (
@@ -39,7 +44,7 @@ export function CompanyCard({ company, onPress, bare = false }: CompanyCardProps
           </Text>
           {company.isOpenNow ? (
             <View style={styles.openBadge}>
-              <Text style={styles.openText}>OPEN</Text>
+              <Text style={styles.openText}>{t('discover.card.open')}</Text>
             </View>
           ) : null}
         </View>
@@ -61,7 +66,7 @@ export function CompanyCard({ company, onPress, bare = false }: CompanyCardProps
               <Text style={styles.muted}>({company.reviewCount})</Text>
             </>
           ) : (
-            <Text style={styles.muted}>Not rated yet</Text>
+            <Text style={styles.muted}>{t('discover.card.notRated')}</Text>
           )}
           {company.distanceKm !== null ? (
             <>

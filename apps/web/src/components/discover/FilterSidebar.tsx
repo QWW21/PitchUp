@@ -20,15 +20,14 @@ import {
   DISCOVER,
   COMPANY_SORTS,
   FILTERABLE_SIZES,
-  SIZE_LABELS,
-  SORT_LABELS,
-  SURFACE_LABELS,
+  sharedEn,
   type CompanySort,
   type DiscoverFilters,
   type SurfaceType,
 } from '@pitchup/shared'
 import { SizeInfo } from '@/components/venue/bits'
 import { PriceRange } from './PriceRange'
+import { useT } from '@/i18n/client'
 
 const AMENITY_ICONS: Record<string, LucideIcon> = {
   showers: ShowerHead,
@@ -44,7 +43,7 @@ const AMENITY_ICONS: Record<string, LucideIcon> = {
   wheelchair: Accessibility,
 }
 
-const SURFACES = Object.keys(SURFACE_LABELS) as SurfaceType[]
+const SURFACES = Object.keys(sharedEn.surface) as SurfaceType[]
 
 interface FilterSidebarProps {
   filters: DiscoverFilters
@@ -69,66 +68,67 @@ export function FilterSidebar({
   onSortChange,
   onReset,
 }: FilterSidebarProps) {
+  const t = useT()
   const set = (patch: Partial<DiscoverFilters>) => onFiltersChange({ ...filters, ...patch })
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-neutral-900">Filters</h2>
+        <h2 className="text-lg font-semibold text-neutral-900">{t('discover.filters')}</h2>
         <button
           type="button"
           onClick={onReset}
           className="text-sm font-medium text-error-600 hover:underline"
         >
-          Reset all filters
+          {t('discover.sidebar.resetAll')}
         </button>
       </div>
 
-      <Section title="Sort by">
+      <Section title={t('discover.sidebar.sortBy')}>
         <select
-          aria-label="Sort by"
+          aria-label={t('discover.sidebar.sortBy')}
           value={sort}
           onChange={e => onSortChange(e.target.value as CompanySort)}
           className="h-10 w-full rounded-md border border-neutral-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
         >
           {COMPANY_SORTS.map(s => (
             <option key={s} value={s} disabled={s === 'distance' && !canSortByDistance}>
-              {SORT_LABELS[s]}
-              {s === 'distance' && !canSortByDistance ? ' (share location)' : ''}
+              {t(`sort.${s}`)}
+              {s === 'distance' && !canSortByDistance ? t('discover.sidebar.shareLocation') : ''}
             </option>
           ))}
         </select>
       </Section>
 
-      <Section title="Surface type">
+      <Section title={t('discover.sidebar.surface')}>
         {SURFACES.map(s => (
           <Checkbox
             key={s}
-            label={SURFACE_LABELS[s]}
+            label={t(`surface.${s}`)}
             checked={filters.surfaces.includes(s)}
             onChange={() => set({ surfaces: toggle(filters.surfaces, s) })}
           />
         ))}
       </Section>
 
-      <Section title="Pitch size" aside={<SizeInfo fill />}>
+      <Section title={t('discover.sidebar.size')} aside={<SizeInfo fill />}>
         {FILTERABLE_SIZES.map(s => (
           <Checkbox
             key={s}
-            label={SIZE_LABELS[s]}
+            label={t(`size.${s}`)}
             checked={filters.sizes.includes(s)}
             onChange={() => set({ sizes: toggle(filters.sizes, s) })}
           />
         ))}
       </Section>
 
-      <Section title="Amenities">
+      <Section title={t('discover.sidebar.amenities')}>
         {AMENITY_FILTERS.map(a => {
           const Icon = AMENITY_ICONS[a.key]
           return (
             <Checkbox
               key={a.key}
-              label={a.label}
+              label={t(`amenityFilter.${a.key}`)}
               icon={Icon ? <Icon className="h-4 w-4 text-neutral-500" aria-hidden="true" /> : null}
               checked={filters.amenities.includes(a.key)}
               onChange={() => set({ amenities: toggle(filters.amenities, a.key) })}
@@ -137,7 +137,7 @@ export function FilterSidebar({
         })}
       </Section>
 
-      <Section title="Price per hour">
+      <Section title={t('discover.sidebar.price')}>
         <PriceRange
           min={filters.priceMin}
           max={filters.priceMax}
@@ -145,14 +145,14 @@ export function FilterSidebar({
         />
       </Section>
 
-      <Section title="Availability">
+      <Section title={t('discover.sidebar.availability')}>
         <Switch
-          label="Available now"
+          label={t('discover.sidebar.availableNow')}
           checked={filters.availableNow}
           onChange={availableNow => set({ availableNow })}
         />
         <p className="text-xs text-neutral-500">
-          Open, with a pitch free for the next {DISCOVER.AVAILABLE_NOW_WINDOW_HOURS} hours.
+          {t('discover.sidebar.availableNowHint', { hours: DISCOVER.AVAILABLE_NOW_WINDOW_HOURS })}
         </p>
       </Section>
     </div>

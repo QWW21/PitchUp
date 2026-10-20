@@ -19,7 +19,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
   const rate = checkRateLimit(`register:${getClientIp(request)}`, REGISTER_RATE_LIMIT)
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many registration attempts', 429, {
+    return err('RATE_LIMITED', 'api.tooManyRegistrations', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }
@@ -31,11 +31,11 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     // A failed send leaves no account behind (see registerPlayer), so the
     // client can safely retry. Provider wording never reaches the client.
     console.error('[auth] Registration failed:', caught)
-    return err('INTERNAL_ERROR', 'Could not complete sign-up, please try again', 500)
+    return err('INTERNAL_ERROR', 'api.signUpFailed', 500)
   }
 
   if (result.outcome === 'PHONE_TAKEN') {
-    return err('CONFLICT', 'That phone number is already registered', 409, {
+    return err('CONFLICT', 'api.phoneRegistered', 409, {
       field: 'phone',
     })
   }

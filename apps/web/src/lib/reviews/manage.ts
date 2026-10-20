@@ -8,6 +8,7 @@ import 'server-only'
 import type { Prisma } from '@prisma/client'
 import { REVIEW, type ManagerReviewPage, type ManagerReviewQuery } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { notFound } from '@/lib/api/errors'
 import { REVIEW_ORDER, reviewerName } from '@/lib/venues/reviews'
 import { photoList } from './shape'
@@ -37,7 +38,7 @@ export async function listCompanyReviews(
   })
   // Another company's reviews: as if it did not exist.
   if (!company || (company.ownerId !== viewer.id && viewer.role !== 'ADMIN')) {
-    throw notFound('Company not found')
+    throw notFound('api.companyNotFound')
   }
 
   const where: Prisma.ReviewWhereInput = {
@@ -65,6 +66,7 @@ export async function listCompanyReviews(
     prisma.review.count({ where }),
   ])
 
+  const locale = await getLocale()
   return {
     items: rows.map(r => {
       const replyDeadline = r.managerRepliedAt
@@ -74,7 +76,7 @@ export async function listCompanyReviews(
         id: r.id,
         rating: r.rating,
         text: r.text,
-        playerName: reviewerName(r.player, r.isAnonymous),
+        playerName: reviewerName(r.player, r.isAnonymous, locale),
         photoUrls: photoList(r.photoUrls),
         pitch: r.pitch,
         reply:

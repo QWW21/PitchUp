@@ -1,6 +1,9 @@
+'use client'
+
 import Link from 'next/link'
 import { Building2, MapPin, Star } from 'lucide-react'
 import type { CompanyListItem } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 /** Same content as the mobile CompanyCard (UIUX_SPEC §5.1), laid out for a grid. E03-08. */
 export function CompanyCard({ company }: { company: CompanyListItem }) {
@@ -16,6 +19,7 @@ export function CompanyCard({ company }: { company: CompanyListItem }) {
 }
 
 export function CompanyLogo({ url, name }: { url: string | null; name: string }) {
+  const t = useT()
   if (!url) {
     return (
       <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-neutral-100">
@@ -27,7 +31,7 @@ export function CompanyLogo({ url, name }: { url: string | null; name: string })
     // A plain img: next/image would need the Cloudinary host allow-listed in next.config.
     <img
       src={url}
-      alt={`${name} logo`}
+      alt={t('discover.card.logoAlt', { name })}
       className="h-14 w-14 shrink-0 rounded-md bg-neutral-100 object-cover"
     />
   )
@@ -35,13 +39,14 @@ export function CompanyLogo({ url, name }: { url: string | null; name: string })
 
 /** The text column, shared with the map preview card. */
 export function CompanySummary({ company }: { company: CompanyListItem }) {
+  const t = useT()
   return (
     <div className="min-w-0 flex-1">
       <div className="flex items-start gap-2">
         <h3 className="flex-1 truncate font-semibold text-neutral-900">{company.name}</h3>
         {company.isOpenNow && (
           <span className="shrink-0 rounded bg-success-50 px-1.5 py-0.5 text-[11px] font-medium text-primary-700">
-            OPEN
+            {t('discover.card.open')}
           </span>
         )}
       </div>
@@ -57,7 +62,7 @@ export function CompanySummary({ company }: { company: CompanyListItem }) {
             <span className="text-neutral-500">({company.reviewCount})</span>
           </>
         ) : (
-          <span className="text-neutral-500">Not rated yet</span>
+          <span className="text-neutral-500">{t('discover.card.notRated')}</span>
         )}
         {company.distanceKm !== null && (
           <>
@@ -68,10 +73,11 @@ export function CompanySummary({ company }: { company: CompanyListItem }) {
       </p>
       <div className="mt-2 flex items-center gap-2">
         <span className="rounded-full bg-neutral-100 px-2 py-1 text-[11px] font-medium text-neutral-700">
-          {company.pitchCount} {company.pitchCount === 1 ? 'pitch' : 'pitches'}
+          {t('discover.card.pitches', { count: company.pitchCount })}
         </span>
         <span className="ml-auto text-xs text-primary-700">
-          from <strong>{company.priceFrom} RON</strong>/h
+          {t('discover.card.from')} <strong>{company.priceFrom} RON</strong>
+          {t('discover.card.perHour')}
         </span>
       </div>
     </div>

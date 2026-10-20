@@ -20,6 +20,7 @@ import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
 import type { BookingScreenProps } from './navigation'
+import { useLocale, useT } from '../../i18n'
 
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -42,6 +43,8 @@ export function monthGrid(first: string): (string | null)[] {
 }
 
 export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'>) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const pitch = useBookingStore(s => s.pitch)!
   const chosen = useBookingStore(s => s.date)
@@ -83,7 +86,7 @@ export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'
 
   const tap = (date: string) => {
     const s = status.get(date)
-    if (s === 'full') return show('No available slots on this day')
+    if (s === 'full') return show(t('booking.date.full'))
     if (s === 'available') setSelected(date)
   }
 
@@ -93,14 +96,14 @@ export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'
     <View style={styles.root}>
       <BookingHeader step={1} onBack={close} onClose={close} />
       <View style={styles.body}>
-        <Text style={styles.heading}>Pick a date</Text>
+        <Text style={styles.heading}>{t('booking.date.heading')}</Text>
         <View style={styles.monthRow}>
           <Pressable
             onPress={() => go(-1)}
             disabled={!canPrev}
             style={styles.arrow}
             accessibilityRole="button"
-            accessibilityLabel="Previous month"
+            accessibilityLabel={t('booking.date.previous')}
           >
             <Icon
               name="chevron-left"
@@ -109,14 +112,14 @@ export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'
             />
           </Pressable>
           <Text style={styles.month} accessibilityRole="header">
-            {formatMonth(month)}
+            {formatMonth(month, locale)}
           </Text>
           <Pressable
             onPress={() => go(1)}
             disabled={!canNext}
             style={styles.arrow}
             accessibilityRole="button"
-            accessibilityLabel="Next month"
+            accessibilityLabel={t('booking.date.nextMonth')}
           >
             <Icon
               name="chevron-right"
@@ -148,7 +151,7 @@ export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'
                 style={styles.cell}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected, disabled: !tappable }}
-                accessibilityLabel={`${formatDateLong(date)}${s === 'full' ? ', fully booked' : s === 'available' ? '' : ', unavailable'}`}
+                accessibilityLabel={`${formatDateLong(date, locale)}${s === 'full' ? t('booking.date.fullyBooked') : s === 'available' ? '' : t('booking.date.unavailable')}`}
               >
                 <View style={[styles.dayCircle, isSelected && styles.daySelected]}>
                   <Text
@@ -170,7 +173,7 @@ export function Step1DateScreen({ navigation }: BookingScreenProps<'BookingDate'
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         <Button
-          label="Next"
+          label={t('booking.next')}
           disabled={!selected}
           onPress={() => {
             if (!selected) return

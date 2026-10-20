@@ -25,7 +25,7 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     windowMs: 15 * 60 * 1000,
   })
   if (!rate.allowed) {
-    return err('RATE_LIMITED', 'Too many attempts, try again shortly', 429, {
+    return err('RATE_LIMITED', 'api.tooManyAttemptsShortly', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
     })
   }

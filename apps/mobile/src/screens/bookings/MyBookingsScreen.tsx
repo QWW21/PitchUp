@@ -27,14 +27,9 @@ import { ErrorState } from '../../components/common/ErrorState'
 import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingCard } from './BookingCard'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'MyBookings'>
-
-const LABELS: Record<BookingTab, string> = {
-  upcoming: 'Upcoming',
-  past: 'Past',
-  cancelled: 'Cancelled',
-}
 
 export function useBookingList(tab: BookingTab) {
   return useInfiniteQuery({
@@ -46,6 +41,7 @@ export function useBookingList(tab: BookingTab) {
 }
 
 export function MyBookingsScreen({ navigation, route }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const [tab, setTab] = useState<BookingTab>(route.params?.tab ?? 'upcoming')
   const { show, toast } = useToast(insets.bottom + 24)
@@ -68,34 +64,36 @@ export function MyBookingsScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('bookings.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          My bookings
+          {t('bookings.list.title')}
         </Text>
         <Pressable
           onPress={() => navigation.navigate('MyReviews')}
           style={styles.reviews}
           accessibilityRole="button"
-          accessibilityLabel="My reviews"
+          accessibilityLabel={t('bookings.list.myReviews')}
         >
           <Icon name="star-outline" size={20} color={colors.primary[600]} />
-          <Text style={styles.reviewsText}>My reviews</Text>
+          <Text style={styles.reviewsText}>{t('bookings.list.myReviews')}</Text>
         </Pressable>
       </View>
 
       <View style={styles.tabs} accessibilityRole="tablist">
-        {BOOKING_TABS.map(t => (
+        {BOOKING_TABS.map(key => (
           <Pressable
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tab, t === tab && styles.tabOn]}
+            key={key}
+            onPress={() => setTab(key)}
+            style={[styles.tab, key === tab && styles.tabOn]}
             accessibilityRole="tab"
-            accessibilityState={{ selected: t === tab }}
+            accessibilityState={{ selected: key === tab }}
           >
-            <Text style={[styles.tabText, t === tab && styles.tabTextOn]}>{LABELS[t]}</Text>
+            <Text style={[styles.tabText, key === tab && styles.tabTextOn]}>
+              {t(`bookings.list.tabs.${key}`)}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -140,13 +138,14 @@ export function MyBookingsScreen({ navigation, route }: Props) {
 }
 
 function Empty({ tab, onFind }: { tab: BookingTab; onFind: () => void }) {
+  const t = useT()
   if (tab === 'upcoming') {
     return (
       <EmptyState
         illustration={<Icon name="calendar-blank" size={64} color={colors.neutral[300]} />}
-        title="No upcoming bookings"
-        description="Book a pitch and it will show up here."
-        ctaLabel="Find a pitch"
+        title={t('bookings.list.noUpcoming')}
+        description={t('bookings.list.noUpcomingHint')}
+        ctaLabel={t('bookings.findPitch')}
         ctaVariant="primary"
         onCta={onFind}
       />
@@ -161,8 +160,8 @@ function Empty({ tab, onFind }: { tab: BookingTab; onFind: () => void }) {
           color={colors.neutral[300]}
         />
       }
-      title={tab === 'past' ? 'No past bookings yet' : 'No cancelled bookings'}
-      description={tab === 'past' ? 'Games you have played appear here.' : 'Nothing cancelled.'}
+      title={tab === 'past' ? t('bookings.list.noPast') : t('bookings.list.noCancelled')}
+      description={tab === 'past' ? t('bookings.list.pastHint') : t('bookings.list.cancelledHint')}
     />
   )
 }

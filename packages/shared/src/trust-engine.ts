@@ -6,6 +6,8 @@
 import { TRUST_LATE_CANCEL_HOURS, TRUST_VERY_LATE_CANCEL_HOURS } from './constants/cancellation'
 import { TRUST_SCORE_INITIAL, TRUST_SCORE_MAX, TRUST_SCORE_MIN, trustTier } from './constants/trust'
 import type { TrustScoreReason, TrustTierLabel } from './types'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 /** The tier's name for a score (E12-01). Derived, never stored. */
 export const deriveTier = (score: number): TrustTierLabel => trustTier(score).label
@@ -32,11 +34,15 @@ export function lateCancelReason(
 
 /** The minimums a venue can set on a pitch (E12-09): a tier's lower bound. */
 export const MIN_TRUST_OPTIONS = [
-  { score: 0, label: 'Anyone who can book' },
-  { score: 50, label: 'Fair and above' },
-  { score: 70, label: 'Good and above' },
-  { score: 90, label: 'Excellent only' },
+  { score: 0 },
+  { score: 50 },
+  { score: 70 },
+  { score: 90 },
 ] as const
+
+/** "Fair and above", by `trust.minScore.<score>`. */
+export const minTrustLabel = (score: (typeof MIN_TRUST_OPTIONS)[number]['score'], locale: Locale) =>
+  sharedT(locale)(`trust.minScore.${score}`)
 export const MIN_TRUST_SCORES = MIN_TRUST_OPTIONS.map(o => o.score)
 
 /** Whether a score reaches a pitch's minimum (E12-06). */
@@ -58,20 +64,27 @@ export interface TrustGate {
  * (E12-06, PRD §9.1). Suspended players can't book anywhere; Poor players
  * may hold one active booking; a pitch may ask for a higher tier.
  */
-export function bookingTrustGate(input: {
-  score: number
-  pitchMinScore: number
-  activeBookings: number
-}): TrustGate | null {
+export function bookingTrustGate(
+  input: {
+    score: number
+    pitchMinScore: number
+    activeBookings: number
+  },
+  locale: Locale
+): TrustGate | null {
+  const t = sharedT(locale)
   const tier = trustTier(input.score)
   if (!tier.canBook) {
-    return { reason: 'TRUST_SCORE_TOO_LOW', message: 'Your account cannot make bookings right now' }
+    return { reason: 'TRUST_SCORE_TOO_LOW', message: t('trust.gate.TRUST_SCORE_TOO_LOW') }
   }
   if (!meetsMinScore(input.score, input.pitchMinScore)) {
     const required = deriveTier(input.pitchMinScore)
     return {
       reason: 'TRUST_TIER_INSUFFICIENT',
-      message: `This pitch is for players with a ${required} trust score or better. Yours is ${tier.label}.`,
+      message: t('trust.gate.TRUST_TIER_INSUFFICIENT', {
+        required: t(`trust.tier.${required}`),
+        current: t(`trust.tier.${tier.label}`),
+      }),
       required,
       current: tier.label,
     }
@@ -79,7 +92,7 @@ export function bookingTrustGate(input: {
   if (tier.maxActiveBookings !== null && input.activeBookings >= tier.maxActiveBookings) {
     return {
       reason: 'ACTIVE_BOOKING_LIMIT',
-      message: `At your trust score you can have ${tier.maxActiveBookings} upcoming booking at a time. Play or cancel it first.`,
+      message: t('trust.gate.ACTIVE_BOOKING_LIMIT', { count: tier.maxActiveBookings }),
     }
   }
   return null

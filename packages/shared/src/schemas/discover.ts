@@ -42,9 +42,9 @@ const queryBoolean = z
 export const CompanyListQuerySchema = z
   .object({
     city: z
-      .string({ required_error: 'City is required' })
+      .string({ required_error: 'v.cityRequired' })
       .trim()
-      .min(1, 'City is required')
+      .min(1, 'v.cityRequired')
       .refine(city => CITY_NAMES.includes(city), 'Unknown city'),
     search: z.string().trim().max(100).optional(),
     sort: z.enum(COMPANY_SORTS).optional(),

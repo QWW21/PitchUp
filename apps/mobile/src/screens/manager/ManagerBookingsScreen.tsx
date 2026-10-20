@@ -24,27 +24,30 @@ import { managerApi } from '../../lib/managerApi'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'ManagerBookings'>
 
-const STATUSES: [BookingStatus | undefined, string][] = [
-  [undefined, 'All'],
-  ['CONFIRMED', 'Confirmed'],
-  ['COMPLETED', 'Completed'],
-  ['NO_SHOW', 'No-show'],
-  ['CANCELLED', 'Cancelled'],
+const STATUSES: (BookingStatus | undefined)[] = [
+  undefined,
+  'CONFIRMED',
+  'COMPLETED',
+  'NO_SHOW',
+  'CANCELLED',
 ]
 
-export const STATUS_TEXT: Record<BookingStatus, [string, string, string]> = {
-  PENDING: ['Awaiting payment', 'clock-outline', colors.warning[500]],
-  AWAITING_APPROVAL: ['Needs your answer', 'help-circle-outline', colors.warning[500]],
-  CONFIRMED: ['Confirmed', 'check-circle', colors.primary[600]],
-  CANCELLED: ['Cancelled', 'close-circle', colors.neutral[500]],
-  COMPLETED: ['Completed', 'check-all', colors.info[500]],
-  NO_SHOW: ['No-show', 'alert-circle', colors.error[600]],
+/** Each status's icon and colour; its words are manager.status.* in the catalog. */
+export const STATUS_TEXT: Record<BookingStatus, [string, string]> = {
+  PENDING: ['clock-outline', colors.warning[500]],
+  AWAITING_APPROVAL: ['help-circle-outline', colors.warning[500]],
+  CONFIRMED: ['check-circle', colors.primary[600]],
+  CANCELLED: ['close-circle', colors.neutral[500]],
+  COMPLETED: ['check-all', colors.info[500]],
+  NO_SHOW: ['alert-circle', colors.error[600]],
 }
 
 export function ManagerBookingsScreen({ navigation }: Props) {
+  const t = useT()
   const [status, setStatus] = useState<BookingStatus | undefined>(undefined)
   const [pitchId, setPitchId] = useState<string | undefined>(undefined)
   const pitches = useQuery({ queryKey: ['manager-pitches'], queryFn: managerApi.pitches })
@@ -64,12 +67,12 @@ export function ManagerBookingsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('manager.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Venue bookings
+          {t('manager.bookings.title')}
         </Text>
       </View>
 
@@ -78,8 +81,13 @@ export function ManagerBookingsScreen({ navigation }: Props) {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.chips}
       >
-        {STATUSES.map(([value, label]) => (
-          <Chip key={label} label={label} on={status === value} onPress={() => setStatus(value)} />
+        {STATUSES.map(value => (
+          <Chip
+            key={value ?? 'all'}
+            label={value ? t(`manager.status.${value}`) : t('manager.bookings.all')}
+            on={status === value}
+            onPress={() => setStatus(value)}
+          />
         ))}
       </ScrollView>
       {pitches.data && pitches.data.length > 1 ? (
@@ -88,7 +96,11 @@ export function ManagerBookingsScreen({ navigation }: Props) {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.chips}
         >
-          <Chip label="All pitches" on={!pitchId} onPress={() => setPitchId(undefined)} />
+          <Chip
+            label={t('manager.bookings.allPitches')}
+            on={!pitchId}
+            onPress={() => setPitchId(undefined)}
+          />
           {pitches.data.map(p => (
             <Chip
               key={p.id}
@@ -130,10 +142,10 @@ export function ManagerBookingsScreen({ navigation }: Props) {
               illustration={<Icon name="calendar-blank" size={64} color={colors.neutral[300]} />}
               title={
                 pitches.data?.length === 0
-                  ? 'Add a pitch to start receiving bookings'
-                  : 'No bookings found'
+                  ? t('manager.bookings.addPitch')
+                  : t('manager.bookings.none')
               }
-              description="Bookings for your venue show here."
+              description={t('manager.bookings.hint')}
             />
           }
         />
@@ -156,15 +168,21 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
 }
 
 function BookingRow({ booking: b, onPress }: { booking: ManagerBooking; onPress: () => void }) {
-  const [label, icon, tint] = b.attendedAt
-    ? ['Attended', 'check-circle', colors.primary[600]]
-    : STATUS_TEXT[b.status]
+  const t = useT()
+  const locale = useLocale()
+  const [icon, tint] = b.attendedAt ? ['check-circle', colors.primary[600]] : STATUS_TEXT[b.status]
+  const label = b.attendedAt ? t('manager.status.attended') : t(`manager.status.${b.status}`)
   return (
     <Pressable
       onPress={onPress}
       style={[styles.card, { borderLeftColor: b.pitch.color }]}
       accessibilityRole="button"
-      accessibilityLabel={`${b.player.name}, ${formatDateLong(b.date)} ${b.startTime}, ${b.pitch.name}, ${label}`}
+      accessibilityLabel={t('manager.bookings.rowLabel', {
+        player: b.player.name,
+        when: `${formatDateLong(b.date, locale)} ${b.startTime}`,
+        pitch: b.pitch.name,
+        status: label,
+      })}
     >
       <View style={styles.cardTop}>
         <Text style={styles.player} numberOfLines={1}>
@@ -173,12 +191,12 @@ function BookingRow({ booking: b, onPress }: { booking: ManagerBooking; onPress:
         <Icon name={icon} size={18} color={tint} />
       </View>
       <Text style={styles.muted}>
-        {formatDateLong(b.date)} · {b.startTime}–{b.endTime}
+        {formatDateLong(b.date, locale)} · {b.startTime}–{b.endTime}
       </Text>
       <Text style={styles.muted}>
         {b.pitch.name} · {b.total} RON
         {b.dueAtVenue > 0 && !b.attendedAt && b.status === 'CONFIRMED'
-          ? ` · ${b.dueAtVenue} RON at the venue`
+          ? t('manager.bookings.atVenue', { amount: b.dueAtVenue })
           : ''}
       </Text>
     </Pressable>

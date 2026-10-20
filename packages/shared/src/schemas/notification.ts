@@ -186,5 +186,5 @@ export const NotificationPreferencesSchema = z
       .max(20),
   })
   .partial()
-  .refine(p => Object.keys(p).length > 0, { message: 'Nothing to change' })
+  .refine(p => Object.keys(p).length > 0, { message: 'v.nothingToChange' })
 export type NotificationPreferencesInput = z.infer<typeof NotificationPreferencesSchema>

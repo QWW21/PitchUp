@@ -15,8 +15,11 @@ import {
 import { Choice } from './BasicInfoForm'
 import { SaveBar } from './SaveBar'
 import { useEditorForm } from './useForm'
+import { useT } from '@/i18n/client'
+import { MARK } from '@/i18n/rich'
 
 export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
+  const t = useT()
   const f = useEditorForm({
     hourlyRate: pitch.hourlyRate > 0 ? String(pitch.hourlyRate) : '',
     minBookingHours: pitch.minBookingHours,
@@ -26,7 +29,9 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
   const v = f.values
   const set = (patch: Partial<typeof v>) => f.setValues(prev => ({ ...prev, ...patch }))
   const parsed = PitchPricingSchema.safeParse({ ...v, hourlyRate: Number(v.hourlyRate) || 0 })
-  const problem = parsed.success ? null : (parsed.error.issues[0]?.message ?? 'Check the form')
+  const problem = parsed.success
+    ? null
+    : t.text(parsed.error.issues[0]?.message ?? t('editor.basic.checkForm'))
   const rate = Number(v.hourlyRate) || 0
   const preview = bookingPrice(rate, Math.max(v.minBookingHours, 2) * 60)
 
@@ -34,7 +39,7 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
     <div className="mt-4 space-y-6 rounded-xl bg-white p-5 shadow-sm">
       <div>
         <label htmlFor="hourly-rate" className="block text-sm font-medium text-neutral-900">
-          Hourly rate
+          {t('editor.pricing.rate')}
         </label>
         <div className="mt-1 flex items-center gap-2">
           <input
@@ -48,49 +53,61 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
             aria-describedby="rate-note"
             className="h-11 w-40 rounded-md border border-neutral-200 px-3 text-base"
           />
-          <span className="text-sm text-neutral-700">RON / hour</span>
+          <span className="text-sm text-neutral-700">{t('editor.pricing.perHour')}</span>
         </div>
         <p id="rate-note" className="mt-1 text-xs text-neutral-500">
-          The same price at any time of day. Players pay only this; there is no booking fee.
+          {t('editor.pricing.rateNote')}
         </p>
       </div>
 
       <Radios
-        legend="Shortest booking"
+        legend={t('editor.pricing.shortest')}
         name="min"
         options={PRICING_OPTIONS.MIN_BOOKING_HOURS.map(h => [h, formatShortDuration(h * 60)])}
         value={v.minBookingHours}
         onChange={minBookingHours => set({ minBookingHours })}
       />
       <Radios
-        legend="Longest booking"
+        legend={t('editor.pricing.longest')}
         name="max"
         options={PRICING_OPTIONS.MAX_BOOKING_HOURS.map(h => [h, formatShortDuration(h * 60)])}
         value={v.maxBookingHours}
         onChange={maxBookingHours => set({ maxBookingHours })}
       />
       <Radios
-        legend="Players can book up to"
+        legend={t('editor.pricing.ahead')}
         name="advance"
-        options={PRICING_OPTIONS.ADVANCE_BOOKING_DAYS.map(d => [d, `${d} days ahead`])}
+        options={PRICING_OPTIONS.ADVANCE_BOOKING_DAYS.map(d => [
+          d,
+          t('editor.pricing.daysAhead', { n: d }),
+        ])}
         value={v.advanceBookingDays}
         onChange={advanceBookingDays => set({ advanceBookingDays })}
       />
 
       <p className="rounded-md bg-neutral-50 p-3 text-sm text-neutral-700" aria-live="polite">
-        {rate > 0 ? (
-          <>
-            A player booking <strong>{formatShortDuration(preview.minutes)}</strong> pays{' '}
-            <strong>{preview.total} RON</strong>. You receive {preview.venuePayout} RON after
-            PitchUp&rsquo;s 8% commission.
-          </>
-        ) : (
-          'Enter an hourly rate to see what a booking costs.'
-        )}
+        {rate > 0
+          ? (() => {
+              const [a, b = '', c = ''] = t('editor.pricing.preview', {
+                duration: MARK,
+                total: MARK,
+                payout: preview.venuePayout,
+              }).split(MARK)
+              return (
+                <>
+                  {a}
+                  <strong>{formatShortDuration(preview.minutes)}</strong>
+                  {b}
+                  <strong>{t('editor.pricing.total', { n: preview.total })}</strong>
+                  {c}
+                </>
+              )
+            })()
+          : t('editor.pricing.enterRate')}
       </p>
 
       <SaveBar
-        label="Save pricing"
+        label={t('editor.pricing.save')}
         dirty={f.dirty}
         busy={f.busy}
         saved={f.saved}

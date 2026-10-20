@@ -9,11 +9,14 @@
  */
 import { useRouter } from 'next/navigation'
 import { useRef, useState } from 'react'
-import { NO_SHOW_WINDOW, type ManagerBookingDetail } from '@pitchup/shared'
+import { INTL_LOCALE, NO_SHOW_WINDOW, type ManagerBookingDetail } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useLocale, useT } from '@/i18n/client'
 
 export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }) {
+  const t = useT()
+  const locale = useLocale()
   const router = useRouter()
   const dialog = useRef<HTMLDialogElement>(null)
   const cancelDialog = useRef<HTMLDialogElement>(null)
@@ -44,15 +47,15 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
   const declining = b.status === 'AWAITING_APPROVAL'
   const refundText =
     b.paymentMethod === 'ONLINE'
-      ? `${b.player.name} gets the ${b.total} RON back.`
+      ? t('mBookings.actions.refundOnline', { name: b.player.name, amount: b.total })
       : b.deposit
-        ? `${b.player.name} gets the ${b.deposit} RON deposit back.`
-        : `${b.player.name} paid nothing online.`
+        ? t('mBookings.actions.refundDeposit', { name: b.player.name, amount: b.deposit })
+        : t('mBookings.actions.paidNothing', { name: b.player.name })
   const kept = b.deposit
-    ? `You keep the ${b.deposit} RON deposit.`
+    ? t('mBookings.actions.keepDeposit', { amount: b.deposit })
     : b.paymentMethod === 'ONLINE'
-      ? `You keep the ${b.total} RON paid online.`
-      : 'There is no deposit to keep.'
+      ? t('mBookings.actions.keepOnline', { amount: b.total })
+      : t('mBookings.actions.nothingToKeep')
 
   return (
     <div className="mt-3 space-y-3">
@@ -60,21 +63,25 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
       {none && (
         <p className="text-sm text-neutral-500">
           {b.status === 'CONFIRMED'
-            ? `Attendance can be confirmed from kick-off; a no-show reported from ${NO_SHOW_WINDOW.FROM_MINUTES} minutes after it, for ${NO_SHOW_WINDOW.UNTIL_HOURS} hours.`
-            : 'Nothing to do for this booking.'}
+            ? t('mBookings.actions.window', {
+                from: NO_SHOW_WINDOW.FROM_MINUTES,
+                hours: NO_SHOW_WINDOW.UNTIL_HOURS,
+              })
+            : t('mBookings.actions.nothing')}
         </p>
       )}
       {b.canAccept && b.approvalDeadline && (
         <p className="text-sm text-neutral-700">
-          {b.player.name} has paid and waits for your answer. If you don&rsquo;t answer by{' '}
-          {new Date(b.approvalDeadline).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZone: 'Europe/Bucharest',
+          {t('mBookings.actions.waits', {
+            name: b.player.name,
+            deadline: new Date(b.approvalDeadline).toLocaleString(INTL_LOCALE[locale], {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+              timeZone: 'Europe/Bucharest',
+            }),
           })}
-          , it is declined and refunded.
         </p>
       )}
       <div className="flex flex-wrap gap-2">
@@ -85,7 +92,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => void act('accept')}
             className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
           >
-            Accept booking
+            {t('mBookings.actions.accept')}
           </button>
         )}
         {b.canCancel && (
@@ -95,7 +102,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => cancelDialog.current?.showModal()}
             className="h-10 rounded-md border border-error-500 px-4 text-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60"
           >
-            {declining ? 'Decline' : 'Cancel booking'}
+            {declining ? t('mBookings.actions.decline') : t('mBookings.actions.cancel')}
           </button>
         )}
         {b.canConfirmAttended && (
@@ -105,7 +112,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => void act('attended')}
             className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
           >
-            Confirm attended
+            {t('mBookings.actions.attended')}
           </button>
         )}
         {b.canComplete && (
@@ -115,7 +122,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => void act('complete')}
             className="h-10 rounded-md border border-neutral-200 px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50 disabled:opacity-60"
           >
-            Mark as complete
+            {t('mBookings.actions.complete')}
           </button>
         )}
         {b.canReportNoShow && (
@@ -125,13 +132,13 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => dialog.current?.showModal()}
             className="h-10 rounded-md border border-error-500 px-4 text-sm font-semibold text-error-600 hover:bg-error-50 disabled:opacity-60"
           >
-            Report no-show
+            {t('mBookings.actions.reportNoShow')}
           </button>
         )}
       </div>
       {b.canConfirmAttended && b.paymentMethod === 'VENUE_REFUND_DEPOSIT' && !!b.deposit && (
         <p className="text-xs text-neutral-500">
-          Confirming refunds the player&rsquo;s {b.deposit} RON deposit.
+          {t('mBookings.actions.refundsDeposit', { amount: b.deposit })}
         </p>
       )}
 
@@ -142,13 +149,15 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
         onClick={e => e.target === cancelDialog.current && cancelDialog.current?.close()}
       >
         <h2 id={`cancel-${b.id}`} className="text-lg font-semibold text-neutral-900">
-          {declining ? `Decline ${b.player.name}'s booking?` : `Cancel ${b.player.name}'s booking?`}
+          {declining
+            ? t('mBookings.actions.declineTitle', { name: b.player.name })
+            : t('mBookings.actions.cancelTitle', { name: b.player.name })}
         </h2>
         <p className="mt-2 text-sm text-neutral-700">
-          {refundText} They lose no trust points, and are told the reason you give.
+          {t('mBookings.actions.noPoints', { refund: refundText })}
         </p>
         <label htmlFor={`why-${b.id}`} className="mt-4 block text-sm font-medium text-neutral-700">
-          Reason for the player
+          {t('mBookings.actions.reason')}
         </label>
         <textarea
           id={`why-${b.id}`}
@@ -164,7 +173,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => cancelDialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Keep it
+            {t('mBookings.actions.keep')}
           </button>
           <button
             type="button"
@@ -172,7 +181,11 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => void act('cancel', { reason: why.trim() })}
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? 'Working…' : declining ? 'Decline and refund' : 'Cancel and refund'}
+            {busy
+              ? t('mBookings.actions.working')
+              : declining
+                ? t('mBookings.actions.declineRefund')
+                : t('mBookings.actions.cancelRefund')}
           </button>
         </div>
       </dialog>
@@ -184,17 +197,17 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
         onClick={e => e.target === dialog.current && dialog.current?.close()}
       >
         <h2 id={`noshow-${b.id}`} className="text-lg font-semibold text-neutral-900">
-          Report {b.player.name} as a no-show?
+          {t('mBookings.actions.noShowTitle', { name: b.player.name })}
         </h2>
         <p className="mt-2 text-sm text-neutral-700">
-          {kept} The player loses 20 trust points and is told; they can dispute it within 24 hours.
-          This can&rsquo;t be undone.
+          {t('mBookings.actions.noShowBody', { kept })}
         </p>
         <label
           htmlFor={`reason-${b.id}`}
           className="mt-4 block text-sm font-medium text-neutral-700"
         >
-          What happened <span className="font-normal text-neutral-500">(optional)</span>
+          {t('mBookings.actions.whatHappened')}{' '}
+          <span className="font-normal text-neutral-500">{t('mBookings.actions.optional')}</span>
         </label>
         <textarea
           id={`reason-${b.id}`}
@@ -210,7 +223,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => dialog.current?.close()}
             className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('mBookings.actions.back')}
           </button>
           <button
             type="button"
@@ -218,7 +231,7 @@ export function BookingActions({ booking: b }: { booking: ManagerBookingDetail }
             onClick={() => void act('no-show', reason.trim() ? { reason: reason.trim() } : {})}
             className="h-10 rounded-md bg-error-600 px-4 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? 'Reporting…' : 'Report no-show'}
+            {busy ? t('mBookings.actions.reporting') : t('mBookings.actions.reportNoShow')}
           </button>
         </div>
       </dialog>

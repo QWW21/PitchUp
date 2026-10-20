@@ -4,8 +4,11 @@ import { prisma } from '@/lib/prisma'
 import { requireActiveManager } from '@/lib/manager/access'
 import { listManagerBookings } from '@/lib/manager/bookings'
 import { BookingList } from '@/components/manager/BookingList'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Bookings | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('mBookings.list.title') }
+}
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
@@ -16,6 +19,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
  */
 export default async function BookingsPage({ searchParams }: Props) {
   const { company } = await requireActiveManager()
+  const t = await getT()
   const raw = await searchParams
   const params = Object.fromEntries(
     Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === 'string' && !!e[1])
@@ -33,7 +37,7 @@ export default async function BookingsPage({ searchParams }: Props) {
   ])
   return (
     <>
-      <h1 className="sr-only">Bookings</h1>
+      <h1 className="sr-only">{t('mBookings.list.heading')}</h1>
       <BookingList
         key={JSON.stringify(params)}
         initial={page}

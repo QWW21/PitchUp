@@ -12,7 +12,7 @@ export const GET = withErrorHandling(
   async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
     const company = await getCompanyDetail(id)
-    if (!company) return err('NOT_FOUND', 'Company not found', 404)
+    if (!company) return err('NOT_FOUND', 'api.companyNotFound', 404)
     return ok(company)
   }
 )

@@ -3,7 +3,7 @@
  * pitch detail. Evidence screenshots go to docs/test-evidence/web/player.
  */
 import { expect, test } from '@playwright/test'
-import { addDays, dayOfWeek, DAY_LONG, venueClock } from '@pitchup/shared'
+import { addDays, dayOfWeek, venueClock, weekdayLong } from '@pitchup/shared'
 import { db, venue } from '../support/db'
 import { PHONE, signIn, signOut, snap } from '../support/helpers'
 
@@ -225,7 +225,7 @@ test.describe('pitch page', () => {
     const today = venueClock(new Date()).date
     const day = (offset: number) => {
       const date = addDays(today, offset)
-      return page.getByLabel(new RegExp(`^${DAY_LONG[dayOfWeek(date)]} ${date}: `))
+      return page.getByLabel(new RegExp(`^${weekdayLong(dayOfWeek(date), 'en')} ${date}: `))
     }
     await expect(day(2)).toHaveAttribute('aria-label', /fully booked/)
     await expect(day(3)).toHaveAttribute('aria-label', /closed/)

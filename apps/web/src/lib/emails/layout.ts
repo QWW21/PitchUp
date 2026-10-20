@@ -6,6 +6,8 @@
  * for the same reason: Outlook renders with Word's engine, which has no
  * flex or grid support.
  */
+import { INTL_LOCALE, type Locale } from '@pitchup/shared'
+import { webT } from '@/i18n/catalog'
 
 /** Brand colours, from UIUX_SPEC. Repeated literally — email cannot import. */
 const PRIMARY = '#15803D' // primary-600, darkened for WCAG AA (see tailwind.config.ts)
@@ -36,9 +38,12 @@ export interface EmailLayoutOptions {
   footerNote: string
 }
 
-export function renderEmailLayout({ heading, bodyHtml, footerNote }: EmailLayoutOptions): string {
+export function renderEmailLayout(
+  locale: Locale,
+  { heading, bodyHtml, footerNote }: EmailLayoutOptions
+): string {
   return `<!doctype html>
-<html lang="en">
+<html lang="${INTL_LOCALE[locale]}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -67,7 +72,7 @@ export function renderEmailLayout({ heading, bodyHtml, footerNote }: EmailLayout
             </tr>
           </table>
           <div style="font-family:Arial,Helvetica,sans-serif;color:${MUTED};font-size:11px;padding-top:16px;">
-            PitchUp &middot; Book a football pitch near you
+            ${escapeHtml(webT(locale)('email.layout.tagline'))}
           </div>
         </td>
       </tr>

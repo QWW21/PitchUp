@@ -12,11 +12,13 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import type { PitchDetail } from '@pitchup/shared'
 import { PhotoLightbox } from './PhotoLightbox'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 export const GALLERY_HEIGHT = 240
 
 /** Paging photo strip with a "3 / 8" counter; tap opens the lightbox. E04-05. */
 export function PhotoGallery({ photos }: { photos: PitchDetail['photos'] }) {
+  const t = useT()
   const { width } = useWindowDimensions()
   const [current, setCurrent] = useState(0)
   const [lightbox, setLightbox] = useState<number | null>(null)
@@ -25,7 +27,7 @@ export function PhotoGallery({ photos }: { photos: PitchDetail['photos'] }) {
     return (
       <View style={[styles.empty, { width }]}>
         <Icon name="image-off" size={48} color={colors.neutral[400]} />
-        <Text style={styles.emptyText}>No photos available</Text>
+        <Text style={styles.emptyText}>{t('discover.pitch.noPhotos')}</Text>
       </View>
     )
   }
@@ -46,7 +48,7 @@ export function PhotoGallery({ photos }: { photos: PitchDetail['photos'] }) {
             activeOpacity={0.95}
             onPress={() => setLightbox(index)}
             accessibilityRole="imagebutton"
-            accessibilityLabel={`Photo ${index + 1} of ${photos.length}. Open full screen`}
+            accessibilityLabel={t('discover.pitch.photoOf', { n: index + 1, total: photos.length })}
           >
             <Image
               source={{ uri: item.url }}

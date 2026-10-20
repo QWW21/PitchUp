@@ -90,7 +90,7 @@ export async function resolveDispute(
         where: { bookingId },
         select: { booking: { select: { pitchId: true } } },
       })
-      if (!found) throw notFound('Dispute not found')
+      if (!found) throw notFound('api.disputeNotFound')
       // The same per-pitch lock as the booking's other changes: decided once.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${found.booking.pitchId}))`
       const ns = await tx.noShow.findUniqueOrThrow({
@@ -112,7 +112,7 @@ export async function resolveDispute(
         },
       })
       if (ns.disputeStatus !== 'OPEN') {
-        throw conflict('This dispute has already been decided', { reason: 'ALREADY_RESOLVED' })
+        throw conflict('api.disputeDecided', { reason: 'ALREADY_RESOLVED' })
       }
       const b = ns.booking
       await tx.noShow.update({
@@ -143,7 +143,7 @@ export async function resolveDispute(
         ) {
           const provider = providerFor(b.paymentProvider)
           if (!provider) {
-            throw new ApiException('SERVICE_UNAVAILABLE', 'Refunds are unavailable right now')
+            throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundsDown')
           }
           const { refundId } = await provider.refund(b.stripePaymentIntentId, deposit)
           await tx.booking.update({
@@ -156,17 +156,21 @@ export async function resolveDispute(
       await notify(tx, {
         userId: b.playerId,
         type: 'DISPUTE_RESOLVED',
-        title: playerWon ? 'Your dispute was upheld' : 'Your dispute was not upheld',
-        body: playerWon
-          ? `The no-show at ${b.pitch.name} is removed and your trust score is restored. ${input.note}`
-          : `The no-show at ${b.pitch.name} stands. ${input.note}`,
+        title: t =>
+          playerWon ? t('notify.disputeUpheld.title') : t('notify.disputeRejected.title'),
+        body: t =>
+          t(playerWon ? 'notify.disputeUpheld.body' : 'notify.disputeRejected.body', {
+            pitch: b.pitch.name,
+            note: input.note,
+          }),
         data: { bookingId: b.id },
       })
       await notify(tx, {
         userId: b.pitch.company.ownerId,
         type: 'DISPUTE_RESOLVED',
-        title: playerWon ? 'A no-show was overturned' : 'A no-show was confirmed',
-        body: `${b.pitch.name}: ${input.note}`,
+        title: t =>
+          playerWon ? t('notify.noShowOverturned.title') : t('notify.noShowConfirmed.title'),
+        body: t => t('notify.disputeOutcomeVenue.body', { pitch: b.pitch.name, note: input.note }),
         data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
       })
       return [b.playerId, b.pitch.company.ownerId]

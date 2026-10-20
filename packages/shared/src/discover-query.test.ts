@@ -6,6 +6,7 @@ import {
   priceBound,
 } from './discover-query'
 import { CompanyListQuerySchema } from './schemas/discover'
+import { sharedT } from './i18n'
 
 const parse = (qs: string) => {
   const params = new URLSearchParams(qs)
@@ -109,7 +110,7 @@ describe('CompanyListQuerySchema', () => {
   it('requires a city, with a readable message', () => {
     const r = parse('')
     expect(r.success).toBe(false)
-    expect(r.error?.issues[0]?.message).toBe('City is required')
+    expect(sharedT('en').text(r.error!.issues[0]!.message)).toBe('City is required')
   })
   it('rejects an unknown city, a lone lat, a reversed price range and limit > 50', () => {
     expect(parse('city=Atlantis').success).toBe(false)

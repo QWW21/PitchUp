@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface CollapsingHeaderProps {
   scrollY: Animated.Value
@@ -27,6 +28,7 @@ export function CollapsingHeader({
   onBack,
   onShare,
 }: CollapsingHeaderProps) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const background = scrollY.interpolate({
     inputRange: [0, heroHeight * 0.5],
@@ -79,11 +81,15 @@ export function CollapsingHeader({
         },
       ]}
     >
-      {button('chevron-left', 'Back', onBack)}
+      {button('chevron-left', t('discover.back'), onBack)}
       <Animated.Text style={[styles.title, { opacity: titleOpacity }]} numberOfLines={1}>
         {title}
       </Animated.Text>
-      {onShare ? button('share-variant', 'Share', onShare) : <View style={styles.tap} />}
+      {onShare ? (
+        button('share-variant', t('discover.share'), onShare)
+      ) : (
+        <View style={styles.tap} />
+      )}
     </Animated.View>
   )
 }

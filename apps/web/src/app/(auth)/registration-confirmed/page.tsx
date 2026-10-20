@@ -3,9 +3,10 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { Wordmark } from '@/components/Wordmark'
 import { BrandPanel } from '@/components/BrandPanel'
+import { getT } from '@/i18n/server'
 
-export const metadata: Metadata = {
-  title: 'Email verified · PitchUp',
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('auth.confirmed.title') }
 }
 
 export default async function RegistrationConfirmedPage({
@@ -15,6 +16,7 @@ export default async function RegistrationConfirmedPage({
 }) {
   const { email } = await searchParams
   if (!email) redirect('/login')
+  const t = await getT()
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-2">
@@ -28,16 +30,16 @@ export default async function RegistrationConfirmedPage({
             </span>
           </div>
 
-          <h1 className="mt-6 text-3xl font-bold text-neutral-900">Email verified</h1>
-          <p className="mt-3 text-base text-neutral-500">
-            Your account is ready. Sign in to continue.
-          </p>
+          <h1 className="mt-6 text-3xl font-bold text-neutral-900">
+            {t('auth.confirmed.heading')}
+          </h1>
+          <p className="mt-3 text-base text-neutral-500">{t('auth.confirmed.body')}</p>
 
           <Link
             href={`/login?email=${encodeURIComponent(email)}`}
             className="mt-8 inline-flex w-full items-center justify-center rounded-lg bg-primary-600 px-6 py-3 text-base font-semibold text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
           >
-            Go to sign in
+            {t('auth.confirmed.goSignIn')}
           </Link>
         </div>
       </div>

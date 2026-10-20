@@ -7,6 +7,8 @@ import { SHIRT_COLOURS } from './constants/shirts'
 import { toMinutes, type DayHours } from './schedule'
 import { MIN_TRUST_SCORES } from './trust-engine'
 import type { AmenityType, PitchSize, ShirtColour, SurfaceType } from './types'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 export const PITCH_LIMITS = {
   MAX_PHOTOS: 10,
@@ -41,14 +43,10 @@ const surfaceType = z.enum(['NATURAL_GRASS', 'ARTIFICIAL_GRASS', 'FUTSAL'])
 const size = z.enum(['FIVE_A_SIDE', 'SIX_A_SIDE', 'SEVEN_A_SIDE', 'ELEVEN_A_SIDE', 'CUSTOM'])
 const blankToUndefined = (v: unknown) =>
   v === null || (typeof v === 'string' && v.trim() === '') ? undefined : v
-const metres = z.number().positive('Enter a size in metres').max(200, 'At most 200 m')
+const metres = z.number().positive('v.metres').max(200, 'v.max200m')
 
 const basicFields = {
-  name: z
-    .string()
-    .trim()
-    .min(2, 'Enter a name')
-    .max(PITCH_LIMITS.NAME_MAX, `At most ${PITCH_LIMITS.NAME_MAX} characters`),
+  name: z.string().trim().min(2, 'v.enterName').max(PITCH_LIMITS.NAME_MAX, 'v.nameMax'),
   surfaceType,
   size,
   widthMeters: metres.optional(),
@@ -61,7 +59,7 @@ const basicFields = {
   minTrustScore: z
     .number()
     .int()
-    .refine(v => (MIN_TRUST_SCORES as number[]).includes(v), 'Choose one of the options')
+    .refine(v => (MIN_TRUST_SCORES as number[]).includes(v), 'v.chooseOption')
     .optional(),
 }
 
@@ -73,7 +71,7 @@ const customNeedsSize = (d: {
 
 /** POST /pitches and the Basic info tab — E10-01. A new pitch starts inactive. */
 export const PitchBasicInfoSchema = z.object(basicFields).refine(customNeedsSize, {
-  message: 'A custom size needs its width and length',
+  message: 'v.customSize',
   path: ['widthMeters'],
 })
 
@@ -81,7 +79,7 @@ export const PitchBasicInfoSchema = z.object(basicFields).refine(customNeedsSize
 export const UpdatePitchBasicInfoSchema = z
   .object(basicFields)
   .partial()
-  .refine(d => Object.keys(d).length > 0, { message: 'Nothing to change' })
+  .refine(d => Object.keys(d).length > 0, { message: 'v.nothingToChange' })
 
 export const PitchStatusSchema = z.object({ isActive: z.boolean() })
 
@@ -90,7 +88,7 @@ export const AddPitchPhotoSchema = z.object({
   url: z
     .string()
     .url()
-    .refine(u => u.startsWith('https://res.cloudinary.com/'), 'Upload the photo through PitchUp'),
+    .refine(u => u.startsWith('https://res.cloudinary.com/'), 'v.photoUpload'),
   cloudinaryPublicId: z.string().min(1).max(200),
 })
 
@@ -121,7 +119,7 @@ export const PitchAmenitiesSchema = z.object({
   amenities: z
     .array(amenityType)
     .max(14)
-    .refine(a => new Set(a).size === a.length, 'Each amenity once'),
+    .refine(a => new Set(a).size === a.length, 'v.amenityOnce'),
 })
 
 const oneOf = <T extends readonly number[]>(values: T, message: string) =>
@@ -131,15 +129,15 @@ const oneOf = <T extends readonly number[]>(values: T, message: string) =>
 export const PitchPricingSchema = z
   .object({
     hourlyRate: z
-      .number({ invalid_type_error: 'Enter a price' })
-      .positive('Enter a price above 0')
-      .max(9999, 'At most 9999 RON'),
-    minBookingHours: oneOf(PRICING_OPTIONS.MIN_BOOKING_HOURS, 'Choose 1h, 1h 30 or 2h'),
-    maxBookingHours: oneOf(PRICING_OPTIONS.MAX_BOOKING_HOURS, 'Choose between 2h and 4h'),
-    advanceBookingDays: oneOf(PRICING_OPTIONS.ADVANCE_BOOKING_DAYS, 'Choose 30, 60 or 90 days'),
+      .number({ invalid_type_error: 'v.enterPrice' })
+      .positive('v.priceAboveZero')
+      .max(9999, 'v.max9999'),
+    minBookingHours: oneOf(PRICING_OPTIONS.MIN_BOOKING_HOURS, 'v.minBookingChoice'),
+    maxBookingHours: oneOf(PRICING_OPTIONS.MAX_BOOKING_HOURS, 'v.maxBookingChoice'),
+    advanceBookingDays: oneOf(PRICING_OPTIONS.ADVANCE_BOOKING_DAYS, 'v.advanceChoice'),
   })
   .refine(d => d.minBookingHours <= d.maxBookingHours, {
-    message: 'The shortest booking cannot be longer than the longest',
+    message: 'v.shortestLongest',
     path: ['maxBookingHours'],
   })
 
@@ -155,17 +153,17 @@ export const PitchShirtsSchema = z
         })
       )
       .max(SHIRT_COLOURS.length)
-      .refine(i => new Set(i.map(c => c.colour)).size === i.length, 'Each colour once')
+      .refine(i => new Set(i.map(c => c.colour)).size === i.length, 'v.colourOnce')
       .default([]),
     /** Save even though upcoming bookings were promised more sets than this. */
     force: z.boolean().optional(),
   })
   .refine(d => !d.hasShirts || d.inventory.some(c => c.quantity > 0), {
-    message: 'Add at least one set, or stop lending shirts',
+    message: 'v.addShirtSet',
     path: ['inventory'],
   })
 
-const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use HH:MM')
+const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'v.useTime')
 
 /** PUT /pitches/:id/availability — the pitch's own week, within the venue's hours. */
 export const PitchHoursSchema = z.object({
@@ -178,17 +176,17 @@ export const PitchHoursSchema = z.object({
         isClosed: z.boolean(),
       })
     )
-    .length(7, 'Give hours for all seven days')
-    .refine(d => new Set(d.map(x => x.day)).size === 7, 'Give hours for all seven days')
+    .length(7, 'v.sevenDays')
+    .refine(d => new Set(d.map(x => x.day)).size === 7, 'v.sevenDays')
     .refine(
       d => d.every(x => x.isClosed || toMinutes(x.openTime) !== toMinutes(x.closeTime)),
-      'Closing time must differ from opening time'
+      'v.closeDiffers'
     ),
 })
 
 /** POST /pitches/:id/exceptions — a day the pitch is closed. */
 export const PitchExceptionSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'v.useIsoDate'),
   reason: z.preprocess(blankToUndefined, z.string().trim().max(200).optional()),
 })
 
@@ -204,13 +202,14 @@ function span(d: DayHours): [number, number] {
  * Why a pitch's hours on a day don't fit inside the venue's, or null. A
  * pitch can be open less than its venue, never more (E10-10).
  */
-export function pitchDayError(pitch: DayHours, venue: DayHours): string | null {
+export function pitchDayError(pitch: DayHours, venue: DayHours, locale: Locale): string | null {
+  const t = sharedT(locale)
   if (pitch.isClosed) return null
-  if (venue.isClosed) return 'The venue is closed on this day'
+  if (venue.isClosed) return t('pitchHours.venueClosed')
   const [po, pc] = span(pitch)
   const [vo, vc] = span(venue)
-  if (po < vo) return `Opens before the venue (${venue.openTime})`
-  if (pc > vc) return `Closes after the venue (${venue.closeTime})`
+  if (po < vo) return t('pitchHours.opensBefore', { time: venue.openTime })
+  if (pc > vc) return t('pitchHours.closesAfter', { time: venue.closeTime })
   return null
 }
 

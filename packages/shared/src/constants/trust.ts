@@ -1,4 +1,6 @@
 import type { TrustScoreReason, TrustTierLabel } from '../types'
+import { sharedT } from '../i18n'
+import type { Locale } from '../i18n/core'
 
 /**
  * Trust score deltas. PRD §9.1.
@@ -98,32 +100,27 @@ export const TRUST_TIER_COLOURS: Record<TrustTierLabel, string> = {
 }
 
 /** What a tier means for the player, in a sentence. Built from the rules above. */
-export function tierDescription(tier: TrustTier): string {
-  if (!tier.canBook) return 'Booking is suspended. Contact support.'
+export function tierDescription(tier: TrustTier, locale: Locale): string {
+  const t = sharedT(locale)
+  if (!tier.canBook) return t('trust.rule.suspended')
   const rules: string[] = []
-  if (tier.requiresUpfrontDeposit) rules.push('Full payment upfront')
-  else if (tier.requiresCardOnFile) rules.push('A card on file is required')
+  if (tier.requiresUpfrontDeposit) rules.push(t('trust.rule.upfront'))
+  else if (tier.requiresCardOnFile) rules.push(t('trust.rule.cardOnFile'))
   if (tier.maxActiveBookings !== null) {
-    rules.push(
-      `at most ${tier.maxActiveBookings} active booking${tier.maxActiveBookings === 1 ? '' : 's'}`
-    )
+    rules.push(t('trust.rule.maxActive', { count: tier.maxActiveBookings }))
   }
-  if (!rules.length) return 'No restrictions.'
+  if (!rules.length) return t('trust.rule.none')
   const text = rules.join(', ')
   return `${text[0]!.toUpperCase()}${text.slice(1)}.`
 }
 
 /** How a score event reads in the history (E08-05). */
-export const TRUST_REASON_LABELS: Record<TrustScoreReason, string> = {
-  BOOKING_COMPLETED: 'Booking completed',
-  REVIEW_LEFT: 'Review submitted',
-  LATE_CANCEL: 'Late cancellation',
-  VERY_LATE_CANCEL: 'Very late cancellation',
-  NO_SHOW: 'No-show recorded',
-  DISPUTE_WON: 'Dispute resolved in your favour',
-  MONTHLY_RECOVERY: 'Monthly recovery',
-  ADMIN_ADJUSTMENT: 'Adjusted by PitchUp',
-}
+export const trustReasonLabel = (reason: TrustScoreReason, locale: Locale): string =>
+  sharedT(locale)(`trust.reason.${reason}`)
+
+/** A tier's name in the language: tiers are identified by their English label. */
+export const tierName = (label: TrustTierLabel, locale: Locale): string =>
+  sharedT(locale)(`trust.tier.${label}`)
 
 /** "90–100", or "< 30" for the bottom tier. */
 export const tierRange = (tier: TrustTier): string =>

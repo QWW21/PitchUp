@@ -27,7 +27,7 @@ async function ownedReview(reviewId: string, managerId: string) {
     },
   })
   if (!review || review.deletedAt || review.pitch.company.ownerId !== managerId) {
-    throw notFound('Review not found')
+    throw notFound('api.reviewNotFound')
   }
   return review
 }
@@ -45,15 +45,15 @@ export async function createReply(
     data: { managerReply: text, managerRepliedAt: now },
   })
   if (!count) {
-    throw new ApiException('CONFLICT', 'This review already has a reply', {
+    throw new ApiException('CONFLICT', 'api.hasReply', {
       reason: 'ALREADY_REPLIED',
     })
   }
   await notify(prisma, {
     userId: review.playerId,
     type: 'MANAGER_REPLIED',
-    title: `${review.pitch.company.name} replied`,
-    body: `The venue replied to your review of ${review.pitch.name}.`,
+    title: t => t('notify.managerReplied.title', { company: review.pitch.company.name }),
+    body: t => t('notify.managerReplied.body', { pitch: review.pitch.name }),
     data: { reviewId },
   })
   deliverSoon([review.playerId])
@@ -66,13 +66,14 @@ export async function updateReply(
   now: Date = new Date()
 ): Promise<void> {
   const review = await ownedReview(reviewId, managerId)
-  if (!review.managerReply || !review.managerRepliedAt) throw notFound('Reply not found')
+  if (!review.managerReply || !review.managerRepliedAt) throw notFound('api.replyNotFound')
   const deadline = review.managerRepliedAt.getTime() + REVIEW.REPLY_EDIT_WINDOW_HOURS * HOUR
   if (now.getTime() >= deadline) {
     throw new ApiException(
       'VALIDATION_ERROR',
-      `Replies can be edited for ${REVIEW.REPLY_EDIT_WINDOW_HOURS} hours`,
-      { reason: 'EDIT_WINDOW_CLOSED' }
+      'api.replyEditWindow',
+      { reason: 'EDIT_WINDOW_CLOSED' },
+      { n: REVIEW.REPLY_EDIT_WINDOW_HOURS }
     )
   }
   // The edit window keeps counting from the first reply.
@@ -81,7 +82,7 @@ export async function updateReply(
 
 export async function deleteReply(reviewId: string, managerId: string): Promise<void> {
   const review = await ownedReview(reviewId, managerId)
-  if (!review.managerReply) throw notFound('Reply not found')
+  if (!review.managerReply) throw notFound('api.replyNotFound')
   await prisma.review.update({
     where: { id: reviewId },
     data: { managerReply: null, managerRepliedAt: null },

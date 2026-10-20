@@ -12,17 +12,16 @@ import { z } from 'zod'
 import { PLATFORM_FEE_PERCENT } from './constants/penalties'
 import { addDays, dayOfWeek } from './schedule'
 import type { BookingStatus } from './types'
+import { sharedT } from './i18n'
+import type { Locale } from './i18n/core'
 
 export const ANALYTICS_PERIODS = ['7d', '30d', '90d', '12m'] as const
 export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number]
 export type AnalyticsGroupBy = 'day' | 'week' | 'month'
 
-export const ANALYTICS_PERIOD_LABELS: Record<AnalyticsPeriod, string> = {
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  '90d': 'Last 90 days',
-  '12m': 'Last 12 months',
-}
+/** "Last 30 days", by `analyticsPeriod.<period>`. */
+export const analyticsPeriodLabel = (period: AnalyticsPeriod, locale: Locale): string =>
+  sharedT(locale)(`analyticsPeriod.${period}`)
 
 /** ?period=30d&pitchId=… — a pitch of another venue simply matches nothing. */
 export const AnalyticsQuerySchema = z.object({
@@ -90,12 +89,13 @@ export function bucketsBetween(from: string, to: string, groupBy: AnalyticsGroup
   return keys
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
 /** "4 Nov" for a day or a week (its Monday), "Nov 2026" for a month. */
-export function bucketLabel(key: string, groupBy: AnalyticsGroupBy): string {
-  const month = MONTHS[Number(key.slice(5, 7)) - 1]
-  return groupBy === 'month' ? `${month} ${key.slice(0, 4)}` : `${Number(key.slice(8))} ${month}`
+export function bucketLabel(key: string, groupBy: AnalyticsGroupBy, locale: Locale): string {
+  const t = sharedT(locale)
+  const month = t(`month.short.${Number(key.slice(5, 7))}` as 'month.short.1')
+  return groupBy === 'month'
+    ? t('date.monthYear', { month, year: key.slice(0, 4) })
+    : t('date.dayMonth', { day: Number(key.slice(8)), month })
 }
 
 // ── What a booking earned ───────────────────────────────────────────────────

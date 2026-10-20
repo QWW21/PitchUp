@@ -4,6 +4,7 @@ import type { ReviewItem } from '@pitchup/shared'
 import { Stars } from '../common/Stars'
 import { PhotoLightbox } from '../pitch/PhotoLightbox'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 const formatDate = (iso: string) =>
   new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(
@@ -35,6 +36,7 @@ function Avatar({ review }: { review: ReviewItem }) {
 
 /** Horizontal strip of a review's photos; tap opens the lightbox. E04-07. */
 export function ReviewPhotoStrip({ urls }: { urls: string[] }) {
+  const t = useT()
   const [open, setOpen] = useState<number | null>(null)
   return (
     <>
@@ -47,7 +49,7 @@ export function ReviewPhotoStrip({ urls }: { urls: string[] }) {
           <Pressable
             key={url}
             onPress={() => setOpen(i)}
-            accessibilityLabel={`Review photo ${i + 1}`}
+            accessibilityLabel={t('discover.reviews.photo', { n: i + 1 })}
           >
             <Image source={{ uri: url }} style={styles.photo} />
           </Pressable>

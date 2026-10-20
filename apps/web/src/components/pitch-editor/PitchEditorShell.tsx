@@ -8,15 +8,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useT } from '@/i18n/client'
 
-const TABS = [
-  ['basic-info', 'Basic info'],
-  ['photos', 'Photos'],
-  ['amenities', 'Amenities'],
-  ['pricing', 'Pricing'],
-  ['shirts', 'Shirts'],
-  ['availability', 'Availability'],
-] as const
+const TABS = ['basic-info', 'photos', 'amenities', 'pricing', 'shirts', 'availability'] as const
 
 const UnsavedContext = createContext<(dirty: boolean) => void>(() => undefined)
 
@@ -30,15 +24,16 @@ export function useUnsaved(dirty: boolean) {
 }
 
 export function PitchEditorShell({ pitchId, children }: { pitchId: string; children: ReactNode }) {
+  const t = useT()
   const pathname = usePathname()
   const [dirty, setDirty] = useState(false)
   const base = `/manager/pitches/${pitchId}/edit`
 
   return (
     <div className="mt-6 flex flex-col gap-6 lg:flex-row">
-      <nav aria-label="Pitch editor" className="shrink-0 lg:w-[200px]">
+      <nav aria-label={t('editor.nav')} className="shrink-0 lg:w-[200px]">
         <ul className="flex gap-1 overflow-x-auto lg:flex-col">
-          {TABS.map(([slug, label]) => {
+          {TABS.map(slug => {
             const href = `${base}/${slug}`
             const active = pathname === href
             return (
@@ -50,11 +45,11 @@ export function PitchEditorShell({ pitchId, children }: { pitchId: string; child
                     active ? 'bg-primary-600 text-white' : 'text-neutral-700 hover:bg-neutral-100'
                   }`}
                 >
-                  {label}
+                  {t(`editor.tabs.${slug}`)}
                   {active && dirty && (
                     <>
                       <span aria-hidden="true" className="h-2 w-2 rounded-full bg-accent-500" />
-                      <span className="sr-only">(unsaved changes)</span>
+                      <span className="sr-only">{t('editor.unsaved')}</span>
                     </>
                   )}
                 </Link>

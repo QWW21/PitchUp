@@ -19,7 +19,7 @@ export const POST = withErrorHandling(
     const parsed = await validateBody(request, CompanyInfoSchema)
     if (parsed.error) return parsed.error
     if (await managerCompany(session.user.id)) {
-      return err('CONFLICT', 'You already have a company', 409, { reason: 'COMPANY_EXISTS' })
+      return err('CONFLICT', 'api.hasCompany', 409, { reason: 'COMPANY_EXISTS' })
     }
     return created(await saveInfo(session.user.id, parsed.data))
   })
@@ -30,7 +30,7 @@ export const PUT = withErrorHandling(
     const parsed = await validateBody(request, CompanyInfoSchema)
     if (parsed.error) return parsed.error
     if (!(await managerCompany(session.user.id))) {
-      return err('NOT_FOUND', 'Start with your company details', 404, { reason: 'NO_COMPANY' })
+      return err('NOT_FOUND', 'api.startWithCompany', 404, { reason: 'NO_COMPANY' })
     }
     return ok(await saveInfo(session.user.id, parsed.data))
   })

@@ -30,6 +30,7 @@ import { openNotification } from '../../lib/push'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Notifications'>
 
@@ -89,6 +90,7 @@ export function useNotifications() {
 }
 
 export function NotificationsScreen({ navigation }: Props) {
+  const t = useT()
   const queryClient = useQueryClient()
   const q = useNotifications()
   const items = q.data?.pages.flatMap(p => p.items) ?? []
@@ -110,9 +112,9 @@ export function NotificationsScreen({ navigation }: Props) {
   }
 
   const confirmDelete = (n: NotificationItem) =>
-    Alert.alert('Delete this notification?', n.title, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(n.id) },
+    Alert.alert(t('profile.notifications.deleteTitle'), n.title, [
+      { text: t('profile.cancel'), style: 'cancel' },
+      { text: t('profile.delete'), style: 'destructive', onPress: () => remove.mutate(n.id) },
     ])
 
   return (
@@ -122,12 +124,12 @@ export function NotificationsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('profile.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          Notifications
+          {t('profile.notifications.title')}
         </Text>
         {unread > 0 ? (
           <Pressable
@@ -135,7 +137,7 @@ export function NotificationsScreen({ navigation }: Props) {
             style={styles.readAll}
             accessibilityRole="button"
           >
-            <Text style={styles.readAllText}>Mark all read</Text>
+            <Text style={styles.readAllText}>{t('profile.notifications.markAll')}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -155,26 +157,28 @@ export function NotificationsScreen({ navigation }: Props) {
           onEndReachedThreshold={0.3}
           stickySectionHeadersEnabled={false}
           renderSectionHeader={({ section }) => (
-            <Text style={styles.section}>{section.title.toUpperCase()}</Text>
+            <Text style={styles.section}>
+              {t(`profile.notifications.groups.${section.title}`).toUpperCase()}
+            </Text>
           )}
           ListEmptyComponent={
             <EmptyState
               illustration={<Icon name="bell-outline" size={48} color={colors.neutral[300]} />}
-              title="All caught up!"
-              description="No notifications yet"
+              title={t('profile.notifications.caughtUp')}
+              description={t('profile.notifications.none')}
             />
           }
           renderItem={({ item: n }) => {
             const icon = ICONS[n.type] ?? FALLBACK
-            const t = time(n.createdAt)
+            const clock = time(n.createdAt)
             return (
               <Pressable
                 onPress={() => void open(n)}
                 onLongPress={() => confirmDelete(n)}
                 style={[styles.row, !n.isRead && styles.unread]}
                 accessibilityRole="button"
-                accessibilityLabel={`${n.isRead ? '' : 'Unread. '}${n.title}. ${n.body}`}
-                accessibilityHint="Long press to delete"
+                accessibilityLabel={`${n.isRead ? '' : t('profile.notifications.unread')}${n.title}. ${n.body}`}
+                accessibilityHint={t('profile.notifications.hint')}
               >
                 {!n.isRead ? <View style={styles.dot} /> : null}
                 <View style={[styles.icon, { backgroundColor: icon.bg }]}>
@@ -186,8 +190,8 @@ export function NotificationsScreen({ navigation }: Props) {
                     {n.body}
                   </Text>
                   <Text style={styles.time}>
-                    {String(Math.floor(t.minutes / 60)).padStart(2, '0')}:
-                    {String(t.minutes % 60).padStart(2, '0')}
+                    {String(Math.floor(clock.minutes / 60)).padStart(2, '0')}:
+                    {String(clock.minutes % 60).padStart(2, '0')}
                   </Text>
                 </View>
               </Pressable>

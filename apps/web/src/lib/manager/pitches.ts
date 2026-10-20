@@ -32,6 +32,7 @@ import type {
   UpdatePitchBasicInfoSchema,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { ApiException, conflict, notFound, validationError } from '@/lib/api/errors'
 import { deleteImage, isCloudinaryConfigured } from '@/lib/cloudinary'
 import { liveBookingWhere } from '@/lib/bookings/live'
@@ -47,7 +48,7 @@ type Input<S extends z.ZodTypeAny> = z.infer<S>
 export async function pitchCompany(ownerId: string) {
   const company = await managerCompany(ownerId)
   if (company?.status !== 'ACTIVE' && company?.status !== 'PENDING') {
-    throw new ApiException('FORBIDDEN', 'Your venue is not set up yet', { reason: 'NOT_ACTIVE' })
+    throw new ApiException('FORBIDDEN', 'api.venueNotSetUp', { reason: 'NOT_ACTIVE' })
   }
   return company
 }
@@ -57,7 +58,7 @@ export async function ownedPitch(companyId: string, pitchId: string) {
   const pitch = await prisma.pitch.findFirst({
     where: { id: pitchId, companyId, deletedAt: null },
   })
-  if (!pitch) throw notFound('Pitch not found')
+  if (!pitch) throw notFound('api.pitchNotFound')
   return pitch
 }
 
@@ -107,7 +108,7 @@ export async function updateBasicInfo(
   const length =
     input.lengthMeters ?? (sizeChanged && dims ? dims.length : (pitch.lengthMeters ?? undefined))
   if (size === 'CUSTOM' && (!width || !length)) {
-    throw validationError('A custom size needs its width and length', {
+    throw validationError('api.customSize', {
       reason: 'DIMENSIONS_REQUIRED',
     })
   }
@@ -139,10 +140,10 @@ export async function setPitchStatus(companyId: string, pitchId: string, isActiv
   if (isActive) {
     const photos = await prisma.pitchPhoto.count({ where: { pitchId } })
     if (!photos) {
-      throw validationError('Add at least one photo before activating', { reason: 'NO_PHOTOS' })
+      throw validationError('api.needPhoto', { reason: 'NO_PHOTOS' })
     }
     if (Number(pitch.hourlyRate) <= 0) {
-      throw validationError('Set a price before activating', { reason: 'NO_PRICE' })
+      throw validationError('api.needPrice', { reason: 'NO_PRICE' })
     }
   }
   return prisma.pitch.update({
@@ -157,9 +158,11 @@ export async function deletePitch(companyId: string, pitchId: string, now: Date 
   const pitch = await ownedPitch(companyId, pitchId)
   const upcoming = await prisma.booking.count({ where: upcomingWhere(pitch.id, now) })
   if (upcoming) {
-    throw conflict(
-      `This pitch has ${upcoming} upcoming booking${upcoming === 1 ? '' : 's'}. Cancel them first.`,
-      { reason: 'HAS_BOOKINGS', count: upcoming }
+    throw new ApiException(
+      'CONFLICT',
+      'api.pitchHasBookings',
+      { reason: 'HAS_BOOKINGS', count: upcoming },
+      { count: upcoming }
     )
   }
   await prisma.pitch.update({
@@ -235,7 +238,7 @@ export async function getManagerPitch(companyId: string, pitchId: string): Promi
       company: { select: { workingHours: true } },
     },
   })
-  if (!p) throw notFound('Pitch not found')
+  if (!p) throw notFound('api.pitchNotFound')
   return {
     id: p.id,
     name: p.name,
@@ -279,9 +282,12 @@ export async function addPhoto(
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'photos:' + pitch.id}))`
     const count = await tx.pitchPhoto.count({ where: { pitchId: pitch.id } })
     if (count >= PITCH_LIMITS.MAX_PHOTOS) {
-      throw validationError(`At most ${PITCH_LIMITS.MAX_PHOTOS} photos`, {
-        reason: 'PHOTO_LIMIT',
-      })
+      throw new ApiException(
+        'VALIDATION_ERROR',
+        'api.maxPhotos',
+        { reason: 'PHOTO_LIMIT' },
+        { n: PITCH_LIMITS.MAX_PHOTOS }
+      )
     }
     return tx.pitchPhoto.create({
       data: { pitchId: pitch.id, ...input, order: count },
@@ -301,7 +307,7 @@ export async function reorderPhotos(companyId: string, pitchId: string, photoIds
     new Set(photoIds).size === photoIds.length &&
     current.every(p => photoIds.includes(p.id))
   if (!same) {
-    throw conflict('The photo list is out of date. Reload and try again.', {
+    throw conflict('api.photosStale', {
       reason: 'OUT_OF_SYNC',
     })
   }
@@ -319,7 +325,7 @@ export async function reorderPhotos(companyId: string, pitchId: string, photoIds
 export async function deletePhoto(companyId: string, pitchId: string, photoId: string) {
   const pitch = await ownedPitch(companyId, pitchId)
   const photo = await prisma.pitchPhoto.findFirst({ where: { id: photoId, pitchId: pitch.id } })
-  if (!photo) throw notFound('Photo not found')
+  if (!photo) throw notFound('api.photoNotFound')
   if (isCloudinaryConfigured()) {
     // Best effort: an image left on Cloudinary costs little; a photo that
     // cannot be removed from the pitch would be worse.
@@ -409,8 +415,9 @@ export async function setShirts(
     if (short.length) {
       throw new ApiException(
         'CONFLICT',
-        `${short.length} upcoming booking${short.length === 1 ? ' was' : 's were'} promised more sets than this.`,
-        { reason: 'SHIRTS_PROMISED', bookingIds: short.map(b => b.id) }
+        'api.shirtsPromised',
+        { reason: 'SHIRTS_PROMISED', bookingIds: short.map(b => b.id) },
+        { count: short.length }
       )
     }
   }
@@ -442,11 +449,12 @@ export async function setHours(
   })
   const venue = normalizeWeek(company.workingHours)
   const week = [...input.workingHours].sort((a, b) => a.day - b.day) as DayHours[]
+  const locale = await getLocale()
   const problems = week
-    .map(d => ({ day: d.day, message: pitchDayError(d, venue[d.day]!) }))
+    .map(d => ({ day: d.day, message: pitchDayError(d, venue[d.day]!, locale) }))
     .filter(p => p.message)
   if (problems.length) {
-    throw validationError("The pitch's hours must fit inside the venue's", {
+    throw validationError('api.pitchHoursOutside', {
       reason: 'OUTSIDE_VENUE_HOURS',
       days: problems,
     })
@@ -466,7 +474,7 @@ export async function addException(
 ) {
   const pitch = await ownedPitch(companyId, pitchId)
   if (input.date < venueClock(now).date) {
-    throw validationError('That date has passed', { field: 'date' })
+    throw validationError('api.datePassed', { field: 'date' })
   }
   const bookings = await prisma.booking.findMany({
     where: {
@@ -478,9 +486,11 @@ export async function addException(
     select: { id: true },
   })
   if (bookings.length) {
-    throw conflict(
-      `This date has ${bookings.length} booking${bookings.length === 1 ? '' : 's'}. Cancel them first.`,
-      { reason: 'HAS_BOOKINGS', bookingIds: bookings.map(b => b.id) }
+    throw new ApiException(
+      'CONFLICT',
+      'api.dateHasBookings',
+      { reason: 'HAS_BOOKINGS', bookingIds: bookings.map(b => b.id) },
+      { count: bookings.length }
     )
   }
   try {
@@ -494,7 +504,7 @@ export async function addException(
     return { id: row.id, date: input.date, reason: row.reason }
   } catch (caught) {
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
-      throw conflict('That date is already blocked', { reason: 'ALREADY_BLOCKED' })
+      throw conflict('api.dateBlocked', { reason: 'ALREADY_BLOCKED' })
     }
     throw caught
   }
@@ -511,9 +521,9 @@ export async function deleteException(
   const row = await prisma.pitchException.findFirst({
     where: { id: exceptionId, pitchId: pitch.id },
   })
-  if (!row) throw notFound('Blocked date not found')
+  if (!row) throw notFound('api.blockedDateNotFound')
   if (row.date.toISOString().slice(0, 10) < venueClock(now).date) {
-    throw conflict('Past dates cannot be unblocked', { reason: 'PAST' })
+    throw conflict('api.pastUnblock', { reason: 'PAST' })
   }
   await prisma.pitchException.delete({ where: { id: row.id } })
 }

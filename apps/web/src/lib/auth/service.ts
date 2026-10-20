@@ -26,6 +26,7 @@ import { renderAlreadyRegisteredEmail, renderVerificationEmail } from '@/lib/ema
 import { renderPhoneOtpSms } from '@/lib/emails/phone-otp'
 import { renderPasswordChangedEmail, renderPasswordResetEmail } from '@/lib/emails/password-reset'
 import { env } from '@/lib/env'
+import { userLocale } from '@/i18n/server'
 import {
   MAX_CODE_ATTEMPTS,
   emailCodeExpiry,
@@ -71,6 +72,11 @@ export class RecipientThrottledError extends Error {
   }
 }
 
+/** The account's language for what we send it. */
+async function localeOf(where: { id: string } | { email: string }) {
+  return userLocale((await prisma.user.findUnique({ where, select: { locale: true } })) ?? {})
+}
+
 export async function sendEmailVerification(userId: string, email: string): Promise<void> {
   const quota = checkRateLimit(`email-to:${email.toLowerCase()}`, EMAIL_PER_ADDRESS_RATE_LIMIT)
   if (!quota.allowed) throw new RecipientThrottledError(quota.retryAfterSeconds)
@@ -93,7 +99,11 @@ export async function sendEmailVerification(userId: string, email: string): Prom
     },
   })
 
-  const message = renderVerificationEmail(code, AUTH.EMAIL_VERIFICATION_EXPIRY_MINUTES)
+  const message = renderVerificationEmail(
+    code,
+    AUTH.EMAIL_VERIFICATION_EXPIRY_MINUTES,
+    await localeOf({ id: userId })
+  )
   await getEmailProvider().send({ to: email, ...message })
 }
 
@@ -104,7 +114,7 @@ export async function sendEmailVerification(userId: string, email: string): Prom
  * address itself, which only the real owner reads.
  */
 async function sendAlreadyRegisteredNotice(email: string): Promise<void> {
-  const message = renderAlreadyRegisteredEmail()
+  const message = renderAlreadyRegisteredEmail(await localeOf({ email }))
   await getEmailProvider().send({ to: email, ...message })
 }
 
@@ -137,7 +147,7 @@ export async function sendPhoneOtp(userId: string, phone: string): Promise<void>
   })
   await getSmsProvider().send({
     to: phone,
-    body: renderPhoneOtpSms(code, AUTH.PHONE_OTP_EXPIRY_MINUTES),
+    body: renderPhoneOtpSms(code, AUTH.PHONE_OTP_EXPIRY_MINUTES, await localeOf({ id: userId })),
   })
 }
 
@@ -587,7 +597,7 @@ export async function requestPasswordReset(email: string): Promise<void> {
 
   const user = await prisma.user.findUnique({
     where: { email: normalised },
-    select: { id: true, email: true, deletedAt: true },
+    select: { id: true, email: true, deletedAt: true, locale: true },
   })
 
   if (!user || user.deletedAt) return
@@ -613,7 +623,11 @@ export async function requestPasswordReset(email: string): Promise<void> {
   })
 
   const resetUrl = `${env.NEXT_PUBLIC_APP_URL}/reset-password?token=${rawToken}`
-  const message = renderPasswordResetEmail(resetUrl, AUTH.PASSWORD_RESET_EXPIRY_MINUTES)
+  const message = renderPasswordResetEmail(
+    resetUrl,
+    AUTH.PASSWORD_RESET_EXPIRY_MINUTES,
+    userLocale(user)
+  )
   await getEmailProvider().send({ to: user.email, ...message })
 }
 
@@ -632,7 +646,7 @@ export async function resetPassword(
 ): Promise<{ reset: true } | { failure: ResetPasswordFailure }> {
   const record = await prisma.passwordResetToken.findUnique({
     where: { tokenHash: hashToken(rawToken) },
-    include: { user: { select: { id: true, email: true, deletedAt: true } } },
+    include: { user: { select: { id: true, email: true, deletedAt: true, locale: true } } },
   })
 
   // A used or unknown token are the same answer: neither tells the caller
@@ -666,7 +680,7 @@ export async function resetPassword(
   // Best-effort: the reset has already succeeded, so a mail failure must not
   // undo it. This is how a victim learns their password was changed.
   try {
-    const notice = renderPasswordChangedEmail()
+    const notice = renderPasswordChangedEmail(userLocale(record.user))
     await getEmailProvider().send({ to: record.user.email, ...notice })
   } catch (caught) {
     console.error('[auth] Could not send the password-changed notice:', caught)

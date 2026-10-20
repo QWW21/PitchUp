@@ -32,12 +32,14 @@ import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'MyReviews'>
 
 export const MY_REVIEWS_KEY = ['reviews', 'mine'] as const
 
 export function MyReviewsScreen({ navigation }: Props) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const reviews = useQuery({ queryKey: MY_REVIEWS_KEY, queryFn: bookingApi.myReviews })
@@ -54,19 +56,23 @@ export function MyReviewsScreen({ navigation }: Props) {
     },
     onError: (e, _id, context) => {
       queryClient.setQueryData(MY_REVIEWS_KEY, context?.before)
-      show(e instanceof ApiError ? e.message : 'Could not delete. Try again.')
+      show(e instanceof ApiError ? e.message : t('bookings.myReviews.deleteFailed'))
     },
     onSuccess: () => {
-      show('Review deleted')
+      show(t('bookings.myReviews.deleted'))
       void queryClient.invalidateQueries({ queryKey: ['booking'] })
       void queryClient.invalidateQueries({ queryKey: ['reviews'] })
     },
   })
 
   const confirmDelete = (id: string) =>
-    Alert.alert('Delete this review?', 'This cannot be undone.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => remove.mutate(id) },
+    Alert.alert(t('bookings.myReviews.deleteTitle'), t('bookings.myReviews.deleteBody'), [
+      { text: t('bookings.myReviews.cancel'), style: 'cancel' },
+      {
+        text: t('bookings.myReviews.delete'),
+        style: 'destructive',
+        onPress: () => remove.mutate(id),
+      },
     ])
 
   return (
@@ -76,12 +82,12 @@ export function MyReviewsScreen({ navigation }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('bookings.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
         <Text style={styles.title} accessibilityRole="header">
-          My reviews
+          {t('bookings.myReviews.title')}
         </Text>
       </View>
 
@@ -101,9 +107,9 @@ export function MyReviewsScreen({ navigation }: Props) {
           ListEmptyComponent={
             <EmptyState
               illustration={<Icon name="star-outline" size={48} color={colors.neutral[300]} />}
-              title="No reviews yet"
-              description="Book a pitch and share your experience"
-              ctaLabel="Find a pitch"
+              title={t('bookings.myReviews.none')}
+              description={t('bookings.myReviews.noneHint')}
+              ctaLabel={t('bookings.findPitch')}
               ctaVariant="secondary"
               onCta={() => navigation.navigate('Discover')}
             />
@@ -131,6 +137,8 @@ export function MyReviewCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const t = useT()
+  const locale = useLocale()
   const [open, setOpen] = useState(false)
   const [clamped, setClamped] = useState(false)
   return (
@@ -138,7 +146,9 @@ export function MyReviewCard({
       <Text style={styles.pitch}>{r.pitch.name}</Text>
       <Text style={styles.company}>{r.company.name}</Text>
       <View style={styles.meta}>
-        <Text style={styles.date}>Played {formatDateLong(r.bookingDate)}</Text>
+        <Text style={styles.date}>
+          {t('bookings.myReviews.played', { date: formatDateLong(r.bookingDate, locale) })}
+        </Text>
         <Stars rating={r.rating} />
       </View>
       {r.text ? (
@@ -154,7 +164,9 @@ export function MyReviewCard({
           </Text>
           {clamped ? (
             <Pressable onPress={() => setOpen(o => !o)} accessibilityRole="button">
-              <Text style={styles.more}>{open ? 'Show less' : 'Show more'}</Text>
+              <Text style={styles.more}>
+                {open ? t('bookings.showLess') : t('bookings.showMore')}
+              </Text>
             </Pressable>
           ) : null}
         </>
@@ -170,27 +182,27 @@ export function MyReviewCard({
               key={url}
               source={{ uri: url }}
               style={styles.photo}
-              accessibilityLabel="Review photo"
+              accessibilityLabel={t('bookings.myReviews.photo')}
             />
           ))}
         </ScrollView>
       ) : null}
       {r.reply ? (
         <View style={styles.reply}>
-          <Text style={styles.replyLabel}>Response from the venue</Text>
+          <Text style={styles.replyLabel}>{t('bookings.myReviews.reply')}</Text>
           <Text style={styles.text}>{r.reply.text}</Text>
         </View>
       ) : null}
       <View style={styles.actions}>
         {r.isEditable ? (
           <Pressable onPress={onEdit} accessibilityRole="button" style={styles.action}>
-            <Text style={styles.edit}>Edit</Text>
+            <Text style={styles.edit}>{t('bookings.myReviews.edit')}</Text>
           </Pressable>
         ) : (
           <View />
         )}
         <Pressable onPress={onDelete} accessibilityRole="button" style={styles.action}>
-          <Text style={styles.delete}>Delete</Text>
+          <Text style={styles.delete}>{t('bookings.myReviews.delete')}</Text>
         </Pressable>
       </View>
     </View>

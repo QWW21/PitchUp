@@ -36,21 +36,22 @@ export async function createReview(
       pitch: { select: { name: true, company: { select: { ownerId: true } } } },
     },
   })
-  if (!booking || booking.playerId !== playerId) throw notFound('Booking not found')
+  if (!booking || booking.playerId !== playerId) throw notFound('api.bookingNotFound')
   if (booking.status !== 'COMPLETED') {
-    throw new ApiException('VALIDATION_ERROR', 'Only a completed booking can be reviewed', {
+    throw new ApiException('VALIDATION_ERROR', 'api.reviewCompletedOnly', {
       reason: 'NOT_REVIEWABLE',
     })
   }
   if (now.getTime() > booking.endTime.getTime() + REVIEW.SUBMIT_WINDOW_DAYS * 24 * HOUR) {
     throw new ApiException(
       'VALIDATION_ERROR',
-      `Reviews can be left for ${REVIEW.SUBMIT_WINDOW_DAYS} days after the game`,
-      { reason: 'REVIEW_WINDOW_CLOSED' }
+      'api.reviewWindow',
+      { reason: 'REVIEW_WINDOW_CLOSED' },
+      { n: REVIEW.SUBMIT_WINDOW_DAYS }
     )
   }
   if (booking.review) {
-    throw new ApiException('CONFLICT', 'You have already reviewed this booking', {
+    throw new ApiException('CONFLICT', 'api.alreadyReviewed', {
       reason: 'ALREADY_REVIEWED',
     })
   }
@@ -80,8 +81,8 @@ export async function createReview(
     await notify(prisma, {
       userId: booking.pitch.company.ownerId,
       type: 'REVIEW_LEFT',
-      title: 'New review',
-      body: `${input.rating}★ for ${booking.pitch.name}`,
+      title: t => t('notify.reviewLeft.title'),
+      body: t => t('notify.reviewLeft.body', { rating: input.rating, pitch: booking.pitch.name }),
       data: { reviewId: review.id, bookingId: input.bookingId, link: '/manager/reviews' },
     })
     deliverSoon([booking.pitch.company.ownerId, playerId])
@@ -89,7 +90,7 @@ export async function createReview(
   } catch (caught) {
     // Two submits at once: the database's one-review-per-booking rule wins.
     if (caught instanceof Prisma.PrismaClientKnownRequestError && caught.code === 'P2002') {
-      throw new ApiException('CONFLICT', 'You have already reviewed this booking', {
+      throw new ApiException('CONFLICT', 'api.alreadyReviewed', {
         reason: 'ALREADY_REVIEWED',
       })
     }
@@ -109,7 +110,7 @@ async function own(
   })
   const isAdmin = viewer.role === 'ADMIN'
   if (!review || review.deletedAt || (review.playerId !== viewer.id && !isAdmin)) {
-    throw notFound('Review not found')
+    throw notFound('api.reviewNotFound')
   }
   if (
     editing &&
@@ -118,8 +119,9 @@ async function own(
   ) {
     throw new ApiException(
       'VALIDATION_ERROR',
-      `Reviews can be edited for ${REVIEW.EDIT_WINDOW_HOURS} hours after posting`,
-      { reason: 'EDIT_WINDOW_CLOSED' }
+      'api.reviewEditWindow',
+      { reason: 'EDIT_WINDOW_CLOSED' },
+      { n: REVIEW.EDIT_WINDOW_HOURS }
     )
   }
 }

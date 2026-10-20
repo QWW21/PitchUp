@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
+import { useT } from '@/i18n/client'
 
 interface UserMenuProps {
   name: string
@@ -12,6 +13,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ name, isManager = false, signOutAction }: UserMenuProps) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -42,7 +44,7 @@ export function UserMenu({ name, isManager = false, signOutAction }: UserMenuPro
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        aria-label={`Account menu for ${name}`}
+        aria-label={t('nav.menuFor', { name })}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-2 rounded-full p-1 pr-2 hover:bg-neutral-100"
@@ -64,7 +66,7 @@ export function UserMenu({ name, isManager = false, signOutAction }: UserMenuPro
               href="/dashboard"
               className="block px-4 py-2 text-sm font-medium hover:bg-neutral-50"
             >
-              Dashboard
+              {t('nav.dashboard')}
             </Link>
           )}
           <Link
@@ -72,21 +74,21 @@ export function UserMenu({ name, isManager = false, signOutAction }: UserMenuPro
             href="/profile"
             className="block px-4 py-2 text-sm hover:bg-neutral-50"
           >
-            Profile
+            {t('nav.profile')}
           </Link>
           <Link
             role="menuitem"
             href="/my-bookings"
             className="block px-4 py-2 text-sm hover:bg-neutral-50"
           >
-            My Bookings
+            {t('nav.myBookings')}
           </Link>
           <Link
             role="menuitem"
             href="/my-reviews"
             className="block px-4 py-2 text-sm hover:bg-neutral-50"
           >
-            My Reviews
+            {t('nav.myReviews')}
           </Link>
           <form action={signOutAction}>
             <button
@@ -94,7 +96,7 @@ export function UserMenu({ name, isManager = false, signOutAction }: UserMenuPro
               type="submit"
               className="block w-full px-4 py-2 text-left text-sm text-error-600 hover:bg-neutral-50"
             >
-              Logout
+              {t('nav.logout')}
             </button>
           </form>
         </div>

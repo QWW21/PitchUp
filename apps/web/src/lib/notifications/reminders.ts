@@ -41,8 +41,13 @@ export async function queueReminders(now: Date = new Date()): Promise<{ reminded
       await notify(tx, {
         userId: b.playerId,
         type: 'BOOKING_REMINDER_24H',
-        title: 'Your game is tomorrow',
-        body: `${b.pitch.name} at ${b.pitch.company.name}, tomorrow at ${fromMinutes(venueClock(b.startTime).minutes)}.`,
+        title: t => t('notify.reminder.title'),
+        body: t =>
+          t('notify.reminder.body', {
+            pitch: b.pitch.name,
+            company: b.pitch.company.name,
+            time: fromMinutes(venueClock(b.startTime).minutes),
+          }),
         data: { bookingId: b.id },
       })
       reminded++

@@ -29,7 +29,7 @@ export const POST = withErrorHandling(
       windowMs: BOOKING.CREATE_RATE_WINDOW_MINUTES * 60_000,
     })
     if (!rate.allowed) {
-      return err('RATE_LIMITED', 'Too many booking attempts, try again shortly', 429, {
+      return err('RATE_LIMITED', 'api.tooManyBookings', 429, {
         retryAfterSeconds: rate.retryAfterSeconds,
       })
     }

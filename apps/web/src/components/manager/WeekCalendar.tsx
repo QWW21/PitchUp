@@ -10,7 +10,9 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, List, X } from 'lucide-react'
 import {
-  DAY_SHORT,
+  INTL_LOCALE,
+  weekdayShort,
+  type Locale,
   addDays,
   dayOfWeek,
   fromMinutes,
@@ -18,6 +20,7 @@ import {
   type CalendarEvent,
   type ManagerCalendar,
 } from '@pitchup/shared'
+import { useLocale, useT } from '@/i18n/client'
 
 const SLOT_PX = 48
 const minutesOf = (t: string) => (t === '24:00' ? 24 * 60 : toMinutes(t))
@@ -55,9 +58,14 @@ function lanes(events: CalendarEvent[]) {
   return { placed, count: Math.max(1, ends.length) }
 }
 
-const dayLabel = (date: string) => `${DAY_SHORT[dayOfWeek(date)]} ${Number(date.slice(8))}`
-const range = (from: string, to: string) => {
-  const f = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
+const dayLabel = (date: string, locale: Locale) =>
+  `${weekdayShort(dayOfWeek(date), locale)} ${Number(date.slice(8))}`
+const range = (from: string, to: string, locale: Locale) => {
+  const f = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'UTC',
+  })
   return `${f.format(new Date(`${from}T12:00:00Z`))} – ${f.format(new Date(`${to}T12:00:00Z`))} ${to.slice(0, 4)}`
 }
 
@@ -70,6 +78,8 @@ export function WeekCalendar({
   thisWeek: string
   today: string
 }) {
+  const t = useT()
+  const locale = useLocale()
   const [hidden, setHidden] = useState<Set<string>>(new Set())
   const visible = c.events.filter(e => !hidden.has(e.pitchId))
   const rows = (c.to - c.from) / 30
@@ -87,27 +97,27 @@ export function WeekCalendar({
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Link
           href={link(addDays(c.weekStart, -7))}
-          aria-label="Previous week"
+          aria-label={t('mBookings.calendar.previous')}
           className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-white hover:bg-neutral-50"
         >
           <ChevronLeft className="h-4 w-4" aria-hidden="true" />
         </Link>
         <Link
           href={link(addDays(c.weekStart, 7))}
-          aria-label="Next week"
+          aria-label={t('mBookings.calendar.next')}
           className="flex h-10 w-10 items-center justify-center rounded-md border border-neutral-200 bg-white hover:bg-neutral-50"
         >
           <ChevronRight className="h-4 w-4" aria-hidden="true" />
         </Link>
         <h2 className="mx-2 text-lg font-semibold text-neutral-900" aria-live="polite">
-          {range(c.days[0]!, c.days[6]!)}
+          {range(c.days[0]!, c.days[6]!, locale)}
         </h2>
         {c.weekStart !== thisWeek && (
           <Link
             href={link(thisWeek)}
             className="h-10 rounded-md border border-neutral-200 bg-white px-4 text-sm font-semibold leading-10 text-neutral-900 hover:bg-neutral-50"
           >
-            Today
+            {t('mBookings.calendar.today')}
           </Link>
         )}
         <Link
@@ -115,12 +125,12 @@ export function WeekCalendar({
           className="ml-auto inline-flex h-10 items-center gap-2 rounded-md border border-neutral-200 bg-white px-4 text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
         >
           <List className="h-4 w-4" aria-hidden="true" />
-          List view
+          {t('mBookings.calendar.listView')}
         </Link>
       </div>
 
       {c.pitches.length > 0 && (
-        <ul aria-label="Pitches" className="mb-4 flex flex-wrap gap-2">
+        <ul aria-label={t('mBookings.calendar.pitches')} className="mb-4 flex flex-wrap gap-2">
           {c.pitches.map(p => (
             <li key={p.id}>
               <button
@@ -146,7 +156,7 @@ export function WeekCalendar({
       )}
 
       {visible.length === 0 && (
-        <p className="mb-3 text-sm text-neutral-500">No bookings this week.</p>
+        <p className="mb-3 text-sm text-neutral-500">{t('mBookings.calendar.none')}</p>
       )}
 
       <div className="relative overflow-x-auto rounded-xl bg-white shadow-sm">
@@ -159,7 +169,7 @@ export function WeekCalendar({
                 d === today ? 'text-primary-700' : 'text-neutral-700'
               }`}
             >
-              {dayLabel(d)}
+              {dayLabel(d, locale)}
             </div>
           ))}
 
@@ -193,7 +203,7 @@ export function WeekCalendar({
                     <Link
                       key={e.id}
                       href={`/manager/bookings/${e.id}`}
-                      aria-label={`${e.playerName}, ${e.pitchName}, ${dayLabel(e.date)} ${e.startTime}–${e.endTime}, ${e.status.toLowerCase().replace('_', '-')}`}
+                      aria-label={`${e.playerName}, ${e.pitchName}, ${dayLabel(e.date, locale)} ${e.startTime}–${e.endTime}, ${t(`mBookings.status.${e.status}`)}`}
                       className={`absolute overflow-hidden rounded-md p-1.5 text-left text-xs text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-900 ${
                         e.status === 'NO_SHOW'
                           ? 'outline outline-2 -outline-offset-2 outline-white ring-2 ring-error-600'

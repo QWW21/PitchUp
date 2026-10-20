@@ -233,7 +233,7 @@ describe('Trust score detail (E08-05)', () => {
 
   it('groups the history by month', () => {
     expect(
-      withMonths(detail().events).map(r => (r.kind === 'month' ? r.label : r.event.id))
+      withMonths(detail().events, 'en').map(r => (r.kind === 'month' ? r.label : r.event.id))
     ).toEqual(['October 2026', 'e1', 'September 2026', 'e2'])
   })
 

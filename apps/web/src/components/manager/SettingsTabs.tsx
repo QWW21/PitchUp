@@ -3,17 +3,19 @@
 /** The Settings tabs — C-13. */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useT } from '@/i18n/client'
 
 const TABS = [
-  ['/manager/settings', 'Bookings and payments'],
-  ['/manager/settings/venue', 'Venue details'],
-  ['/manager/settings/account', 'Your account'],
+  ['/manager/settings', 'bookings'],
+  ['/manager/settings/venue', 'venue'],
+  ['/manager/settings/account', 'account'],
 ] as const
 
 export function SettingsTabs() {
+  const t = useT()
   const pathname = usePathname()
   return (
-    <nav aria-label="Settings" className="mt-4">
+    <nav aria-label={t('manager.settings.tabs.label')} className="mt-4">
       <ul className="flex gap-1 overflow-x-auto border-b border-neutral-200">
         {TABS.map(([href, label]) => {
           const active = pathname === href
@@ -28,7 +30,7 @@ export function SettingsTabs() {
                     : 'border-transparent text-neutral-700 hover:text-neutral-900'
                 }`}
               >
-                {label}
+                {t(`manager.settings.tabs.${label}`)}
               </Link>
             </li>
           )

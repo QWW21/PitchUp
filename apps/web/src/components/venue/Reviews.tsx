@@ -3,16 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { MessageSquare, X } from 'lucide-react'
-import {
-  REVIEW_SORTS,
-  REVIEW_SORT_LABELS,
-  type ReviewItem,
-  type ReviewPage,
-  type ReviewSort,
-} from '@pitchup/shared'
+import { REVIEW_SORTS, type ReviewItem, type ReviewPage, type ReviewSort } from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
 import { Stars, formatReviewDate } from './bits'
 import { ReportReview } from './ReportReview'
+import { useLocale, useT } from '@/i18n/client'
 
 /** True once the element has scrolled into view (and stays true). */
 function useSeen<T extends Element>() {
@@ -40,6 +35,7 @@ function useSeen<T extends Element>() {
  * when the chart scrolls into view (E07-10).
  */
 export function RatingBreakdown({ page }: { page: ReviewPage }) {
+  const t = useT()
   const max = page.total || 1
   const [ref, seen] = useSeen<HTMLDivElement>()
   return (
@@ -49,17 +45,17 @@ export function RatingBreakdown({ page }: { page: ReviewPage }) {
           <span className="text-3xl font-bold text-neutral-900">
             {page.avgRating !== null ? page.avgRating.toFixed(1) : '–'}
           </span>
-          <span className="text-sm text-neutral-500">out of 5</span>
+          <span className="text-sm text-neutral-500">{t('venue.rating.outOf5Short')}</span>
         </p>
         {page.avgRating !== null ? (
           <div className="mt-2">
             <Stars rating={page.avgRating} size={24} />
           </div>
         ) : (
-          <p className="mt-2 text-sm text-neutral-500">Not rated yet</p>
+          <p className="mt-2 text-sm text-neutral-500">{t('venue.rating.notRated')}</p>
         )}
         <p className="mt-2 text-xs text-neutral-500">
-          {page.total} {page.total === 1 ? 'review' : 'reviews'}
+          {t('venue.rating.reviews', { count: page.total })}
         </p>
       </div>
       <div className="w-full max-w-sm space-y-1.5">
@@ -122,6 +118,8 @@ export function ReviewCard({
   /** Signed in: offer "Report" (E07-04). */
   canReport?: boolean
 }) {
+  const t = useT()
+  const locale = useLocale()
   const [lightbox, setLightbox] = useState<string | null>(null)
   return (
     <article className="border-b border-neutral-200 py-4 last:border-b-0">
@@ -134,7 +132,7 @@ export function ReviewCard({
             {review.playerName}
           </p>
           <p className="text-xs text-neutral-500">
-            {formatReviewDate(review.createdAt)}
+            {formatReviewDate(review.createdAt, locale)}
             {showPitch && ` · ${review.pitchName}`}
           </p>
         </div>
@@ -152,7 +150,11 @@ export function ReviewCard({
         <div className="mt-2 flex gap-2 overflow-x-auto">
           {review.photoUrls.map(url => (
             <button key={url} type="button" onClick={() => setLightbox(url)} className="shrink-0">
-              <img src={url} alt="Review photo" className="h-20 w-20 rounded-md object-cover" />
+              <img
+                src={url}
+                alt={t('venue.reviews.photoAlt')}
+                className="h-20 w-20 rounded-md object-cover"
+              />
             </button>
           ))}
         </div>
@@ -160,8 +162,8 @@ export function ReviewCard({
       {!compact && review.managerReply && (
         <div className="ml-3 mt-3 rounded-md bg-neutral-50 p-2">
           <p className="mb-1 text-[11px] font-medium uppercase text-neutral-500">
-            Response from the venue
-            {review.managerRepliedAt && ` · ${formatReviewDate(review.managerRepliedAt)}`}
+            {t('venue.reviews.venueResponse')}
+            {review.managerRepliedAt && ` · ${formatReviewDate(review.managerRepliedAt, locale)}`}
           </p>
           <p className="text-sm text-neutral-700">{review.managerReply}</p>
         </div>
@@ -173,12 +175,16 @@ export function ReviewCard({
         >
           <button
             type="button"
-            aria-label="Close photo"
+            aria-label={t('venue.reviews.closePhoto')}
             className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white"
           >
             <X className="h-5 w-5" />
           </button>
-          <img src={lightbox} alt="Review photo" className="max-h-full max-w-full object-contain" />
+          <img
+            src={lightbox}
+            alt={t('venue.reviews.photoAlt')}
+            className="max-h-full max-w-full object-contain"
+          />
         </div>
       )}
     </article>
@@ -188,7 +194,7 @@ export function ReviewCard({
 async function fetchReviews(query: string, page: number): Promise<ReviewPage> {
   const res = await fetch(`/api/v1/reviews?${query}&page=${page}&limit=10`)
   const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Request failed')
+  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? res.statusText)
   return body.data as ReviewPage
 }
 
@@ -213,6 +219,7 @@ export function ReviewsList({
   initialSort?: string | undefined
   signedIn?: boolean
 }) {
+  const t = useT()
   const [pitchId, setPitchId] = useState(initialPitchId ?? '')
   const [sort, setSort] = useState<ReviewSort>(isSort(initialSort) ? initialSort : 'newest')
   const query = `${pitchId ? `pitchId=${pitchId}` : `companyId=${companyId}`}&sort=${sort}`
@@ -254,13 +261,13 @@ export function ReviewsList({
     <div>
       {pitches.length > 1 && (
         <label className="mb-6 flex items-center gap-2 text-sm text-neutral-700">
-          Show reviews for
+          {t('venue.reviews.showFor')}
           <select
             value={pitchId}
             onChange={e => setPitchId(e.target.value)}
             className="h-9 rounded-md border border-neutral-200 bg-white px-2 text-sm"
           >
-            <option value="">All pitches</option>
+            <option value="">{t('venue.reviews.allPitches')}</option>
             {pitches.map(p => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -270,7 +277,7 @@ export function ReviewsList({
         </label>
       )}
 
-      <div role="group" aria-label="Sort reviews" className="mb-6 flex flex-wrap gap-2">
+      <div role="group" aria-label={t('venue.reviews.sort')} className="mb-6 flex flex-wrap gap-2">
         {REVIEW_SORTS.map(s => (
           <button
             key={s}
@@ -283,7 +290,7 @@ export function ReviewsList({
                 : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
             }`}
           >
-            {REVIEW_SORT_LABELS[s]}
+            {t(`reviewSort.${s}`)}
           </button>
         ))}
       </div>
@@ -292,20 +299,20 @@ export function ReviewsList({
         <div className="h-40 animate-pulse rounded-xl bg-neutral-100" />
       ) : reviews.isError ? (
         <div className="py-10 text-center text-sm text-neutral-500">
-          Couldn&rsquo;t load reviews.{' '}
+          {t('venue.reviews.loadError')}{' '}
           <button
             type="button"
             onClick={() => void reviews.refetch()}
             className="font-medium text-primary-600"
           >
-            Retry
+            {t('common.retry')}
           </button>
         </div>
       ) : first && first.total === 0 ? (
         <div className="flex flex-col items-center py-12 text-center">
           <MessageSquare className="h-12 w-12 text-neutral-300" aria-hidden="true" />
-          <p className="mt-3 font-semibold text-neutral-900">No reviews yet</p>
-          <p className="mt-1 text-sm text-neutral-500">Be the first to review after your booking</p>
+          <p className="mt-3 font-semibold text-neutral-900">{t('venue.reviews.none')}</p>
+          <p className="mt-1 text-sm text-neutral-500">{t('venue.reviews.beFirst')}</p>
         </div>
       ) : (
         <>
@@ -328,7 +335,7 @@ export function ReviewsList({
                   loading={reviews.isFetchingNextPage}
                   onClick={() => void reviews.fetchNextPage()}
                 >
-                  Load more reviews
+                  {t('venue.reviews.loadMore')}
                 </Button>
               </div>
             </div>

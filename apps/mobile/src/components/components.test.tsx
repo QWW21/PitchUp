@@ -6,7 +6,6 @@ import React from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react-native'
 import { Alert } from 'react-native'
 import {
-  SIZE_INFO,
   type CompanyListItem,
   type PitchDetail,
   type ReviewItem,
@@ -19,6 +18,7 @@ import { RatingBreakdown } from './reviews/RatingBreakdown'
 import { AmenitiesGrid, PricingCard } from './pitch/PitchSections'
 import { BookNowFooter } from './pitch/BookNowFooter'
 import { SizeInfo } from './pitch/SizeInfo'
+import { sharedEn } from '@pitchup/shared'
 
 const company: CompanyListItem = {
   id: 'c1',
@@ -190,7 +190,7 @@ describe('SizeInfo', () => {
     const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {})
     render(<SizeInfo />)
     fireEvent.press(screen.getByRole('button', { name: 'About pitch sizes' }))
-    expect(alert).toHaveBeenCalledWith('Pitch size', SIZE_INFO)
+    expect(alert).toHaveBeenCalledWith('Pitch size', sharedEn.size.info)
   })
 })
 

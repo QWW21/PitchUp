@@ -25,7 +25,7 @@ export const GET = withErrorHandling(async (request: NextRequest) => {
     return err('VALIDATION_ERROR', parsed.error.issues[0]?.message ?? 'Invalid query', 400)
   }
   const page = await listReviews(parsed.data)
-  if (!page) return err('NOT_FOUND', 'Pitch or company not found', 404)
+  if (!page) return err('NOT_FOUND', 'api.pitchOrCompanyNotFound', 404)
   return ok(page)
 })
 

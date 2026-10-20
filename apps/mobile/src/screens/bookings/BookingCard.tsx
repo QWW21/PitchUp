@@ -11,27 +11,31 @@ import {
   type BookingStatus,
 } from '@pitchup/shared'
 import { colors, spacing } from '../../theme/tokens'
+import { useLocale, useT } from '../../i18n'
 
-const BADGE: Record<BookingStatus, { label: string; bg: string; fg: string }> = {
-  CONFIRMED: { label: 'Confirmed', bg: colors.primary[50], fg: colors.primary[700] },
-  PENDING: { label: 'Pending', bg: colors.warning[50], fg: '#92400E' },
-  AWAITING_APPROVAL: { label: 'Waiting for venue', bg: colors.warning[50], fg: '#92400E' },
-  COMPLETED: { label: 'Completed', bg: colors.primary[50], fg: colors.primary[700] },
-  NO_SHOW: { label: 'No-show', bg: colors.error[50], fg: colors.error[600] },
-  CANCELLED: { label: 'Cancelled', bg: colors.neutral[100], fg: colors.neutral[700] },
+const BADGE: Record<BookingStatus, { bg: string; fg: string }> = {
+  CONFIRMED: { bg: colors.primary[50], fg: colors.primary[700] },
+  PENDING: { bg: colors.warning[50], fg: '#92400E' },
+  AWAITING_APPROVAL: { bg: colors.warning[50], fg: '#92400E' },
+  COMPLETED: { bg: colors.primary[50], fg: colors.primary[700] },
+  NO_SHOW: { bg: colors.error[50], fg: colors.error[600] },
+  CANCELLED: { bg: colors.neutral[100], fg: colors.neutral[700] },
 }
 
 export function StatusBadge({ status }: { status: BookingStatus }) {
+  const t = useT()
   const b = BADGE[status]
   return (
     <View style={[styles.badge, { backgroundColor: b.bg }]}>
-      <Text style={[styles.badgeText, { color: b.fg }]}>{b.label}</Text>
+      <Text style={[styles.badgeText, { color: b.fg }]}>{t(`bookings.badge.${status}`)}</Text>
     </View>
   )
 }
 
 /** "Starts in 3h 20min", within 24 hours of kick-off; ticks every minute. */
 export function CountdownChip({ startsAt }: { startsAt: string }) {
+  const t = useT()
+  const locale = useLocale()
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60_000)
@@ -39,21 +43,16 @@ export function CountdownChip({ startsAt }: { startsAt: string }) {
   }, [])
   const start = new Date(startsAt)
   if (start.getTime() - now.getTime() > 24 * 3_600_000) return null
-  const text = formatCountdown(start, now)
+  const text = formatCountdown(start, locale, now)
   return (
     <View style={styles.chip}>
       <Icon name="clock-fast" size={14} color={colors.warning[500]} />
-      <Text style={styles.chipText}>{text === 'Starting now' ? text : `Starts in ${text}`}</Text>
+      <Text style={styles.chipText}>
+        {text === t('duration.countdownNow') ? text : t('bookings.startsIn', { time: text })}
+      </Text>
     </View>
   )
 }
-
-const CANCELLED_BY = {
-  PLAYER: 'Cancelled by you',
-  MANAGER: 'Cancelled by the venue',
-  ADMIN: 'Cancelled by PitchUp',
-  SYSTEM: 'Cancelled',
-} as const
 
 interface Props {
   booking: BookingListItem
@@ -63,6 +62,8 @@ interface Props {
 }
 
 export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const upcoming = b.status === 'CONFIRMED' || b.status === 'PENDING'
   const past = b.status === 'COMPLETED' || b.status === 'NO_SHOW'
   // The card and its buttons are siblings: a screen reader cannot reach a
@@ -73,7 +74,14 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
         onPress={onPress}
         style={styles.main}
         accessibilityRole="button"
-        accessibilityLabel={`${b.pitch.name} at ${b.company.name}, ${formatDateLong(b.date)}, ${b.startTime} to ${b.endTime}, ${BADGE[b.status].label}`}
+        accessibilityLabel={t('bookings.card.label', {
+          pitch: b.pitch.name,
+          venue: b.company.name,
+          date: formatDateLong(b.date, locale),
+          start: b.startTime,
+          end: b.endTime,
+          status: t(`bookings.badge.${b.status}`),
+        })}
       >
         <View style={styles.row}>
           {b.company.logoUrl ? (
@@ -96,7 +104,7 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
 
         <View style={styles.line}>
           <Icon name="calendar" size={16} color={colors.neutral[400]} />
-          <Text style={styles.body}>{formatDateLong(b.date)}</Text>
+          <Text style={styles.body}>{formatDateLong(b.date, locale)}</Text>
         </View>
         <View style={styles.line}>
           <Icon name="clock-outline" size={16} color={colors.neutral[400]} />
@@ -107,16 +115,20 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
 
         {upcoming ? <CountdownChip startsAt={b.startsAt} /> : null}
         {b.status === 'CONFIRMED' && b.dueAtVenue > 0 ? (
-          <Text style={styles.due}>To pay at the venue: {b.dueAtVenue} RON</Text>
+          <Text style={styles.due}>{t('bookings.card.due', { amount: b.dueAtVenue })}</Text>
         ) : null}
 
         {b.status === 'CANCELLED' ? (
           <View style={styles.line}>
-            <Text style={styles.italic}>{CANCELLED_BY[b.cancelledBy ?? 'SYSTEM']}</Text>
+            <Text style={styles.italic}>
+              {t(`bookings.cancelledBy.${b.cancelledBy ?? 'SYSTEM'}`)}
+            </Text>
             {b.refundAmount ? (
-              <Text style={styles.refund}>· Refund: {b.refundAmount} RON</Text>
+              <Text style={styles.refund}>
+                {t('bookings.card.refund', { amount: b.refundAmount })}
+              </Text>
             ) : (
-              <Text style={styles.muted}>· No refund</Text>
+              <Text style={styles.muted}>{t('bookings.card.noRefund')}</Text>
             )}
           </View>
         ) : null}
@@ -126,13 +138,13 @@ export function BookingCard({ booking: b, onPress, onReview, onRebook }: Props) 
         <View style={styles.actions}>
           {b.canReview ? (
             <Pressable onPress={onReview} style={styles.secondary} accessibilityRole="button">
-              <Text style={styles.secondaryText}>Leave a review</Text>
+              <Text style={styles.secondaryText}>{t('bookings.card.review')}</Text>
             </Pressable>
           ) : (
             <View />
           )}
           <Pressable onPress={onRebook} style={styles.ghost} accessibilityRole="button">
-            <Text style={styles.ghostText}>Re-book</Text>
+            <Text style={styles.ghostText}>{t('bookings.card.rebook')}</Text>
           </Pressable>
         </View>
       ) : null}

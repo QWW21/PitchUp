@@ -6,7 +6,7 @@ import React, { useRef, useState } from 'react'
 import { Animated, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
-import { SIZE_LABELS, formatPitchSize, trustTier } from '@pitchup/shared'
+import { formatPitchSize, trustTier } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { usePitch } from '../../hooks/useVenue'
 import { useAuthStore } from '../../stores/authStore'
@@ -24,12 +24,15 @@ import { BookNowFooter, FOOTER_HEIGHT, type BookBlock } from '../../components/p
 import { ReviewCard } from '../../components/reviews/ReviewCard'
 import { colors } from '../../theme/tokens'
 import { SHARE_BASE_URL } from './CompanyDetailScreen'
+import { useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'PitchDetail'>
 
 const DESCRIPTION_LINES = 4
 
 export function PitchDetailScreen({ route, navigation }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const { pitchId, companyId } = route.params
   const pitch = usePitch(pitchId)
   const user = useAuthStore(s => s.user)
@@ -71,9 +74,9 @@ export function PitchDetailScreen({ route, navigation }: Props) {
         {header}
         <EmptyState
           illustration={<Icon name="wifi-off" size={64} color={colors.neutral[300]} />}
-          title="Couldn't load pitch"
-          description="Check your connection and try again"
-          ctaLabel="Retry"
+          title={t('discover.pitch.loadFailed')}
+          description={t('discover.checkConnection')}
+          ctaLabel={t('discover.retry')}
           ctaVariant="primary"
           onCta={() => void pitch.refetch()}
         />
@@ -116,7 +119,7 @@ export function PitchDetailScreen({ route, navigation }: Props) {
           <View style={[styles.row, styles.gapSm]}>
             <SurfaceChip surface={p.surfaceType} />
             <Text style={styles.size}>
-              {formatPitchSize(SIZE_LABELS[p.size], p.widthMeters, p.lengthMeters)}
+              {formatPitchSize(t(`size.${p.size}`), p.widthMeters, p.lengthMeters, locale)}
             </Text>
             <SizeInfo />
           </View>
@@ -136,7 +139,7 @@ export function PitchDetailScreen({ route, navigation }: Props) {
 
           {p.description ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About this pitch</Text>
+              <Text style={styles.sectionTitle}>{t('discover.pitch.about')}</Text>
               <Text
                 style={styles.body}
                 numberOfLines={expanded ? undefined : DESCRIPTION_LINES}
@@ -151,29 +154,33 @@ export function PitchDetailScreen({ route, navigation }: Props) {
               </Text>
               {truncated ? (
                 <Pressable onPress={() => setExpanded(x => !x)} style={styles.more}>
-                  <Text style={styles.moreText}>{expanded ? 'Show less' : 'Show more'}</Text>
+                  <Text style={styles.moreText}>
+                    {expanded ? t('discover.pitch.showLess') : t('discover.pitch.showMore')}
+                  </Text>
                 </Pressable>
               ) : null}
             </View>
           ) : null}
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Amenities</Text>
+            <Text style={styles.sectionTitle}>{t('discover.pitch.amenities')}</Text>
             <AmenitiesGrid amenities={p.amenities} />
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Pricing</Text>
+            <Text style={styles.sectionTitle}>{t('discover.pitch.pricing')}</Text>
             <PricingCard pitch={p} />
           </View>
 
           {p.isBookable ? (
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Availability</Text>
+              <Text style={styles.sectionTitle}>{t('discover.pitch.availability')}</Text>
               <AvailabilityPreview
                 pitchId={p.id}
                 enabled={p.isBookable}
-                onPickDay={date => (block ? toast('Booking is not available') : book(date))}
+                onPickDay={date =>
+                  block ? toast(t('discover.pitch.unavailableToast')) : book(date)
+                }
                 onClosedDay={toast}
               />
             </View>
@@ -181,11 +188,11 @@ export function PitchDetailScreen({ route, navigation }: Props) {
 
           <View style={styles.section}>
             <View style={styles.reviewsHead}>
-              <Text style={styles.sectionTitle}>Reviews</Text>
+              <Text style={styles.sectionTitle}>{t('discover.pitch.reviews')}</Text>
               <RatingLine avgRating={p.avgRating} reviewCount={p.reviewCount} />
             </View>
             {p.reviewCount === 0 ? (
-              <Text style={styles.noReviews}>No reviews yet</Text>
+              <Text style={styles.noReviews}>{t('discover.pitch.noReviews')}</Text>
             ) : (
               <>
                 {p.recentReviews.slice(0, 2).map(r => (

@@ -5,18 +5,23 @@ import { auth } from '@/auth'
 import Link from 'next/link'
 import { listDisputes } from '@/lib/admin/disputes'
 import { DisputeDecision } from '@/components/admin/DisputeDecision'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'Disputes | PitchUp' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('admin.disputes.title') }
+}
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> }
 
-const OUTCOME: Record<string, [string, string]> = {
-  RESOLVED_PLAYER: ['The player was right', 'bg-success-50 text-primary-700'],
-  RESOLVED_MANAGER: ['The venue was right', 'bg-info-50 text-blue-800'],
+const OUTCOME: Record<string, ['playerRight' | 'venueRight', string]> = {
+  RESOLVED_PLAYER: ['playerRight', 'bg-success-50 text-primary-700'],
+  RESOLVED_MANAGER: ['venueRight', 'bg-info-50 text-blue-800'],
 }
 
 /** No-show disputes — E12-04, with decided ones too (E15-08). */
 export default async function DisputesPage({ searchParams }: Props) {
+  const locale = await getLocale()
+  const t = await getT()
   // The layout checks too, but layouts and pages render in parallel.
   const session = await auth()
   if (session?.user.role !== 'ADMIN') return null
@@ -35,22 +40,25 @@ export default async function DisputesPage({ searchParams }: Props) {
   )
   return (
     <>
-      <h1 className="text-2xl font-bold text-neutral-900">No-show disputes</h1>
-      <nav aria-label="Disputes" className="mt-3 flex gap-1 border-b border-neutral-200">
-        {tab('/admin/disputes', 'Open', !decided)}
-        {tab('/admin/disputes?status=resolved', 'Decided', decided)}
+      <h1 className="text-2xl font-bold text-neutral-900">{t('admin.disputes.heading')}</h1>
+      <nav
+        aria-label={t('admin.disputes.tabs')}
+        className="mt-3 flex gap-1 border-b border-neutral-200"
+      >
+        {tab('/admin/disputes', t('admin.disputes.open'), !decided)}
+        {tab('/admin/disputes?status=resolved', t('admin.disputes.decided'), decided)}
       </nav>
       <p className="mt-3 text-sm text-neutral-500">
         {decided
-          ? `${disputes.length} decided, newest first.`
+          ? t('admin.disputes.decidedCount', { n: disputes.length })
           : disputes.length === 0
-            ? 'Nothing to decide.'
-            : `${disputes.length} ${disputes.length === 1 ? 'dispute waits' : 'disputes wait'} for a decision.`}
+            ? t('admin.disputes.nothing')
+            : t('admin.disputes.waitCount', { count: disputes.length })}
       </p>
       {disputes.length === 0 && !decided ? (
         <div className="mt-6 flex flex-col items-center rounded-xl bg-white px-6 py-12 text-center shadow-sm">
           <CheckCircle2 className="h-12 w-12 text-neutral-300" aria-hidden="true" />
-          <p className="mt-3 font-semibold text-neutral-900">All caught up</p>
+          <p className="mt-3 font-semibold text-neutral-900">{t('admin.allCaughtUp')}</p>
         </div>
       ) : (
         <ul className="mt-6 space-y-4">
@@ -61,22 +69,29 @@ export default async function DisputesPage({ searchParams }: Props) {
                 className="rounded-xl bg-white p-5 shadow-sm"
               >
                 <h2 id={`d-${d.bookingId}`} className="text-lg font-semibold text-neutral-900">
-                  {d.player.name} at {d.venue}
+                  {t('admin.disputes.at', { player: d.player.name, venue: d.venue })}
                 </h2>
                 <p className="text-sm text-neutral-700">
-                  {d.pitch} · {formatDateLong(d.date)}, {d.startTime}–{d.endTime} · {d.reference}
+                  {d.pitch} · {formatDateLong(d.date, locale)}, {d.startTime}–{d.endTime} ·{' '}
+                  {d.reference}
                 </p>
                 <dl className="mt-3 space-y-2 text-sm">
                   <div>
-                    <dt className="font-medium text-neutral-900">The venue says</dt>
-                    <dd className="text-neutral-700">{d.managerReason ?? 'No reason given.'}</dd>
+                    <dt className="font-medium text-neutral-900">
+                      {t('admin.disputes.venueSays')}
+                    </dt>
+                    <dd className="text-neutral-700">
+                      {d.managerReason ?? t('admin.disputes.noReason')}
+                    </dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-neutral-900">The player says</dt>
+                    <dt className="font-medium text-neutral-900">
+                      {t('admin.disputes.playerSays')}
+                    </dt>
                     <dd className="text-neutral-700">{d.disputeText ?? '—'}</dd>
                   </div>
                   <div>
-                    <dt className="font-medium text-neutral-900">The venue kept</dt>
+                    <dt className="font-medium text-neutral-900">{t('admin.disputes.kept')}</dt>
                     <dd className="text-neutral-700">{d.keptAmount} RON</dd>
                   </div>
                 </dl>
@@ -87,7 +102,7 @@ export default async function DisputesPage({ searchParams }: Props) {
                     <span
                       className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${OUTCOME[d.status]![1]}`}
                     >
-                      {OUTCOME[d.status]![0]}
+                      {t(`admin.disputes.${OUTCOME[d.status]![0]}`)}
                     </span>{' '}
                     <span className="text-neutral-700">{d.resolution}</span>
                   </p>

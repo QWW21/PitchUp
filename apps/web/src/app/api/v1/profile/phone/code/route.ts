@@ -14,20 +14,20 @@ export const POST = withErrorHandling(
     try {
       const outcome = await sendOwnPhoneCode(session.user.id)
       if (outcome === 'ALREADY_VERIFIED') {
-        return err('CONFLICT', 'Your phone number is already verified', 409, {
+        return err('CONFLICT', 'api.phoneVerified', 409, {
           reason: 'ALREADY_VERIFIED',
         })
       }
     } catch (caught) {
       if (caught instanceof RecipientThrottledError) {
-        return err('RATE_LIMITED', 'Too many codes sent, try again later', 429, {
+        return err('RATE_LIMITED', 'api.tooManyCodes', 429, {
           retryAfterSeconds: caught.retryAfterSeconds,
         })
       }
       // The person knows it's their own number, so a failed send is said
       // plainly rather than hidden as on the public resend route.
       console.error('[profile] Could not text a phone code:', caught)
-      return err('SERVICE_UNAVAILABLE', 'Could not send the text, try again shortly', 503)
+      return err('SERVICE_UNAVAILABLE', 'api.smsFailed', 503)
     }
     return ok({ sent: true })
   })

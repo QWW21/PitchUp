@@ -72,23 +72,29 @@ describe('meetsMinScore and the booking gate (E12-06)', () => {
   })
 
   it('suspended players are refused everywhere', () => {
-    expect(bookingTrustGate({ score: 29, pitchMinScore: 0, activeBookings: 0 })).toMatchObject({
+    expect(
+      bookingTrustGate({ score: 29, pitchMinScore: 0, activeBookings: 0 }, 'en')
+    ).toMatchObject({
       reason: 'TRUST_SCORE_TOO_LOW',
     })
   })
 
   it('a pitch asking for Good refuses Fair, saying both tiers', () => {
-    expect(bookingTrustGate({ score: 65, pitchMinScore: 70, activeBookings: 0 })).toMatchObject({
+    expect(
+      bookingTrustGate({ score: 65, pitchMinScore: 70, activeBookings: 0 }, 'en')
+    ).toMatchObject({
       reason: 'TRUST_TIER_INSUFFICIENT',
       required: 'Good',
       current: 'Fair',
     })
-    expect(bookingTrustGate({ score: 75, pitchMinScore: 70, activeBookings: 3 })).toBeNull()
+    expect(bookingTrustGate({ score: 75, pitchMinScore: 70, activeBookings: 3 }, 'en')).toBeNull()
   })
 
   it('Poor players hold one upcoming booking at a time', () => {
-    expect(bookingTrustGate({ score: 40, pitchMinScore: 0, activeBookings: 0 })).toBeNull()
-    expect(bookingTrustGate({ score: 40, pitchMinScore: 0, activeBookings: 1 })).toMatchObject({
+    expect(bookingTrustGate({ score: 40, pitchMinScore: 0, activeBookings: 0 }, 'en')).toBeNull()
+    expect(
+      bookingTrustGate({ score: 40, pitchMinScore: 0, activeBookings: 1 }, 'en')
+    ).toMatchObject({
       reason: 'ACTIVE_BOOKING_LIMIT',
     })
   })

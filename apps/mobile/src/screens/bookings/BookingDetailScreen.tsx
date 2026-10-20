@@ -25,7 +25,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   REVIEW,
   SHIRT_COLOUR_HEX,
-  SURFACE_LABELS,
+  type Locale,
   formatDateLong,
   formatDuration,
   fromMinutes,
@@ -41,59 +41,51 @@ import { Button } from '../../components/ui/Button'
 import { ErrorState } from '../../components/common/ErrorState'
 import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
+import { currentT, useLocale, useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AppStackParamList, 'BookingDetail'>
 
-const BANNER: Record<BookingStatus, { label: string; bg: string; fg: string; icon: string }> = {
+const BANNER: Record<BookingStatus, { bg: string; fg: string; icon: string }> = {
   CONFIRMED: {
-    label: 'Confirmed',
     bg: colors.primary[50],
     fg: colors.primary[700],
     icon: 'check-circle',
   },
   PENDING: {
-    label: 'Awaiting payment',
     bg: colors.warning[50],
     fg: '#92400E',
     icon: 'clock-outline',
   },
   AWAITING_APPROVAL: {
-    label: 'Waiting for the venue',
     bg: colors.warning[50],
     fg: '#92400E',
     icon: 'clock-outline',
   },
   COMPLETED: {
-    label: 'Completed',
     bg: colors.primary[50],
     fg: colors.primary[700],
     icon: 'check-circle',
   },
   CANCELLED: {
-    label: 'Cancelled',
     bg: colors.neutral[100],
     fg: colors.neutral[700],
     icon: 'close-circle',
   },
-  NO_SHOW: { label: 'No-show', bg: colors.error[50], fg: colors.error[600], icon: 'alert-circle' },
-}
-
-const WORDS: Record<BookingStatus, string> = {
-  PENDING: 'Booked, awaiting payment',
-  AWAITING_APPROVAL: 'Paid, sent to the venue',
-  CONFIRMED: 'Paid and confirmed',
-  COMPLETED: 'Played',
-  CANCELLED: 'Cancelled',
-  NO_SHOW: 'Marked as a no-show',
+  NO_SHOW: { bg: colors.error[50], fg: colors.error[600], icon: 'alert-circle' },
 }
 
 /** "Thursday, 5 November 2026 at 18:00", venue time, without Intl. */
-const at = (iso: string) => {
+const at = (iso: string, locale: Locale) => {
   const c = venueClock(new Date(iso))
-  return `${formatDateLong(c.date)} at ${fromMinutes(c.minutes)}`
+  return currentT()('bookings.detail.at', {
+    date: formatDateLong(c.date, locale),
+    time: fromMinutes(c.minutes),
+  })
 }
 
 export function BookingDetailScreen({ navigation, route }: Props) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const id = route.params.id
   const queryClient = useQueryClient()
@@ -118,13 +110,13 @@ export function BookingDetailScreen({ navigation, route }: Props) {
         tab: 'cancelled',
         notice:
           data.refundAmount > 0
-            ? `Booking cancelled. ${data.refundAmount} RON will be refunded in 5–10 business days.`
-            : 'Booking cancelled. No refund applied.',
+            ? t('bookings.detail.cancelledRefund', { amount: data.refundAmount })
+            : t('bookings.detail.cancelledNoRefund'),
       })
     },
     onError: e => {
       setSheet(false)
-      show(e instanceof ApiError ? e.message : 'Could not cancel. Please try again.')
+      show(e instanceof ApiError ? e.message : t('bookings.detail.cancelFailed'))
     },
   })
 
@@ -143,19 +135,21 @@ export function BookingDetailScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           style={styles.back}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t('bookings.back')}
         >
           <Icon name="chevron-left" size={26} color={colors.neutral[900]} />
         </Pressable>
       </View>
       <View style={[styles.banner, { backgroundColor: banner.bg }]}>
         <Icon name={banner.icon} size={16} color={banner.fg} />
-        <Text style={[styles.bannerText, { color: banner.fg }]}>{banner.label}</Text>
+        <Text style={[styles.bannerText, { color: banner.fg }]}>
+          {t(`bookings.detail.banner.${b.status}`)}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 96 }]}>
         <Text style={styles.title} accessibilityRole="header">
-          Booking details
+          {t('bookings.detail.title')}
         </Text>
         <Text style={styles.reference}>{b.reference}</Text>
 
@@ -169,7 +163,7 @@ export function BookingDetailScreen({ navigation, route }: Props) {
               <Pressable
                 onPress={() => Linking.openURL(`tel:${b.company.phone}`)}
                 accessibilityRole="link"
-                accessibilityLabel={`Call ${b.company.name}`}
+                accessibilityLabel={t('bookings.detail.call', { venue: b.company.name })}
               >
                 <Text style={styles.phone}>{b.company.phone}</Text>
               </Pressable>
@@ -178,33 +172,35 @@ export function BookingDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.info}>
-          <Row icon="calendar">{formatDateLong(b.date)}</Row>
+          <Row icon="calendar">{formatDateLong(b.date, locale)}</Row>
           <Row icon="clock-outline">
             {b.startTime}–{b.endTime} · {formatDuration(b.minutes)}
           </Row>
           <Row icon="map-marker">
-            {b.pitch.name} · {SURFACE_LABELS[b.pitch.surfaceType]}
+            {b.pitch.name} · {t(`surface.${b.pitch.surfaceType}`)}
           </Row>
           <Row icon="account-group">
-            {b.teamCount} teams{players ? ` · ${players} players` : ''}
+            {t('bookings.detail.teams', { n: b.teamCount })}
+            {players ? t('bookings.detail.players', { n: players }) : ''}
           </Row>
           {b.shirtSets > 0 ? (
-            <Row icon="tshirt-crew">
-              Free shirts: {b.shirtSets} {b.shirtSets === 1 ? 'set' : 'sets'}
-            </Row>
+            <Row icon="tshirt-crew">{t('bookings.detail.freeShirts', { count: b.shirtSets })}</Row>
           ) : null}
           {b.teams
-            .filter(t => t.colour)
-            .map(t => (
-              <View key={t.name} style={styles.colourRow}>
+            .filter(team => team.colour)
+            .map(team => (
+              <View key={team.name} style={styles.colourRow}>
                 <View
                   style={[
                     styles.swatch,
-                    { backgroundColor: SHIRT_COLOUR_HEX[t.colour as ShirtColour] },
+                    { backgroundColor: SHIRT_COLOUR_HEX[team.colour as ShirtColour] },
                   ]}
                 />
                 <Text style={styles.rowText}>
-                  {t.name}: {t.colour!.toLowerCase()} shirts
+                  {t('bookings.detail.shirtsOf', {
+                    team: team.name,
+                    colour: t(`shirt.${team.colour as ShirtColour}`),
+                  })}
                 </Text>
               </View>
             ))}
@@ -212,12 +208,19 @@ export function BookingDetailScreen({ navigation, route }: Props) {
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Payment</Text>
-          <Line label={`Pitch (${formatDuration(b.minutes)})`} value={`${b.total} RON`} />
-          {b.shirtSets > 0 ? <Line label="Shirts" value="Free" /> : null}
+          <Text style={styles.cardTitle}>{t('bookings.detail.payment')}</Text>
+          <Line
+            label={t('bookings.detail.pitch', { duration: formatDuration(b.minutes) })}
+            value={`${b.total} RON`}
+          />
+          {b.shirtSets > 0 ? (
+            <Line label={t('bookings.detail.shirts')} value={t('bookings.detail.free')} />
+          ) : null}
           <View style={styles.total}>
             <Text style={styles.totalText}>
-              {b.paidAt && b.paymentMethod === 'ONLINE' ? 'Total paid' : 'Total'}
+              {b.paidAt && b.paymentMethod === 'ONLINE'
+                ? t('bookings.detail.totalPaid')
+                : t('bookings.detail.total')}
             </Text>
             <Text style={styles.totalText}>{b.total} RON</Text>
           </View>
@@ -225,39 +228,43 @@ export function BookingDetailScreen({ navigation, route }: Props) {
             <Line
               label={
                 b.paymentMethod === 'VENUE_REFUND_DEPOSIT'
-                  ? 'Deposit paid online, refunded after the game'
-                  : 'Deposit paid online'
+                  ? t('bookings.detail.depositBack')
+                  : t('bookings.detail.deposit')
               }
               value={`${b.deposit} RON`}
             />
           ) : null}
           {b.paymentMethod !== 'ONLINE' ? (
             <Line
-              label={b.attendedAt ? 'Paid at the venue' : 'To pay at the venue'}
+              label={b.attendedAt ? t('bookings.detail.paidAtVenue') : t('bookings.detail.toPay')}
               value={`${b.dueAtVenue} RON`}
             />
           ) : null}
           {b.paidAt ? (
             <Line
-              label="Card"
+              label={t('bookings.detail.card')}
               value={
                 b.payment.cardLast4
-                  ? `${b.payment.cardBrand ?? 'Card'} ···· ${b.payment.cardLast4}`
+                  ? `${b.payment.cardBrand ?? t('bookings.detail.card')} ···· ${b.payment.cardLast4}`
                   : b.payment.provider === 'test'
-                    ? 'Test payment'
-                    : 'Card'
+                    ? t('bookings.detail.testPayment')
+                    : t('bookings.detail.card')
               }
               small
             />
           ) : null}
-          {b.paidAt ? <Line label="Paid on" value={at(b.paidAt)} small /> : null}
+          {b.paidAt ? (
+            <Line label={t('bookings.detail.paidOn')} value={at(b.paidAt, locale)} small />
+          ) : null}
           {b.payment.refundAmount !== null ? (
-            <Text style={styles.refund}>Refund: {b.payment.refundAmount} RON</Text>
+            <Text style={styles.refund}>
+              {t('bookings.detail.refund', { amount: b.payment.refundAmount })}
+            </Text>
           ) : null}
         </View>
 
         <View>
-          <Text style={styles.cardTitle}>History</Text>
+          <Text style={styles.cardTitle}>{t('bookings.detail.history_')}</Text>
           {b.statusHistory.map((s, i) => (
             <View key={`${s.status}-${s.at}`} style={styles.step}>
               <View style={styles.stepRail}>
@@ -265,8 +272,8 @@ export function BookingDetailScreen({ navigation, route }: Props) {
                 {i < b.statusHistory.length - 1 ? <View style={styles.rail} /> : null}
               </View>
               <View style={styles.flex}>
-                <Text style={styles.stepTitle}>{WORDS[s.status]}</Text>
-                <Text style={styles.muted}>{at(s.at)}</Text>
+                <Text style={styles.stepTitle}>{t(`bookings.detail.history.${s.status}`)}</Text>
+                <Text style={styles.muted}>{at(s.at, locale)}</Text>
               </View>
             </View>
           ))}
@@ -284,10 +291,14 @@ export function BookingDetailScreen({ navigation, route }: Props) {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
         {b.cancellation ? (
-          <Button label="Cancel booking" variant="secondary" onPress={() => setSheet(true)} />
+          <Button
+            label={t('bookings.detail.cancel')}
+            variant="secondary"
+            onPress={() => setSheet(true)}
+          />
         ) : b.canReview ? (
           <Button
-            label="Rate this pitch"
+            label={t('bookings.detail.rate')}
             onPress={() => navigation.navigate('Review', { bookingId: b.id })}
           />
         ) : null}
@@ -337,6 +348,8 @@ export function CancelSheet({
   onKeep: () => void
   onCancel: () => void
 }) {
+  const t = useT()
+  const locale = useLocale()
   const insets = useSafeAreaInsets()
   const c = b.cancellation
   if (!c) return null
@@ -349,35 +362,55 @@ export function CancelSheet({
   const refunds = !!b.paidAt && c.refundAmount > 0
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onKeep}>
-      <Pressable style={styles.backdrop} onPress={onKeep} accessibilityLabel="Close" />
+      <Pressable
+        style={styles.backdrop}
+        onPress={onKeep}
+        accessibilityLabel={t('bookings.cancel.close')}
+      />
       <View style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
-        <Text style={styles.sheetTitle}>Cancel this booking?</Text>
+        <Text style={styles.sheetTitle}>{t('bookings.cancel.title')}</Text>
         <Text style={styles.lineText}>{b.pitch.name}</Text>
         <Text style={styles.muted}>
-          {formatDateLong(b.date)}, {b.startTime}–{b.endTime}
+          {formatDateLong(b.date, locale)}, {b.startTime}–{b.endTime}
         </Text>
         <View style={[styles.policy, { backgroundColor: tier.bg, borderLeftColor: tier.border }]}>
           {!b.paidAt ? (
-            <Text style={styles.lineText}>
-              This booking is not paid, so there is nothing to refund.
-            </Text>
+            <Text style={styles.lineText}>{t('bookings.cancel.notPaid')}</Text>
           ) : refunds ? (
             <>
               <Text style={styles.lineText}>
-                You&apos;ll receive <Text style={styles.bold}>{c.refundAmount} RON</Text> back ·{' '}
-                {c.refundPercent}% refund
+                {(() => {
+                  const [a, z = ''] = t('bookings.cancel.youGet', {
+                    amount: '\u0000',
+                    percent: c.refundPercent,
+                  }).split('\u0000')
+                  return (
+                    <>
+                      {a}
+                      <Text style={styles.bold}>
+                        {t('bookings.cancel.amount', { n: c.refundAmount })}
+                      </Text>
+                      {z}
+                    </>
+                  )
+                })()}
               </Text>
-              <Text style={styles.small}>Refund processed in 5–10 business days</Text>
+              <Text style={styles.small}>{t('bookings.cancel.processed')}</Text>
             </>
           ) : (
             <Text style={styles.lineText}>
-              <Text style={styles.bold}>No refund</Text> · Cancellation window has passed
+              <Text style={styles.bold}>{t('bookings.cancel.noRefund')}</Text>
+              {t('bookings.cancel.windowPassed')}
             </Text>
           )}
         </View>
-        <Button label="Keep my booking" onPress={onKeep} />
+        <Button label={t('bookings.cancel.keep')} onPress={onKeep} />
         <Button
-          label={refunds ? `Cancel — get ${c.refundAmount} RON refund` : 'Cancel booking'}
+          label={
+            refunds
+              ? t('bookings.cancel.withRefund', { amount: c.refundAmount })
+              : t('bookings.cancel.plain')
+          }
           variant="secondary"
           loading={busy}
           onPress={onCancel}
@@ -396,6 +429,7 @@ function ReviewBox({
   onEdit: () => void
   onDeleted: () => Promise<unknown>
 }) {
+  const t = useT()
   const r = b.review!
   const editable = new Date(r.editableUntil).getTime() > Date.now()
   const remove = useMutation({
@@ -404,8 +438,8 @@ function ReviewBox({
   })
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Your review</Text>
-      <View style={styles.stars} accessibilityLabel={`${r.rating} out of 5 stars`}>
+      <Text style={styles.cardTitle}>{t('bookings.review.yours')}</Text>
+      <View style={styles.stars} accessibilityLabel={t('bookings.review.stars', { n: r.rating })}>
         {[1, 2, 3, 4, 5].map(n => (
           <Icon
             key={n}
@@ -416,14 +450,14 @@ function ReviewBox({
         ))}
       </View>
       {r.text ? <Text style={styles.rowText}>{r.text}</Text> : null}
-      {r.isAnonymous ? <Text style={styles.small}>Posted anonymously</Text> : null}
+      {r.isAnonymous ? <Text style={styles.small}>{t('bookings.review.anonymous')}</Text> : null}
       {editable ? (
         <View style={styles.reviewActions}>
           <Pressable onPress={onEdit} accessibilityRole="button">
-            <Text style={styles.link}>Edit review</Text>
+            <Text style={styles.link}>{t('bookings.review.edit')}</Text>
           </Pressable>
           <Pressable onPress={() => remove.mutate()} accessibilityRole="button">
-            <Text style={styles.danger}>Delete review</Text>
+            <Text style={styles.danger}>{t('bookings.review.delete')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -438,6 +472,7 @@ function Dispute({
   booking: BookingDetail
   onDone: () => Promise<unknown>
 }) {
+  const t = useT()
   const ns = b.noShow!
   const [text, setText] = useState('')
   const dispute = useMutation({
@@ -447,37 +482,42 @@ function Dispute({
   if (ns.disputeStatus !== 'NONE') {
     return (
       <Button
-        label={ns.disputeStatus === 'OPEN' ? 'Dispute submitted' : 'Dispute reviewed'}
+        label={
+          ns.disputeStatus === 'OPEN'
+            ? t('bookings.dispute.submitted')
+            : t('bookings.dispute.reviewed')
+        }
         variant="ghost"
         disabled
         onPress={() => {}}
       />
     )
   }
-  if (!ns.disputeUntil)
-    return <Text style={styles.muted}>The time to dispute this no-show has passed.</Text>
+  if (!ns.disputeUntil) return <Text style={styles.muted}>{t('bookings.dispute.passed')}</Text>
   return (
     <View style={styles.card}>
-      <Text style={styles.cardTitle}>Were you there?</Text>
+      <Text style={styles.cardTitle}>{t('bookings.dispute.there')}</Text>
       <Text style={styles.muted}>
-        The venue marked this booking as a no-show{ns.reason ? `: "${ns.reason}"` : ''}.
+        {ns.reason
+          ? t('bookings.dispute.markedWhy', { reason: ns.reason })
+          : t('bookings.dispute.marked')}
       </Text>
       <TextInput
         value={text}
         onChangeText={setText}
         maxLength={REVIEW.MAX_DISPUTE_TEXT_LENGTH}
         multiline
-        placeholder="What happened"
-        accessibilityLabel="What happened"
+        placeholder={t('bookings.dispute.what')}
+        accessibilityLabel={t('bookings.dispute.what')}
         style={styles.input}
       />
       {dispute.isError ? (
         <Text style={styles.danger}>
-          {dispute.error instanceof ApiError ? dispute.error.message : 'Could not send. Try again.'}
+          {dispute.error instanceof ApiError ? dispute.error.message : t('bookings.dispute.failed')}
         </Text>
       ) : null}
       <Button
-        label="Dispute no-show"
+        label={t('bookings.dispute.send')}
         variant="secondary"
         disabled={!text.trim()}
         loading={dispute.isPending}

@@ -12,18 +12,13 @@
  */
 import 'server-only'
 import type { CancelledBy } from '@prisma/client'
-import {
-  approvalDeadline,
-  formatDateLong,
-  fromMinutes,
-  venueClock,
-  type BookingStatus,
-} from '@pitchup/shared'
+import { approvalDeadline, type BookingStatus } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 import { notifyAccepted } from '@/lib/notifications/booking'
+import { sentence, slotText } from '@/lib/notifications/text'
 import { chargedOnline } from './charged'
 import { recordStatus } from './status'
 
@@ -41,14 +36,6 @@ export function paidState(
     : { status: 'AWAITING_APPROVAL', approvalDeadline: approvalDeadline(paidAt, start) }
 }
 
-const slotText = (start: Date) => {
-  const at = venueClock(start)
-  return `${formatDateLong(at.date)} at ${fromMinutes(at.minutes)}`
-}
-
-/** "The pitch is flooded" → "The pitch is flooded." */
-const sentence = (text: string) => (/[.!?]$/.test(text.trim()) ? text.trim() : `${text.trim()}.`)
-
 const notAllowed = (message: string) =>
   new ApiException('CONFLICT', message, { reason: 'NOT_ALLOWED' })
 
@@ -63,7 +50,7 @@ async function lockBooking(
     select: { pitchId: true, pitch: { select: { companyId: true } } },
   })
   if (!found || (companyId && found.pitch.companyId !== companyId)) {
-    throw notFound('Booking not found')
+    throw notFound('api.bookingNotFound')
   }
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${found.pitchId}))`
   return tx.booking.findUniqueOrThrow({
@@ -133,7 +120,7 @@ export async function cancelForVenue(
       if (amount > 0) {
         const provider = providerFor(b.paymentProvider)
         if (!provider) {
-          throw new ApiException('SERVICE_UNAVAILABLE', 'Refunds are unavailable right now')
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundsDown')
         }
         try {
           refundId = (await provider.refund(b.stripePaymentIntentId!, amount)).refundId
@@ -142,10 +129,7 @@ export async function cancelForVenue(
             `[bookings] Venue refund for ${b.id} failed:`,
             caught instanceof Error ? caught.message : 'unknown error'
           )
-          throw new ApiException(
-            'SERVICE_UNAVAILABLE',
-            'The refund could not be made right now. Nothing changed; please try again.'
-          )
+          throw new ApiException('SERVICE_UNAVAILABLE', 'api.refundFailed')
         }
       }
       await tx.booking.update({
@@ -162,18 +146,23 @@ export async function cancelForVenue(
       })
       await recordStatus(tx, b.id, 'CANCELLED')
 
-      const slot = slotText(b.startTime)
-      const money = amount > 0 ? ` ${amount} RON is refunded to your card.` : ''
-      const title = declined
+      const titleKey = declined
         ? options.by === 'SYSTEM'
-          ? 'Your booking request expired'
-          : 'Your booking request was declined'
-        : 'The venue cancelled your booking'
+          ? 'notify.venueCancelled.expiredTitle'
+          : 'notify.venueCancelled.declinedTitle'
+        : 'notify.venueCancelled.cancelledTitle'
       await notify(tx, {
         userId: b.playerId,
         type: 'BOOKING_CANCELLED_MANAGER',
-        title,
-        body: `${b.pitch.name} at ${b.pitch.company.name}, ${slot}. ${sentence(options.reason)}${money}`,
+        title: t => t(titleKey),
+        body: (t, locale) =>
+          t('notify.venueCancelled.body', {
+            pitch: b.pitch.name,
+            company: b.pitch.company.name,
+            slot: slotText(b.startTime, locale),
+            reason: sentence(options.reason),
+            money: amount > 0 ? ` ${t('notify.refundedToCard', { amount })}` : '',
+          }),
         data: { bookingId: b.id },
       })
       told.push(b.playerId)
@@ -181,8 +170,12 @@ export async function cancelForVenue(
         await notify(tx, {
           userId: b.pitch.company.ownerId,
           type: 'BOOKING_CANCELLED_MANAGER',
-          title: 'A booking request expired',
-          body: `Nobody answered the request for ${b.pitch.name}, ${slot}, so it was declined and refunded.`,
+          title: t => t('notify.requestExpiredVenue.title'),
+          body: (t, locale) =>
+            t('notify.requestExpiredVenue.body', {
+              pitch: b.pitch.name,
+              slot: slotText(b.startTime, locale),
+            }),
           data: { bookingId: b.id, link: `/manager/bookings/${b.id}` },
         })
         told.push(b.pitch.company.ownerId)

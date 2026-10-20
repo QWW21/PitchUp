@@ -18,6 +18,7 @@ import {
   type BookingPitch,
   type Step,
 } from './draft'
+import { useT } from '@/i18n/client'
 
 export function BookingShell({ pitch, children }: { pitch: BookingPitch; children: ReactNode }) {
   const players = PLAYERS_FOR_SIZE[pitch.size]
@@ -38,6 +39,7 @@ export function BookingShell({ pitch, children }: { pitch: BookingPitch; childre
 }
 
 function Frame({ children }: { children: ReactNode }) {
+  const t = useT()
   const { pitch, draft } = useBooking()
   const router = useRouter()
   const pathname = usePathname()
@@ -59,7 +61,7 @@ function Frame({ children }: { children: ReactNode }) {
       <div
         className="h-1 overflow-hidden rounded-full bg-neutral-200 print:hidden"
         role="progressbar"
-        aria-label="Booking progress"
+        aria-label={t('booking.shell.progress')}
         aria-valuemin={1}
         aria-valuemax={STEPS.length}
         aria-valuenow={index + 1}
@@ -77,7 +79,7 @@ function Frame({ children }: { children: ReactNode }) {
             className="flex h-11 items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-900"
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-            Back
+            {t('common.back')}
           </Link>
         ) : (
           <Link
@@ -89,7 +91,7 @@ function Frame({ children }: { children: ReactNode }) {
           </Link>
         )}
         <p className="text-xs font-medium text-neutral-500">
-          Step {index + 1} of {STEPS.length}
+          {t('booking.shell.step', { n: index + 1, total: STEPS.length })}
         </p>
         {done ? (
           <span className="w-16" />
@@ -100,7 +102,7 @@ function Frame({ children }: { children: ReactNode }) {
             className="flex h-11 items-center gap-1 text-sm font-medium text-neutral-700 hover:text-neutral-900"
           >
             <X className="h-4 w-4" aria-hidden="true" />
-            Cancel
+            {t('common.cancel')}
           </button>
         )}
       </div>
@@ -116,9 +118,9 @@ function Frame({ children }: { children: ReactNode }) {
         className="w-[min(24rem,calc(100%-2rem))] rounded-xl p-6 shadow-xl backdrop:bg-black/40"
       >
         <h2 id="discard-title" className="text-lg font-semibold text-neutral-900">
-          Are you sure?
+          {t('booking.shell.sure')}
         </h2>
-        <p className="mt-2 text-sm text-neutral-500">Your booking details will be lost.</p>
+        <p className="mt-2 text-sm text-neutral-500">{t('booking.shell.lost')}</p>
         <div className="mt-6 flex gap-3">
           <button
             type="button"
@@ -126,14 +128,14 @@ function Frame({ children }: { children: ReactNode }) {
             onClick={() => dialog.current?.close()}
             className="h-10 flex-1 rounded-md border border-neutral-200 bg-white text-sm font-semibold text-neutral-900 hover:bg-neutral-50"
           >
-            Keep editing
+            {t('booking.shell.keepEditing')}
           </button>
           <button
             type="button"
             onClick={leave}
             className="h-10 flex-1 rounded-md border border-error-600 bg-white text-sm font-semibold text-error-600 hover:bg-error-50"
           >
-            Discard
+            {t('booking.shell.discard')}
           </button>
         </div>
       </dialog>

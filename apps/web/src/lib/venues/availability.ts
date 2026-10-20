@@ -53,7 +53,7 @@ export async function loadSchedule(pitchId: string): Promise<PitchSchedule> {
       company: { select: { workingHours: true } },
     },
   })
-  if (!pitch) throw notFound('Pitch not found')
+  if (!pitch) throw notFound('api.pitchNotFound')
   return {
     id: pitch.id,
     isActive: pitch.isActive,
@@ -127,9 +127,9 @@ function bookingsBetween(pitchId: string, from: string, toExclusive: string, now
 function checkBookableDate(schedule: PitchSchedule, date: string, now: Date) {
   // "Today" is the venue's today, not the server's.
   const today = venueClock(now).date
-  if (date < today) throw validationError('Cannot check availability for past dates')
+  if (date < today) throw validationError('api.pastAvailability')
   if (date > addDays(today, schedule.advanceBookingDays)) {
-    throw validationError('Date beyond advance booking limit')
+    throw validationError('api.beyondAdvance')
   }
 }
 

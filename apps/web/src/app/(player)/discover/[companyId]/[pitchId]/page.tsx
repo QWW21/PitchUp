@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { cache } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { SIZE_LABELS, bookingTrustGate, deriveTier, formatPitchSize } from '@pitchup/shared'
+import { bookingTrustGate, deriveTier, formatPitchSize } from '@pitchup/shared'
 import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { getPitchDetail } from '@/lib/venues/pitch'
@@ -13,6 +13,7 @@ import { AmenitiesGrid, PricingCard } from '@/components/venue/PitchInfo'
 import { ExpandableText } from '@/components/venue/ExpandableText'
 import { ReviewCard } from '@/components/venue/Reviews'
 import { BookNowPanel, type BookingBlock } from '@/components/venue/BookNowPanel'
+import { getLocale, getT } from '@/i18n/server'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,10 +24,15 @@ const loadPitch = cache((id: string) => getPitchDetail(id))
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const pitch = await loadPitch((await params).pitchId)
-  if (!pitch) return { title: 'Pitch not found · PitchUp' }
+  const t = await getT()
+  if (!pitch) return { title: t('venue.pitch.notFoundTitle') }
   const description =
     pitch.description?.slice(0, 155) ??
-    `${SIZE_LABELS[pitch.size]} pitch at ${pitch.company.name}, ${pitch.hourlyRate} RON/h.`
+    t('venue.pitch.metaDescription', {
+      size: t(`size.${pitch.size}`),
+      company: pitch.company.name,
+      price: pitch.hourlyRate,
+    })
   return {
     title: `${pitch.name} — ${pitch.company.name} | PitchUp`,
     description,
@@ -47,6 +53,7 @@ export default async function PitchPage({ params }: Props) {
   if (pitch.company.id !== companyId) redirect(`/discover/${pitch.company.id}/${pitch.id}`)
 
   const session = await auth()
+  const [t, locale] = [await getT(), await getLocale()]
   let block: BookingBlock = pitch.isBookable ? null : 'unavailable'
   let blockNote: string | undefined
   if (!block && session?.user) {
@@ -56,17 +63,20 @@ export default async function PitchPage({ params }: Props) {
     })
     // PRD §9.1 and E12-06, enforced again by the booking API.
     const gate = user
-      ? bookingTrustGate({
-          score: user.trustScore,
-          pitchMinScore: pitch.minTrustScore,
-          activeBookings: await prisma.booking.count({
-            where: {
-              playerId: session.user.id,
-              status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
-              endTime: { gt: new Date() },
-            },
-          }),
-        })
+      ? bookingTrustGate(
+          {
+            score: user.trustScore,
+            pitchMinScore: pitch.minTrustScore,
+            activeBookings: await prisma.booking.count({
+              where: {
+                playerId: session.user.id,
+                status: { in: ['CONFIRMED', 'AWAITING_APPROVAL'] },
+                endTime: { gt: new Date() },
+              },
+            }),
+          },
+          locale
+        )
       : null
     if (gate) {
       block = 'restricted'
@@ -118,7 +128,9 @@ export default async function PitchPage({ params }: Props) {
             signedIn={!!session?.user}
             block={block}
             blockNote={blockNote}
-            minTier={pitch.minTrustScore > 0 ? deriveTier(pitch.minTrustScore) : null}
+            minTier={
+              pitch.minTrustScore > 0 ? t(`trust.tier.${deriveTier(pitch.minTrustScore)}`) : null
+            }
             refundPolicy={pitch.company.refundPolicy}
             confirmsByHand={!pitch.company.autoApproveBookings}
           />
@@ -129,13 +141,18 @@ export default async function PitchPage({ params }: Props) {
             <h1 className="text-2xl font-bold text-neutral-900">{pitch.name}</h1>
             {!pitch.isActive && (
               <p className="inline-block rounded bg-neutral-200 px-2 py-0.5 text-xs font-medium text-neutral-600">
-                Not taking bookings
+                {t('venue.pitch.notTaking')}
               </p>
             )}
             <div className="flex flex-wrap items-center gap-2">
               <SurfaceChip surface={pitch.surfaceType} />
               <span className="text-sm text-neutral-500">
-                {formatPitchSize(SIZE_LABELS[pitch.size], pitch.widthMeters, pitch.lengthMeters)}
+                {formatPitchSize(
+                  t(`size.${pitch.size}`),
+                  pitch.widthMeters,
+                  pitch.lengthMeters,
+                  locale
+                )}
               </span>
               <SizeInfo />
             </div>
@@ -151,28 +168,36 @@ export default async function PitchPage({ params }: Props) {
 
           {pitch.description && (
             <section>
-              <h2 className="mb-3 text-base font-semibold text-neutral-900">About this pitch</h2>
+              <h2 className="mb-3 text-base font-semibold text-neutral-900">
+                {t('venue.pitch.about')}
+              </h2>
               <ExpandableText text={pitch.description} />
             </section>
           )}
 
           <section>
-            <h2 className="mb-3 text-base font-semibold text-neutral-900">Amenities</h2>
+            <h2 className="mb-3 text-base font-semibold text-neutral-900">
+              {t('venue.pitch.amenities')}
+            </h2>
             <AmenitiesGrid amenities={pitch.amenities} />
           </section>
 
           <section>
-            <h2 className="mb-3 text-base font-semibold text-neutral-900">Pricing</h2>
+            <h2 className="mb-3 text-base font-semibold text-neutral-900">
+              {t('venue.pitch.pricing')}
+            </h2>
             <PricingCard pitch={pitch} />
           </section>
 
           <section>
             <div className="mb-1 flex items-center justify-between gap-4">
-              <h2 className="text-base font-semibold text-neutral-900">Reviews</h2>
+              <h2 className="text-base font-semibold text-neutral-900">
+                {t('venue.pitch.reviews')}
+              </h2>
               <RatingLine avgRating={pitch.avgRating} reviewCount={pitch.reviewCount} />
             </div>
             {pitch.recentReviews.length === 0 ? (
-              <p className="py-6 text-center text-sm text-neutral-500">No reviews yet</p>
+              <p className="py-6 text-center text-sm text-neutral-500">{t('venue.reviews.none')}</p>
             ) : (
               <>
                 {pitch.recentReviews.slice(0, 2).map(r => (
@@ -182,7 +207,7 @@ export default async function PitchPage({ params }: Props) {
                   href={`${companyPath}?tab=reviews&pitch=${pitch.id}`}
                   className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-primary-600 hover:underline"
                 >
-                  See all {pitch.reviewCount} {pitch.reviewCount === 1 ? 'review' : 'reviews'}
+                  {t('venue.reviews.seeAll', { count: pitch.reviewCount })}
                   <ChevronRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </>

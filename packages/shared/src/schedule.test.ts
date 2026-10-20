@@ -154,8 +154,9 @@ describe('formatDayHours', () => {
     isClosed,
   })
   it('formats the three cases', () => {
-    expect(formatDayHours(day('08:00', '23:00'))).toBe('08:00 – 23:00')
-    expect(formatDayHours(day('00:00', '00:00'))).toBe('Open 24 hours')
-    expect(formatDayHours(day('08:00', '23:00', true))).toBe('Closed')
+    expect(formatDayHours(day('08:00', '23:00'), 'en')).toBe('08:00 – 23:00')
+    expect(formatDayHours(day('00:00', '00:00'), 'en')).toBe('Open 24 hours')
+    expect(formatDayHours(day('08:00', '23:00', true), 'en')).toBe('Closed')
+    expect(formatDayHours(day('08:00', '23:00', true), 'ro')).toBe('Închis')
   })
 })

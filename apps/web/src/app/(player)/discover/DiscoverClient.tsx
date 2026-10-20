@@ -29,6 +29,7 @@ import { FilterSidebar } from '@/components/discover/FilterSidebar'
 import { CityDialog, type DetectResult } from '@/components/discover/CityDialog'
 import { MapView } from '@/components/discover/MapView'
 import { readUrlState, writeUrlState, type DiscoverUrlState } from '@/lib/discover/url-state'
+import { useT } from '@/i18n/client'
 
 const CITY_STORAGE_KEY = 'pitchup.city'
 
@@ -47,12 +48,13 @@ function getPosition(): Promise<GeolocationPosition> {
 async function fetchCompanies(query: string): Promise<CompanyListPage> {
   const res = await fetch(`/api/v1/companies?${query}`)
   const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Request failed')
+  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? res.statusText)
   return body.data as CompanyListPage
 }
 
 /** Player Discover page — E03-08. All view state lives in the URL. */
 export function DiscoverClient() {
+  const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -186,13 +188,11 @@ export function DiscoverClient() {
           <MapPin className="h-5 w-5 shrink-0 text-primary-600" aria-hidden="true" />
           <p className="text-base text-neutral-700">
             {state.city ? (
-              <>
-                Showing pitches in <strong className="text-neutral-900">{state.city}</strong>
-              </>
+              <ShowingIn city={state.city} />
             ) : resolvingCity ? (
-              'Finding your city…'
+              t('discover.findingCity')
             ) : (
-              'Choose a city to see pitches'
+              t('discover.chooseCity')
             )}
           </p>
           <button
@@ -200,7 +200,7 @@ export function DiscoverClient() {
             onClick={() => setCityDialogOpen(true)}
             className="ml-2 text-sm font-medium text-primary-600 hover:underline"
           >
-            Change
+            {t('discover.change')}
           </button>
         </div>
       </div>
@@ -212,7 +212,7 @@ export function DiscoverClient() {
           </div>
         </aside>
 
-        <section className="min-w-0 flex-1" aria-label="Companies">
+        <section className="min-w-0 flex-1" aria-label={t('discover.companies')}>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex h-10 min-w-[200px] flex-1 items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 focus-within:ring-2 focus-within:ring-primary-600">
               <Search className="h-4 w-4 text-neutral-500" aria-hidden="true" />
@@ -220,12 +220,16 @@ export function DiscoverClient() {
                 type="search"
                 value={searchInput}
                 onChange={e => setSearchInput(e.target.value)}
-                placeholder="Search companies..."
-                aria-label="Search companies"
+                placeholder={t('discover.search')}
+                aria-label={t('discover.searchLabel')}
                 className="flex-1 bg-transparent text-sm outline-none placeholder:text-neutral-500 [&::-webkit-search-cancel-button]:hidden"
               />
               {searchInput && (
-                <button type="button" onClick={() => setSearchInput('')} aria-label="Clear search">
+                <button
+                  type="button"
+                  onClick={() => setSearchInput('')}
+                  aria-label={t('discover.clearSearch')}
+                >
                   <X className="h-4 w-4 text-neutral-500" />
                 </button>
               )}
@@ -237,7 +241,7 @@ export function DiscoverClient() {
               className="relative flex h-10 items-center gap-2 rounded-md border border-neutral-200 bg-white px-3 text-sm font-medium lg:hidden"
             >
               <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
-              Filters
+              {t('discover.filters')}
               {filtersActive && (
                 <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-primary-600" />
               )}
@@ -245,7 +249,7 @@ export function DiscoverClient() {
 
             <div
               role="tablist"
-              aria-label="View"
+              aria-label={t('discover.view')}
               className="flex h-10 rounded-md border border-neutral-200 bg-white p-1"
             >
               {(['list', 'map'] as const).map(mode => (
@@ -262,7 +266,7 @@ export function DiscoverClient() {
                   }`}
                 >
                   {mode === 'list' ? <List className="h-4 w-4" /> : <MapIcon className="h-4 w-4" />}
-                  {mode === 'list' ? 'List' : 'Map'}
+                  {mode === 'list' ? t('discover.list') : t('discover.map')}
                 </button>
               ))}
             </div>
@@ -270,7 +274,7 @@ export function DiscoverClient() {
 
           {total !== undefined && (
             <p className="mt-4 text-sm text-neutral-500" aria-live="polite">
-              {total} {total === 1 ? 'venue' : 'venues'}
+              {t('discover.venues', { count: total })}
             </p>
           )}
 
@@ -284,21 +288,21 @@ export function DiscoverClient() {
             ) : query.isError ? (
               <EmptyState
                 icon={<WifiOff className="h-16 w-16 text-neutral-300" aria-hidden="true" />}
-                title="Couldn't load pitches"
-                description="Check your connection and try again"
-                action={<Button onClick={() => void query.refetch()}>Retry</Button>}
+                title={t('discover.loadError')}
+                description={t('discover.loadErrorHint')}
+                action={<Button onClick={() => void query.refetch()}>{t('common.retry')}</Button>}
               />
             ) : companies.length === 0 ? (
               <EmptyState
                 icon={<SearchX className="h-16 w-16 text-neutral-300" aria-hidden="true" />}
-                title={`No pitches found in ${state.city}`}
-                description="Try changing your filters or selecting a different city"
+                title={t('discover.none', { city: state.city })}
+                description={t('discover.noneHint')}
                 action={
                   <Button
                     variant="secondary"
                     onClick={() => update({ filters: DEFAULT_FILTERS, search: '' })}
                   >
-                    Clear filters
+                    {t('discover.clearFilters')}
                   </Button>
                 }
               />
@@ -319,7 +323,7 @@ export function DiscoverClient() {
                         loading={query.isFetchingNextPage}
                         onClick={() => void query.fetchNextPage()}
                       >
-                        Load more
+                        {t('discover.loadMore')}
                       </Button>
                     </div>
                   </div>
@@ -338,14 +342,16 @@ export function DiscoverClient() {
           <div
             role="dialog"
             aria-modal="true"
-            aria-label="Filters"
+            aria-label={t('discover.filters')}
             onClick={e => e.stopPropagation()}
             className="absolute inset-y-0 left-0 flex w-[min(320px,90vw)] flex-col bg-white shadow-xl"
           >
             <div className="flex-1 overflow-y-auto p-4">{sidebar}</div>
             <div className="border-t border-neutral-200 p-4">
               <Button onClick={() => setDrawerOpen(false)}>
-                {total !== undefined ? `Show ${total} results` : 'Show results'}
+                {total !== undefined
+                  ? t('discover.showCount', { count: total })
+                  : t('discover.showResults')}
               </Button>
             </div>
           </div>
@@ -364,6 +370,19 @@ export function DiscoverClient() {
         }}
         onDetect={detect}
       />
+    </>
+  )
+}
+
+/** "Showing pitches in **Cluj-Napoca**", the city in bold wherever the language puts it. */
+function ShowingIn({ city }: { city: string }) {
+  const t = useT()
+  const [before, after = ''] = t('discover.showingIn', { city: '\u0000' }).split('\u0000')
+  return (
+    <>
+      {before}
+      <strong className="text-neutral-900">{city}</strong>
+      {after}
     </>
   )
 }

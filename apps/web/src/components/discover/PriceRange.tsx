@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { DISCOVER, priceBound } from '@pitchup/shared'
+import { useT } from '@/i18n/client'
 
 interface PriceRangeProps {
   min: number | null
@@ -18,6 +19,7 @@ const { PRICE_MIN, PRICE_MAX, PRICE_STEP } = DISCOVER
  * pixel.
  */
 export function PriceRange({ min, max, onChange }: PriceRangeProps) {
+  const t = useT()
   const [low, setLow] = useState(min ?? PRICE_MIN)
   const [high, setHigh] = useState(max ?? PRICE_MAX)
 
@@ -41,7 +43,7 @@ export function PriceRange({ min, max, onChange }: PriceRangeProps) {
         />
         <input
           type="range"
-          aria-label="Minimum price per hour"
+          aria-label={t('discover.sidebar.minPrice')}
           min={PRICE_MIN}
           max={PRICE_MAX}
           step={PRICE_STEP}
@@ -54,7 +56,7 @@ export function PriceRange({ min, max, onChange }: PriceRangeProps) {
         />
         <input
           type="range"
-          aria-label="Maximum price per hour"
+          aria-label={t('discover.sidebar.maxPrice')}
           min={PRICE_MIN}
           max={PRICE_MAX}
           step={PRICE_STEP}

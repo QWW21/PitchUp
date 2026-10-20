@@ -26,36 +26,45 @@ import {
   renderMutedParagraph,
   renderParagraph,
 } from '@/lib/emails/layout'
+import type { Locale } from '@pitchup/shared'
+import { webT } from '@/i18n/catalog'
+import { userLocale } from '@/i18n/server'
 import { getEmailProvider } from './index'
 import { sendPush } from './push'
 
 const appUrl = () => env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
 
-async function emailFor(n: Notification, data: Record<string, string>) {
+async function emailFor(n: Notification, data: Record<string, string>, locale: Locale) {
+  const t = webT(locale)
   if (n.type === 'BOOKING_CONFIRMED' && data.bookingId) {
-    const booking = await loadConfirmation(data.bookingId)
-    if (booking) return renderBookingConfirmedEmail(booking)
+    const booking = await loadConfirmation(data.bookingId, locale)
+    if (booking) return renderBookingConfirmedEmail(booking, locale)
   }
   if (n.type === 'COMPANY_APPROVED' && data.companyName) {
-    return renderCompanyApprovedEmail(data.companyName, `${appUrl()}/manager/overview`)
+    return renderCompanyApprovedEmail(data.companyName, `${appUrl()}/manager/overview`, locale)
   }
   if (n.type === 'COMPANY_REJECTED' && data.companyName) {
-    return renderCompanyRejectedEmail(data.companyName, data.reason ?? '', `${appUrl()}/onboarding`)
+    return renderCompanyRejectedEmail(
+      data.companyName,
+      data.reason ?? '',
+      `${appUrl()}/onboarding`,
+      locale
+    )
   }
   const url = `${appUrl()}${notificationWebPath(n.type, data)}`
   return {
     subject: n.title,
-    html: renderEmailLayout({
+    html: renderEmailLayout(locale, {
       heading: n.title,
       bodyHtml:
         renderParagraph(n.body) +
-        renderButton('Open PitchUp', url) +
+        renderButton(t('email.layout.openPitchUp'), url) +
         renderMutedParagraph(
-          `Choose which emails you get in your notification settings: ${appUrl()}/profile/notifications`
+          t('email.layout.choose', { url: `${appUrl()}/profile/notifications` })
         ),
-      footerNote: 'You are receiving this because you use PitchUp.',
+      footerNote: t('email.layout.footer'),
     }),
-    text: `${n.title}\n\n${n.body}\n\n${url}\n\nChoose which emails you get: ${appUrl()}/profile/notifications`,
+    text: `${n.title}\n\n${n.body}\n\n${url}\n\n${t('email.layout.chooseText', { url: `${appUrl()}/profile/notifications` })}`,
   }
 }
 
@@ -68,7 +77,7 @@ export async function sendChannels(n: Notification): Promise<Sent> {
   const [user, prefs, tokens] = await Promise.all([
     prisma.user.findUnique({
       where: { id: n.userId },
-      select: { email: true, deletedAt: true },
+      select: { email: true, deletedAt: true, locale: true },
     }),
     prisma.notificationPreference.findUnique({ where: { userId: n.userId } }),
     prisma.deviceToken.findMany({ where: { userId: n.userId }, select: { id: true, token: true } }),
@@ -85,7 +94,7 @@ export async function sendChannels(n: Notification): Promise<Sent> {
   await Promise.all([
     (async () => {
       if (!(prefs?.emailEnabled ?? true) || !user.email) return
-      const email = await emailFor(n, data)
+      const email = await emailFor(n, data, userLocale(user))
       await getEmailProvider().send({ to: user.email, ...email })
       sent.sentEmail = true
     })().catch(failed('email')),

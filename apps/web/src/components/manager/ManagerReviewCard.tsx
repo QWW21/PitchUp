@@ -12,14 +12,17 @@ import { REVIEW, type ManagerReview } from '@pitchup/shared'
 import { Stars, formatReviewDate } from '@/components/venue/bits'
 import { ReportReview } from '@/components/venue/ReportReview'
 import { send } from '@/lib/http'
+import { useLocale, useT } from '@/i18n/client'
 
 export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
+  const t = useT()
+  const locale = useLocale()
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const removeReply = async () => {
-    if (!window.confirm('Delete your reply?')) return
+    if (!window.confirm(t('mVenue.reviews.deleteReply'))) return
     setError(null)
     try {
       await send(`/api/v1/reviews/${r.id}/reply`, 'DELETE')
@@ -38,7 +41,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
         <h2 id={`mr-${r.id}`} className="text-sm font-medium text-neutral-900">
           {r.playerName}
         </h2>
-        <span className="text-xs text-neutral-500">{formatReviewDate(r.createdAt)}</span>
+        <span className="text-xs text-neutral-500">{formatReviewDate(r.createdAt, locale)}</span>
         <span className="ml-auto">
           <Stars rating={r.rating} />
         </span>
@@ -46,7 +49,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
       {r.text ? (
         <p className="mt-2 text-sm text-neutral-700">{r.text}</p>
       ) : (
-        <p className="mt-2 text-sm italic text-neutral-500">No comment, just a rating.</p>
+        <p className="mt-2 text-sm italic text-neutral-500">{t('mVenue.reviews.noComment')}</p>
       )}
       {r.photoUrls.length > 0 && (
         <div className="mt-2 flex gap-2 overflow-x-auto">
@@ -54,7 +57,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
             <img
               key={url}
               src={url}
-              alt="Review photo"
+              alt={t('mVenue.reviews.photo')}
               className="h-16 w-16 rounded object-cover"
             />
           ))}
@@ -65,7 +68,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
         {r.reply && !editing ? (
           <div className="ml-3 rounded-md bg-neutral-50 p-2">
             <p className="mb-1 text-[11px] font-medium uppercase text-neutral-500">
-              Your reply · {formatReviewDate(r.reply.createdAt)}
+              {t('mVenue.reviews.yourReply', { date: formatReviewDate(r.reply.createdAt, locale) })}
             </p>
             <p className="text-sm text-neutral-700">{r.reply.text}</p>
             <div className="mt-2 flex items-center gap-4 text-sm">
@@ -75,7 +78,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
                   onClick={() => setEditing(true)}
                   className="font-medium text-primary-700 hover:underline"
                 >
-                  Edit reply
+                  {t('mVenue.reviews.edit')}
                 </button>
               )}
               <button
@@ -84,7 +87,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
                 className="inline-flex items-center gap-1 font-medium text-error-600 hover:underline"
               >
                 <Trash2 className="h-4 w-4" aria-hidden="true" />
-                Delete reply
+                {t('mVenue.reviews.delete')}
               </button>
             </div>
           </div>
@@ -108,8 +111,7 @@ export function ManagerReviewCard({ review: r }: { review: ManagerReview }) {
 
       <footer className="mt-3 flex items-center justify-between border-t border-neutral-100 pt-2">
         <span className="text-xs text-neutral-500">
-          {r.reportCount > 0 &&
-            `Reported ${r.reportCount} ${r.reportCount === 1 ? 'time' : 'times'}`}
+          {r.reportCount > 0 && t('mVenue.reviews.reported', { count: r.reportCount })}
         </span>
         <ReportReview reviewId={r.id} initiallyReported={r.reportedByMe} />
       </footer>
@@ -129,6 +131,7 @@ function ReplyForm({
   onDone: () => void
   onCancel?: (() => void) | undefined
 }) {
+  const t = useT()
   const editing = existing !== undefined
   const [open, setOpen] = useState(editing)
   const [text, setText] = useState(existing ?? '')
@@ -143,7 +146,7 @@ function ReplyForm({
         onClick={() => setOpen(true)}
         className="text-sm font-medium text-primary-700 hover:underline"
       >
-        Reply to this review
+        {t('mVenue.reviews.reply')}
       </button>
     )
   }
@@ -166,7 +169,7 @@ function ReplyForm({
   return (
     <form onSubmit={submit} noValidate className="ml-3">
       <label htmlFor={`reply-${reviewId}`} className="block text-sm font-medium text-neutral-700">
-        Your reply
+        {t('mVenue.reviews.replyLabel')}
       </label>
       <textarea
         id={`reply-${reviewId}`}
@@ -187,14 +190,18 @@ function ReplyForm({
             onClick={() => (onCancel ? onCancel() : setOpen(false))}
             className="h-9 rounded-md px-3 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
           >
-            Cancel
+            {t('mVenue.reviews.cancel')}
           </button>
           <button
             type="submit"
             disabled={busy || !text.trim()}
             className="h-9 rounded-md bg-primary-600 px-3 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
           >
-            {busy ? 'Saving…' : editing ? 'Save reply' : 'Post reply'}
+            {busy
+              ? t('mVenue.reviews.saving')
+              : editing
+                ? t('mVenue.reviews.save')
+                : t('mVenue.reviews.post')}
           </button>
         </div>
       </div>

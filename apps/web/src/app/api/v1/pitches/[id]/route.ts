@@ -19,7 +19,7 @@ export const GET = withErrorHandling(
   async (_request: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
     const { id } = await params
     const pitch = await getPitchDetail(id)
-    if (!pitch) return err('NOT_FOUND', 'Pitch not found', 404)
+    if (!pitch) return err('NOT_FOUND', 'api.pitchNotFound', 404)
     return ok(pitch)
   }
 )

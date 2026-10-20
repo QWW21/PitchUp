@@ -1,53 +1,60 @@
 /**
  * A venue's approval or rejection — E09 (admin decision), sent to its
- * manager. The layout helpers escape the text, so names are passed as is.
+ * manager in their language. The layout helpers escape the text, so names
+ * are passed as is.
  */
+import type { Locale } from '@pitchup/shared'
+import { webT } from '@/i18n/catalog'
 import { renderButton, renderEmailLayout, renderMutedParagraph, renderParagraph } from './layout'
 import type { VerificationEmail } from './verification'
 
 export function renderCompanyApprovedEmail(
   companyName: string,
-  dashboardUrl: string
+  dashboardUrl: string,
+  locale: Locale
 ): VerificationEmail {
+  const t = webT(locale)
+  const company = companyName
   return {
-    subject: `${companyName} is approved on PitchUp`,
-    html: renderEmailLayout({
-      heading: 'Your venue is approved',
+    subject: t('email.companyApproved.subject', { company }),
+    html: renderEmailLayout(locale, {
+      heading: t('email.companyApproved.heading'),
       bodyHtml:
-        renderParagraph(`${companyName} is now live on PitchUp. Players can find it on Discover.`) +
-        renderParagraph('Add your pitches and their prices, and bookings can start.') +
-        renderButton('Open your dashboard', dashboardUrl),
-      footerNote: 'You receive this because you registered a venue on PitchUp.',
+        renderParagraph(t('email.companyApproved.live', { company })) +
+        renderParagraph(t('email.companyApproved.next')) +
+        renderButton(t('email.companyApproved.button'), dashboardUrl),
+      footerNote: t('email.companyApproved.footer'),
     }),
     text:
-      `${companyName} is approved on PitchUp\n\n` +
-      `Your venue is live. Add your pitches and their prices, and bookings can start.\n\n` +
-      `Open your dashboard: ${dashboardUrl}`,
+      `${t('email.companyApproved.subject', { company })}\n\n` +
+      `${t('email.companyApproved.textLive')}\n\n` +
+      t('email.companyApproved.textButton', { url: dashboardUrl }),
   }
 }
 
 export function renderCompanyRejectedEmail(
   companyName: string,
   reason: string,
-  onboardingUrl: string
+  onboardingUrl: string,
+  locale: Locale
 ): VerificationEmail {
+  const t = webT(locale)
+  const company = companyName
   return {
-    subject: `${companyName} needs a few changes`,
-    html: renderEmailLayout({
-      heading: 'Your venue needs a few changes',
+    subject: t('email.companyRejected.subject', { company }),
+    html: renderEmailLayout(locale, {
+      heading: t('email.companyRejected.heading'),
       bodyHtml:
-        renderParagraph(`We reviewed ${companyName} and it isn't ready to go live yet:`) +
+        renderParagraph(t('email.companyRejected.reviewed', { company })) +
         renderParagraph(reason) +
-        renderParagraph(
-          'Update your details and submit again; we review within 1–2 business days.'
-        ) +
-        renderButton('Update your venue', onboardingUrl) +
-        renderMutedParagraph('Questions? Reply to this email.'),
-      footerNote: 'You receive this because you registered a venue on PitchUp.',
+        renderParagraph(t('email.companyRejected.next')) +
+        renderButton(t('email.companyRejected.button'), onboardingUrl) +
+        renderMutedParagraph(t('email.companyRejected.questions')),
+      footerNote: t('email.companyRejected.footer'),
     }),
     text:
-      `${companyName} needs a few changes\n\n` +
+      `${t('email.companyRejected.subject', { company })}\n\n` +
       `${reason}\n\n` +
-      `Update your details and submit again: ${onboardingUrl}`,
+      t('email.companyRejected.textButton', { url: onboardingUrl }),
   }
 }

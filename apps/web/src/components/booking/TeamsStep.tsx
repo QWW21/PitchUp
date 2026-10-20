@@ -19,11 +19,13 @@ import {
   type ShirtColour,
 } from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
+import { useT } from '@/i18n/client'
 import { stepPath, useBooking } from './draft'
 
-const TEAM_NAMES = ['Team A', 'Team B', 'Team C']
+const TEAMS = [0, 1, 2] as const
 
 export function TeamsStep() {
+  const t = useT()
   const { pitch, draft, ready, update } = useBooking()
   const router = useRouter()
 
@@ -38,6 +40,7 @@ export function TeamsStep() {
   const totalSets = stock.reduce((n, s) => n + s.quantity, 0)
   const enoughShirts = totalSets >= shirtSetsFor(teams, true)
   const price = bookingPrice(pitch.hourlyRate, draft.minutes)
+  const teamName = (i: number) => t(`booking.teams.team.${i as 0 | 1 | 2}`)
 
   const setPlayers = (team: number, value: number) => {
     const players = [...draft.players]
@@ -58,11 +61,13 @@ export function TeamsStep() {
   return (
     <section aria-labelledby="teams-heading" className="space-y-6">
       <h1 id="teams-heading" className="text-xl font-semibold text-neutral-900">
-        {pitch.hasShirts ? 'Teams and shirts' : 'Teams'}
+        {pitch.hasShirts ? t('booking.teams.headingShirts') : t('booking.teams.heading')}
       </h1>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-medium text-neutral-700">How many teams?</legend>
+        <legend className="mb-2 text-sm font-medium text-neutral-700">
+          {t('booking.teams.howMany')}
+        </legend>
         <div className="grid grid-cols-2 gap-1 rounded-md bg-neutral-100 p-1" role="radiogroup">
           {([2, 3] as const).map(n => (
             <label
@@ -84,7 +89,7 @@ export function TeamsStep() {
                   })
                 }
               />
-              {n} teams
+              {t('booking.teams.count', { count: n })}
             </label>
           ))}
         </div>
@@ -92,30 +97,31 @@ export function TeamsStep() {
 
       <fieldset>
         <legend className="mb-2 text-sm font-medium text-neutral-700">
-          Players per team <span className="font-normal text-neutral-500">(optional)</span>
+          {t('booking.teams.playersPerTeam')}{' '}
+          <span className="font-normal text-neutral-500">{t('booking.teams.optional')}</span>
         </legend>
         <ul className="divide-y divide-neutral-100 rounded-xl bg-white shadow-sm">
-          {TEAM_NAMES.slice(0, teams).map((name, t) => (
-            <li key={name} className="flex items-center justify-between px-4 py-2">
-              <span className="text-sm text-neutral-900">{name}</span>
+          {TEAMS.slice(0, teams).map(i => (
+            <li key={i} className="flex items-center justify-between px-4 py-2">
+              <span className="text-sm text-neutral-900">{teamName(i)}</span>
               <span className="flex items-center">
                 <button
                   type="button"
-                  aria-label={`Fewer players in ${name}`}
-                  disabled={draft.players[t]! <= 1}
-                  onClick={() => setPlayers(t, draft.players[t]! - 1)}
+                  aria-label={t('booking.teams.fewer', { team: teamName(i) })}
+                  disabled={draft.players[i]! <= 1}
+                  onClick={() => setPlayers(i, draft.players[i]! - 1)}
                   className="flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 disabled:text-neutral-300"
                 >
                   <Minus className="h-4 w-4" aria-hidden="true" />
                 </button>
                 <output className="w-10 text-center text-base text-neutral-900" aria-live="polite">
-                  {draft.players[t]}
+                  {draft.players[i]}
                 </output>
                 <button
                   type="button"
-                  aria-label={`More players in ${name}`}
-                  disabled={draft.players[t]! >= BOOKING.MAX_PLAYERS_PER_TEAM}
-                  onClick={() => setPlayers(t, draft.players[t]! + 1)}
+                  aria-label={t('booking.teams.more', { team: teamName(i) })}
+                  disabled={draft.players[i]! >= BOOKING.MAX_PLAYERS_PER_TEAM}
+                  onClick={() => setPlayers(i, draft.players[i]! + 1)}
                   className="flex h-11 w-11 items-center justify-center rounded-md text-neutral-700 hover:bg-neutral-100 disabled:text-neutral-300"
                 >
                   <Plus className="h-4 w-4" aria-hidden="true" />
@@ -129,7 +135,7 @@ export function TeamsStep() {
       {/* C-7: say so, rather than leave a gap that looks like a bug. */}
       {!pitch.hasShirts && (
         <p className="rounded-xl bg-white p-4 text-sm text-neutral-700 shadow-sm">
-          This pitch doesn&rsquo;t lend shirts. Bring your own bibs or colours.
+          {t('booking.teams.noShirts')}
         </p>
       )}
       {pitch.hasShirts && (
@@ -137,11 +143,10 @@ export function TeamsStep() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 id="shirts-heading" className="text-sm font-medium text-neutral-900">
-                Free shirts
+                {t('booking.teams.freeShirts')}
               </h2>
               <p className="mt-1 text-sm text-neutral-500">
-                One set for every team but one: {teams} teams get {shirtSetsFor(teams, true)}{' '}
-                {shirtSetsFor(teams, true) === 1 ? 'set' : 'sets'}.
+                {t('booking.teams.oneSetEach', { teams, count: shirtSetsFor(teams, true) })}
               </p>
             </div>
             <button
@@ -160,34 +165,36 @@ export function TeamsStep() {
           </div>
           {!enoughShirts && (
             <p className="mt-2 text-sm text-neutral-700">
-              This pitch has {totalSets} {totalSets === 1 ? 'set' : 'sets'}, not enough for {teams}{' '}
-              teams.
+              {t('booking.teams.notEnough', { count: totalSets, teams })}
             </p>
           )}
           {draft.wantsShirts && (
             <div className="mt-4 space-y-3">
-              {TEAM_NAMES.slice(0, sets).map((name, t) => (
-                <fieldset key={name}>
+              {TEAMS.slice(0, sets).map(i => (
+                <fieldset key={i}>
                   <legend className="mb-1 text-xs font-medium text-neutral-700">
-                    {name} colour <span className="font-normal text-neutral-500">(optional)</span>
+                    {t('booking.teams.colour', { team: teamName(i) })}{' '}
+                    <span className="font-normal text-neutral-500">
+                      {t('booking.teams.optional')}
+                    </span>
                   </legend>
                   <div className="flex flex-wrap gap-2">
                     {stock.map(({ colour }) => (
                       <label
                         key={colour}
                         className={`flex h-9 w-9 cursor-pointer items-center justify-center rounded-full ring-offset-2 focus-within:ring-2 focus-within:ring-primary-600 ${
-                          draft.colours[t] === colour ? 'ring-[3px] ring-neutral-900' : ''
+                          draft.colours[i] === colour ? 'ring-[3px] ring-neutral-900' : ''
                         }`}
                       >
                         <input
                           type="radio"
-                          name={`colour-${t}`}
+                          name={`colour-${i}`}
                           className="sr-only"
-                          checked={draft.colours[t] === colour}
-                          onChange={() => setColour(t, colour)}
-                          onClick={() => draft.colours[t] === colour && setColour(t, colour)}
+                          checked={draft.colours[i] === colour}
+                          onChange={() => setColour(i, colour)}
+                          onClick={() => draft.colours[i] === colour && setColour(i, colour)}
                         />
-                        <span className="sr-only">{colour.toLowerCase()}</span>
+                        <span className="sr-only">{t(`shirt.${colour}`)}</span>
                         <span
                           aria-hidden="true"
                           className={`h-8 w-8 rounded-full ${SHIRT_COLOURS_NEEDING_BORDER.includes(colour) ? 'border border-neutral-200' : ''}`}
@@ -199,7 +206,7 @@ export function TeamsStep() {
                 </fieldset>
               ))}
               <p className="text-xs text-neutral-500">
-                {TEAM_NAMES[teams - 1]} plays in its own kit.
+                {t('booking.teams.ownKit', { team: teamName(teams - 1) })}
               </p>
             </div>
           )}
@@ -208,7 +215,8 @@ export function TeamsStep() {
 
       <div>
         <label htmlFor="note" className="mb-1 block text-sm font-medium text-neutral-700">
-          Note to the venue <span className="font-normal text-neutral-500">(optional)</span>
+          {t('booking.teams.note')}{' '}
+          <span className="font-normal text-neutral-500">{t('booking.teams.optional')}</span>
         </label>
         <textarea
           id="note"
@@ -226,26 +234,27 @@ export function TeamsStep() {
       <div className="rounded-lg bg-white p-3 text-sm text-neutral-700 shadow-sm">
         <div className="flex justify-between">
           <span>
-            Pitch ({formatDuration(draft.minutes)} × {pitch.hourlyRate} RON/h)
+            {t('booking.teams.pitchLine', {
+              duration: formatDuration(draft.minutes),
+              rate: pitch.hourlyRate,
+            })}
           </span>
           <span>{price.total} RON</span>
         </div>
         {draft.wantsShirts && (
           <div className="flex justify-between">
-            <span>
-              Shirts ({sets} {sets === 1 ? 'set' : 'sets'})
-            </span>
-            <span>Free</span>
+            <span>{t('booking.teams.shirtsLine', { count: sets })}</span>
+            <span>{t('booking.teams.free')}</span>
           </div>
         )}
         <div className="mt-2 flex justify-between border-t border-neutral-200 pt-2 font-semibold text-neutral-900">
-          <span>Total</span>
+          <span>{t('booking.teams.total')}</span>
           <span>{price.total} RON</span>
         </div>
       </div>
 
       <Button size="lg" onClick={next}>
-        Next
+        {t('booking.date.next')}
       </Button>
     </section>
   )

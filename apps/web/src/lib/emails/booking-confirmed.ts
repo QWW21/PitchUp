@@ -1,44 +1,59 @@
-/** Booking confirmed — the email of the BOOKING_CONFIRMED notification (E05-08, E13). */
+/**
+ * Booking confirmed — the email of the BOOKING_CONFIRMED notification
+ * (E05-08, E13), in the player's language. The cancellation line is the
+ * booking's own policy (C-10), as the booking page states it.
+ */
 import 'server-only'
-import { formatDateLong, formatDuration, type BookingConfirmation } from '@pitchup/shared'
+import { formatDateLong, formatDuration, type BookingDetail, type Locale } from '@pitchup/shared'
+import { webT } from '@/i18n/catalog'
 import { renderEmailLayout, renderMutedParagraph, renderParagraph } from './layout'
 import type { VerificationEmail } from './verification'
 
-const when = (b: BookingConfirmation) =>
-  `${formatDateLong(b.date)}, ${b.startTime}–${b.endTime} (${formatDuration(b.minutes)})`
-
-export function renderBookingConfirmedEmail(b: BookingConfirmation): VerificationEmail {
-  const shirts =
-    b.shirtSets > 0
-      ? `Free shirts: ${b.shirtSets} set${b.shirtSets === 1 ? '' : 's'}, ready at the venue.`
-      : null
+export function renderBookingConfirmedEmail(b: BookingDetail, locale: Locale): VerificationEmail {
+  const t = webT(locale)
+  const when = t('email.bookingConfirmed.when', {
+    date: formatDateLong(b.date, locale),
+    start: b.startTime,
+    end: b.endTime,
+    duration: formatDuration(b.minutes),
+  })
   const lines = [
-    `${b.pitch.name} at ${b.company.name}`,
+    t('email.bookingConfirmed.pitchAt', { pitch: b.pitch.name, company: b.company.name }),
     `${b.company.address}, ${b.company.city}`,
-    when(b),
-    `${b.teamCount} teams`,
-    ...(shirts ? [shirts] : []),
+    when,
+    t('email.bookingConfirmed.teams', { count: b.teamCount }),
+    ...(b.shirtSets > 0 ? [t('email.bookingConfirmed.shirts', { count: b.shirtSets })] : []),
     b.paymentMethod === 'ONLINE'
-      ? `Paid: ${b.total} RON`
+      ? t('email.bookingConfirmed.paid', { total: b.total })
       : b.deposit
-        ? `Deposit paid: ${b.deposit} RON${b.paymentMethod === 'VENUE_REFUND_DEPOSIT' ? ', refunded after the game' : ''}. To pay at the venue: ${b.dueAtVenue} RON.`
-        : `To pay at the venue: ${b.dueAtVenue} RON.`,
+        ? t('email.bookingConfirmed.depositPaid', {
+            deposit: b.deposit,
+            refund:
+              b.paymentMethod === 'VENUE_REFUND_DEPOSIT'
+                ? t('email.bookingConfirmed.depositRefunded')
+                : '',
+            due: b.dueAtVenue,
+          })
+        : t('email.bookingConfirmed.toPay', { due: b.dueAtVenue }),
   ]
+  const policy = t('email.bookingConfirmed.policy', { policy: b.refundPolicy })
   return {
-    subject: `Booking confirmed: ${b.pitch.name}, ${b.date} ${b.startTime}`,
-    html: renderEmailLayout({
-      heading: 'Your booking is confirmed',
+    subject: t('email.bookingConfirmed.subject', {
+      pitch: b.pitch.name,
+      date: b.date,
+      time: b.startTime,
+    }),
+    html: renderEmailLayout(locale, {
+      heading: t('email.bookingConfirmed.heading'),
       bodyHtml:
-        renderParagraph(`Reference ${b.reference}. See you on the pitch!`) +
+        renderParagraph(t('email.bookingConfirmed.reference', { reference: b.reference })) +
         lines.map(renderParagraph).join('') +
-        renderMutedParagraph(
-          'Cancel at least 24 hours before kick-off for a full refund, or at least 2 hours before for half.'
-        ),
-      footerNote: 'You are receiving this because you booked a pitch on PitchUp.',
+        renderMutedParagraph(policy),
+      footerNote: t('email.bookingConfirmed.footer'),
     }),
     text:
-      `Your booking is confirmed (${b.reference})\n\n` +
+      `${t('email.bookingConfirmed.textHeading', { reference: b.reference })}\n\n` +
       lines.join('\n') +
-      `\n\nCancel at least 24 hours before kick-off for a full refund, or at least 2 hours before for half.`,
+      `\n\n${policy}`,
   }
 }

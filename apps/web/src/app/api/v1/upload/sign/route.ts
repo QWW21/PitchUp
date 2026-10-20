@@ -42,13 +42,13 @@ export const POST = withErrorHandling(
       windowMs: 60_000,
     })
     if (!rate.allowed) {
-      return err('RATE_LIMITED', 'Too many upload requests', 429, {
+      return err('RATE_LIMITED', 'api.tooManyUploads', 429, {
         retryAfterSeconds: rate.retryAfterSeconds,
       })
     }
 
     if (!isCloudinaryConfigured()) {
-      return err('INTERNAL_ERROR', 'Uploads are not available', 500)
+      return err('INTERNAL_ERROR', 'api.uploadsUnavailable', 500)
     }
 
     const parsed = await validateBody(request, SignRequestSchema)
@@ -58,7 +58,7 @@ export const POST = withErrorHandling(
     const { maxBytes } = UPLOAD_CONTEXTS[context as UploadContext]
 
     if (sizeBytes > maxBytes) {
-      return err('VALIDATION_ERROR', 'File is too large', 400, {
+      return err('VALIDATION_ERROR', 'api.fileTooLarge', 400, {
         maxBytes,
         receivedBytes: sizeBytes,
       })
@@ -66,7 +66,7 @@ export const POST = withErrorHandling(
 
     // A player may only upload under their own user folder.
     if (context === 'USER' && ownerId !== session.user.id) {
-      return err('FORBIDDEN', 'Cannot upload to another user', 403)
+      return err('FORBIDDEN', 'api.uploadUser', 403)
     }
     // Review photos are uploaded before the review exists, under its booking
     // (E06-05): only that booking's player may.
@@ -76,7 +76,7 @@ export const POST = withErrorHandling(
         select: { playerId: true },
       })
       if (booking?.playerId !== session.user.id) {
-        return err('FORBIDDEN', 'Cannot upload photos for this booking', 403)
+        return err('FORBIDDEN', 'api.uploadBooking', 403)
       }
     }
 
@@ -90,7 +90,7 @@ export const POST = withErrorHandling(
       })
       const allowed = company ? ownerId === company.id : ownerId === session.user.id
       if (session.user.role !== 'MANAGER' || !allowed) {
-        return err('FORBIDDEN', 'Cannot upload for this company', 403)
+        return err('FORBIDDEN', 'api.uploadCompany', 403)
       }
     }
 
@@ -101,7 +101,7 @@ export const POST = withErrorHandling(
         select: { company: { select: { ownerId: true } } },
       })
       if (session.user.role !== 'MANAGER' || pitch?.company.ownerId !== session.user.id) {
-        return err('FORBIDDEN', 'Cannot upload photos for this pitch', 403)
+        return err('FORBIDDEN', 'api.uploadPitch', 403)
       }
     }
 
@@ -111,7 +111,7 @@ export const POST = withErrorHandling(
     } catch (caught) {
       // Never surface Cloudinary's own error text to the client.
       console.error('Failed to create upload signature:', caught)
-      return err('INTERNAL_ERROR', 'Could not prepare the upload', 500)
+      return err('INTERNAL_ERROR', 'api.uploadPrepare', 500)
     }
   })
 )

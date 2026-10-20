@@ -25,6 +25,7 @@ import {
   type BookingListPage,
   type BookingStatus,
   type BookingTab,
+  type Locale,
   type PaymentProviderName,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
@@ -299,7 +300,7 @@ function history(b: DetailRow): BookingDetail['statusHistory'] {
   return steps
 }
 
-export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
+export function toDetail(b: DetailRow, locale: Locale, now: Date = new Date()): BookingDetail {
   const times = venueTimes(b.startTime, b.endTime)
   const total = Number(b.totalAmount)
   const teams = Array.isArray(b.teamsData)
@@ -370,7 +371,7 @@ export function toDetail(b: DetailRow, now: Date = new Date()): BookingDetail {
     cancellation: cancellable
       ? { refundPercent: b.paidAt ? refund.percent : 0, refundAmount: refund.amount }
       : null,
-    refundPolicy: describeRefundPolicy(policy),
+    refundPolicy: describeRefundPolicy(policy, locale),
     approvalDeadline: b.approvalDeadline?.toISOString() ?? null,
     review: review
       ? {

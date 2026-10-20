@@ -3,9 +3,11 @@
 import { useState } from 'react'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 /** Asks for the Stripe onboarding link and goes there (E09-09). */
 export function ConnectButton({ label }: { label: string }) {
+  const t = useT()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const go = async () => {
@@ -28,7 +30,7 @@ export function ConnectButton({ label }: { label: string }) {
         disabled={busy}
         className="h-12 w-full rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Opening Stripe…' : label}
+        {busy ? t('onboarding.step4.opening') : label}
       </button>
     </div>
   )

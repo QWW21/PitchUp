@@ -138,6 +138,13 @@ uses test payments, logged emails and SMS, and no uploads, whatever real keys
 are in `apps/web/.env`. Without that, a developer's Resend key made every test
 registration send a real email to a made-up address, and fail.
 
+The run also sets **`DEFAULT_LOCALE=en`**: the product defaults to
+Romanian, and the tests were written against the English text, which the
+English catalog keeps word for word. `e2e/web/i18n.spec.ts` checks the
+Romanian side (a venue and a pitch in Romanian, the RO/EN switch, the account's
+saved language, and API errors in the language the `x-locale` header asks
+for). The app's Jest setup pins English the same way.
+
 Google sign-in gets a **fake Web client id** instead
 (`e2e-web.apps.googleusercontent.com`), so the button and the token checks
 exist but no real Google token can ever pass. The web test catches the

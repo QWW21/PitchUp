@@ -20,18 +20,12 @@ import {
   startOptions,
   type DayPeriod,
   type PitchAvailability,
-  type StartOption,
 } from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
+import { useT } from '@/i18n/client'
 import { stepPath, useBooking } from './draft'
 
 const PERIODS: DayPeriod[] = ['Morning', 'Afternoon', 'Evening']
-const STATE_LABEL: Record<StartOption['state'], string> = {
-  available: 'available',
-  booked: 'booked',
-  past: 'already passed',
-  short: 'not enough time',
-}
 
 async function fetchDay(pitchId: string, date: string) {
   // Never cached: a slot booked a moment ago must show as booked.
@@ -39,7 +33,7 @@ async function fetchDay(pitchId: string, date: string) {
     cache: 'no-store',
   })
   const body = await res.json().catch(() => null)
-  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? 'Request failed')
+  if (!res.ok || !body?.data) throw new Error(body?.error?.message ?? res.statusText)
   return body.data as PitchAvailability
 }
 
@@ -51,6 +45,7 @@ const chip = (on: boolean) =>
   }`
 
 export function TimeStep() {
+  const t = useT()
   const { pitch, draft, ready, update } = useBooking()
   const router = useRouter()
   const [start, setStart] = useState<number | null>(null)
@@ -107,27 +102,29 @@ export function TimeStep() {
   return (
     <section aria-labelledby="time-heading">
       <h1 id="time-heading" className="text-xl font-semibold text-neutral-900">
-        Choose a start time
+        {t('booking.time.heading')}
       </h1>
       <p className="mt-1 text-sm text-neutral-500">
-        Then how long you play: {formatShortDuration(minMinutes)} to{' '}
-        {formatShortDuration(maxMinutes)}.
+        {t('booking.time.howLongRange', {
+          min: formatShortDuration(minMinutes),
+          max: formatShortDuration(maxMinutes),
+        })}
       </p>
 
       {day.isLoading && <div className="mt-4 h-64 animate-pulse rounded-xl bg-neutral-100" />}
       {day.isError && (
         <p role="alert" className="mt-4 text-sm text-error-600">
-          Couldn&rsquo;t load the times. Try again.
+          {t('booking.time.loadError')}
         </p>
       )}
       {noneFree && (
         <div className="mt-4 rounded-xl bg-white p-6 text-center shadow-sm">
-          <p className="font-medium text-neutral-900">No slots available for this date</p>
+          <p className="font-medium text-neutral-900">{t('booking.time.noSlots')}</p>
           <Link
             href={stepPath(pitch.id, 'date')}
             className="mt-2 inline-block text-sm font-medium text-primary-600 hover:underline"
           >
-            ← Change date
+            {t('booking.time.changeDate')}
           </Link>
         </div>
       )}
@@ -143,7 +140,7 @@ export function TimeStep() {
                   id={`period-${period}`}
                   className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
                 >
-                  {period}
+                  {t(`dayPeriod.${period}`)}
                 </h2>
                 <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
                   {group.map(o => (
@@ -152,7 +149,7 @@ export function TimeStep() {
                       type="button"
                       disabled={o.state !== 'available'}
                       aria-pressed={start === o.index}
-                      aria-label={`${o.time}, ${start === o.index ? 'selected' : STATE_LABEL[o.state]}`}
+                      aria-label={`${o.time}, ${t(`booking.time.state.${start === o.index ? 'selected' : o.state}`)}`}
                       onClick={() => pickStart(o.index)}
                       className={chip(start === o.index)}
                     >
@@ -166,10 +163,10 @@ export function TimeStep() {
 
           <section aria-labelledby="duration-heading" className="mt-6">
             <h2 id="duration-heading" className="text-base font-semibold text-neutral-900">
-              How long?
+              {t('booking.time.howLong')}
             </h2>
             {start === null ? (
-              <p className="mt-2 text-sm text-neutral-500">Choose a start time first.</p>
+              <p className="mt-2 text-sm text-neutral-500">{t('booking.time.startFirst')}</p>
             ) : (
               <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {durations.map(d => (
@@ -178,7 +175,7 @@ export function TimeStep() {
                     type="button"
                     disabled={!d.fits}
                     aria-pressed={minutes === d.minutes}
-                    aria-label={`${formatShortDuration(d.minutes)}${d.fits ? '' : ', doesn’t fit'}`}
+                    aria-label={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.doesntFit')}`}
                     onClick={() => setMinutes(d.minutes)}
                     className={chip(minutes === d.minutes)}
                   >
@@ -205,11 +202,11 @@ export function TimeStep() {
               <strong className="text-neutral-900">{price.total} RON</strong>
             </>
           ) : (
-            'Choose a start time and how long'
+            t('booking.time.choosePrompt')
           )}
         </p>
         <Button size="lg" onClick={next} disabled={!chosen}>
-          Next
+          {t('booking.date.next')}
         </Button>
       </div>
     </section>

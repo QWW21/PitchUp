@@ -11,32 +11,22 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import type { AuthStackParamList } from '../../../App'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 
 export const ONBOARDING_SEEN_KEY = 'onboardingSeen'
 
 const SLIDES = [
-  {
-    emoji: '📍',
-    title: 'Find pitches near you',
-    body: 'Browse football pitches across 10 Romanian cities, sorted by distance from your location.',
-  },
-  {
-    emoji: '⚡',
-    title: 'Book in seconds',
-    body: 'Pick a time slot, pay securely with Stripe, and get an instant confirmation.',
-  },
-  {
-    emoji: '⚽',
-    title: 'Play with your team',
-    body: 'Invite friends, split costs, and track your games in one place.',
-  },
-]
+  { emoji: '📍', key: 0 },
+  { emoji: '⚡', key: 1 },
+  { emoji: '⚽', key: 2 },
+] as const
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Onboarding'>
 
 export function OnboardingScreen({ navigation }: Props) {
+  const t = useT()
   const [current, setCurrent] = useState(0)
   const listRef = useRef<FlatList>(null)
   const isLast = current === SLIDES.length - 1
@@ -78,8 +68,12 @@ export function OnboardingScreen({ navigation }: Props) {
           // so the list's item count no longer matches the native children.
           <View style={styles.slide} collapsable={false}>
             <Text style={styles.emoji}>{item.emoji}</Text>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.body}>{item.body}</Text>
+            <Text style={styles.title}>
+              {t(`auth.onboarding.slides.${(item as (typeof SLIDES)[number]).key}.title`)}
+            </Text>
+            <Text style={styles.body}>
+              {t(`auth.onboarding.slides.${(item as (typeof SLIDES)[number]).key}.body`)}
+            </Text>
           </View>
         )}
       />
@@ -92,8 +86,18 @@ export function OnboardingScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.actions}>
-        <Button label={isLast ? 'Get Started' : 'Next'} onPress={next} />
-        {!isLast && <Button label="Skip" variant="ghost" onPress={finish} fullWidth={false} />}
+        <Button
+          label={isLast ? t('auth.onboarding.start') : t('auth.onboarding.next')}
+          onPress={next}
+        />
+        {!isLast && (
+          <Button
+            label={t('auth.onboarding.skip')}
+            variant="ghost"
+            onPress={finish}
+            fullWidth={false}
+          />
+        )}
       </View>
     </View>
   )

@@ -19,6 +19,7 @@ import { Input } from '../../components/ui/Input'
 import { register } from '../../lib/authApi'
 import { ApiError } from '../../lib/apiClient'
 import { colors, spacing } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Register2'>
 
@@ -32,6 +33,7 @@ function isAtLeast16(dob: string): boolean {
 }
 
 export function RegisterStep2Screen({ navigation, route }: Props) {
+  const t = useT()
   const { name, email, phone, city } = route.params
 
   const [dob, setDob] = useState('')
@@ -45,15 +47,15 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
   function validate() {
     const e: Record<string, string> = {}
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
-      e.dob = 'Use the format YYYY-MM-DD (e.g. 1995-06-15).'
+      e.dob = t('auth.register.dobFormat')
     } else if (!isAtLeast16(dob)) {
-      e.dob = 'You must be at least 16 years old to register.'
+      e.dob = t('auth.register.tooYoung')
     }
     if (!/^(?=.*[A-Z])(?=.*\d).{8,}$/.test(password)) {
-      e.password = 'At least 8 characters, one uppercase letter, one number.'
+      e.password = t('auth.register.weak')
     }
     if (confirm !== password) {
-      e.confirm = 'Passwords do not match.'
+      e.confirm = t('auth.register.mismatch')
     }
     return e
   }
@@ -72,13 +74,13 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
       if (err instanceof ApiError) {
         setApiError(
           err.code === 'CONFLICT'
-            ? 'That phone number is already registered. Try logging in instead.'
+            ? t('auth.register.phoneTaken')
             : err.code === 'RATE_LIMITED'
-              ? 'Too many attempts. Try again in an hour.'
-              : 'Could not create your account. Please try again.'
+              ? t('auth.register.tooManyHour')
+              : t('auth.register.failed')
         )
       } else {
-        setApiError('Could not connect. Check your internet and try again.')
+        setApiError(t('auth.connection'))
       }
     } finally {
       setLoading(false)
@@ -92,18 +94,18 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Text style={styles.wordmark}>PitchUp</Text>
-        <Text style={styles.heading}>Almost there</Text>
+        <Text style={styles.heading}>{t('auth.register.almost')}</Text>
 
         <View style={styles.stepRow}>
           {[1, 2].map(n => (
             <View key={n} style={[styles.stepDot, styles.stepDotActive]} />
           ))}
         </View>
-        <Text style={styles.stepLabel}>Step 2 of 2 — Security</Text>
+        <Text style={styles.stepLabel}>{t('auth.register.step2')}</Text>
 
         <View style={styles.form}>
           <Input
-            label="Date of birth"
+            label={t('auth.register.dob')}
             value={dob}
             onChangeText={setDob}
             placeholder="1995-06-15"
@@ -112,7 +114,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
             error={errors.dob}
           />
           <Input
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={setPassword}
             placeholder="••••••••"
@@ -121,12 +123,12 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
             error={errors.password}
             rightElement={
               <Pressable onPress={() => setShowPassword(v => !v)} hitSlop={8}>
-                <Text style={styles.toggle}>{showPassword ? 'Hide' : 'Show'}</Text>
+                <Text style={styles.toggle}>{showPassword ? t('auth.hide') : t('auth.show')}</Text>
               </Pressable>
             }
           />
           <Input
-            label="Confirm password"
+            label={t('auth.register.confirm')}
             value={confirm}
             onChangeText={setConfirm}
             placeholder="••••••••"
@@ -139,9 +141,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
           {apiError ? <Text style={styles.apiError}>{apiError}</Text> : null}
         </View>
 
-        <Button label="Create account" onPress={handleSubmit} loading={loading} />
+        <Button label={t('auth.register.create')} onPress={handleSubmit} loading={loading} />
         <Button
-          label="Back"
+          label={t('auth.back')}
           variant="ghost"
           onPress={() => navigation.goBack()}
           fullWidth={false}

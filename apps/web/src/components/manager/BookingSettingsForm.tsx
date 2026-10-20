@@ -14,10 +14,13 @@ import {
 } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useLocale, useT } from '@/i18n/client'
 
 const PERCENTS = Array.from({ length: 21 }, (_, i) => i * 5)
 
 export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings }) {
+  const t = useT()
+  const locale = useLocale()
   const [auto, setAuto] = useState(initial.autoApproveBookings)
   const [policy, setPolicy] = useState(initial.refundPolicy)
   const [busy, setBusy] = useState(false)
@@ -25,7 +28,9 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
   const [saved, setSaved] = useState(false)
 
   const checked = RefundPolicySchema.safeParse(policy)
-  const problem = checked.success ? null : (checked.error.issues[0]?.message ?? 'Check the policy')
+  const problem = checked.success
+    ? null
+    : t.text(checked.error.issues[0]?.message ?? t('manager.settings.bookings.checkPolicy'))
   const hours =
     (key: 'fullRefundHours' | 'partialRefundHours') => (e: { target: { value: string } }) =>
       setPolicy(p => ({ ...p, [key]: e.target.value === '' ? 0 : Number(e.target.value) }))
@@ -51,22 +56,27 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
   return (
     <form
       onSubmit={save}
-      aria-label="Bookings and refunds"
+      aria-label={t('manager.settings.bookings.label')}
       className="max-w-xl space-y-5 rounded-xl bg-white p-5 shadow-sm"
     >
       <fieldset>
-        <legend className="text-lg font-semibold text-neutral-900">New bookings</legend>
+        <legend className="text-lg font-semibold text-neutral-900">
+          {t('manager.settings.bookings.heading')}
+        </legend>
         <div className="mt-3 space-y-2">
           {[
             {
               value: true,
-              label: 'Confirm every booking automatically',
-              hint: 'Players are booked as soon as they pay. You can still cancel a booking, with a full refund.',
+              label: t('manager.settings.bookings.auto'),
+              hint: t('manager.settings.bookings.autoHint'),
             },
             {
               value: false,
-              label: 'I confirm each booking',
-              hint: `Players pay, and the slot is held until you accept or decline. Without an answer it is declined ${BOOKING_APPROVAL.ANSWER_WITHIN_HOURS} hours after booking, or ${BOOKING_APPROVAL.CUTOFF_HOURS_BEFORE_START} hours before kick-off, and refunded.`,
+              label: t('manager.settings.bookings.manual'),
+              hint: t('manager.settings.bookings.manualHint', {
+                within: BOOKING_APPROVAL.ANSWER_WITHIN_HOURS,
+                cutoff: BOOKING_APPROVAL.CUTOFF_HOURS_BEFORE_START,
+              }),
             },
           ].map(o => (
             <label
@@ -92,14 +102,16 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
       </fieldset>
 
       <fieldset>
-        <legend className="text-lg font-semibold text-neutral-900">Refund policy</legend>
+        <legend className="text-lg font-semibold text-neutral-900">
+          {t('manager.settings.bookings.refund')}
+        </legend>
         <p className="mt-1 text-sm text-neutral-700">
-          What players get back when they cancel. Bookings keep the policy they were made under.
+          {t('manager.settings.bookings.refundIntro')}
         </p>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor="full-hours" className="block text-sm font-medium text-neutral-900">
-              Full refund up to (hours before)
+              {t('manager.settings.bookings.fullHours')}
             </label>
             <input
               id="full-hours"
@@ -114,7 +126,7 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
           </div>
           <div>
             <label htmlFor="partial-percent" className="block text-sm font-medium text-neutral-900">
-              Then refund
+              {t('manager.settings.bookings.thenRefund')}
             </label>
             <select
               id="partial-percent"
@@ -133,7 +145,7 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
           </div>
           <div>
             <label htmlFor="partial-hours" className="block text-sm font-medium text-neutral-900">
-              Up to (hours before)
+              {t('manager.settings.bookings.upTo')}
             </label>
             <input
               id="partial-hours"
@@ -152,14 +164,17 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
           className="mt-3 rounded-md bg-neutral-100 p-3 text-sm text-neutral-900"
           aria-live="polite"
         >
-          {problem ?? `Players see: ${describeRefundPolicy(policy)}`}
+          {problem ??
+            t('manager.settings.bookings.playersSee', {
+              policy: describeRefundPolicy(policy, locale),
+            })}
         </p>
       </fieldset>
 
       {error && <Alert>{error}</Alert>}
       {saved && (
         <p role="status" className="text-sm font-medium text-primary-700">
-          Saved.
+          {t('manager.settings.saved')}
         </p>
       )}
       <button
@@ -167,7 +182,7 @@ export function BookingSettingsForm({ initial }: { initial: VenueBookingSettings
         disabled={busy || !!problem}
         className="h-11 rounded-md bg-primary-600 px-5 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : 'Save'}
+        {busy ? t('manager.settings.saving') : t('manager.settings.save')}
       </button>
     </form>
   )

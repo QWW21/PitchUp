@@ -5,15 +5,12 @@ import { auth } from '@/auth'
 import { ApiException } from '@/lib/api/errors'
 import { userDetail } from '@/lib/admin/users'
 import { UserAdminActions } from '@/components/admin/UserAdminActions'
+import { INTL_LOCALE } from '@pitchup/shared'
+import { getLocale, getT } from '@/i18n/server'
 
-export const metadata: Metadata = { title: 'User | PitchUp admin' }
-
-const when = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  timeZone: 'Europe/Bucharest',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT())('admin.user.title') }
+}
 
 const BAR: Record<string, string> = {
   Excellent: 'bg-primary-600',
@@ -30,54 +27,66 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
     if (caught instanceof ApiException && caught.code === 'NOT_FOUND') notFound()
     throw caught
   })
+  const t = await getT()
+  const when = new Intl.DateTimeFormat(INTL_LOCALE[await getLocale()], {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'Europe/Bucharest',
+  })
 
   return (
     <>
       <Link href="/admin/users" className="text-sm text-neutral-700 hover:underline">
-        ← Users
+        {t('admin.user.back')}
       </Link>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold text-neutral-900">{u.name}</h1>
         <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-700">
-          {u.role.toLowerCase()}
+          {t(`admin.users.role.${u.role as 'PLAYER' | 'MANAGER' | 'ADMIN'}`)}
         </span>
         {u.suspendedAt && (
           <span className="rounded-full bg-error-50 px-2 py-0.5 text-xs font-medium text-error-600">
-            Suspended
+            {t('admin.users.suspended')}
           </span>
         )}
-        {u.deletedAt && <span className="text-xs text-neutral-500">Deleted</span>}
+        {u.deletedAt && (
+          <span className="text-xs text-neutral-500">{t('admin.users.deleted')}</span>
+        )}
       </div>
       {u.suspendedAt && u.suspensionReason && (
         <p className="mt-2 text-sm text-error-600">
-          Suspended on {when.format(new Date(u.suspendedAt))}: {u.suspensionReason}
+          {t('admin.user.suspendedOn', {
+            when: when.format(new Date(u.suspendedAt)),
+            reason: u.suspensionReason,
+          })}
         </p>
       )}
 
       <section aria-labelledby="profile" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="profile" className="text-lg font-semibold text-neutral-900">
-          Profile
+          {t('admin.user.profile')}
         </h2>
         <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
           <div>
-            <dt className="text-neutral-500">Email</dt>
+            <dt className="text-neutral-500">{t('admin.user.email')}</dt>
             <dd className="text-neutral-900">
-              {u.email} {u.emailVerified ? '' : '(not verified)'}
+              {u.email} {u.emailVerified ? '' : t('admin.user.notVerified')}
             </dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Phone</dt>
+            <dt className="text-neutral-500">{t('admin.user.phone')}</dt>
             <dd className="text-neutral-900">
-              {u.phone} {u.phoneVerified ? '' : '(not verified)'}
+              {u.phone} {u.phoneVerified ? '' : t('admin.user.notVerified')}
             </dd>
           </div>
           <div>
-            <dt className="text-neutral-500">Joined</dt>
+            <dt className="text-neutral-500">{t('admin.user.joined')}</dt>
             <dd className="text-neutral-900">{when.format(new Date(u.createdAt))}</dd>
           </div>
           {u.company && (
             <div>
-              <dt className="text-neutral-500">Venue</dt>
+              <dt className="text-neutral-500">{t('admin.user.venue')}</dt>
               <dd>
                 <Link
                   href={`/admin/companies/${u.company.id}`}
@@ -89,10 +98,15 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
             </div>
           )}
           <div className="sm:col-span-2">
-            <dt className="text-neutral-500">Bookings</dt>
+            <dt className="text-neutral-500">{t('admin.user.bookings')}</dt>
             <dd className="text-neutral-900">
-              {u.stats.completed} played · {u.stats.upcoming} upcoming · {u.stats.cancelled}{' '}
-              cancelled ({u.stats.lateCancels} late) · {u.stats.noShows} no-shows
+              {t('admin.user.bookingsLine', {
+                played: u.stats.completed,
+                upcoming: u.stats.upcoming,
+                cancelled: u.stats.cancelled,
+                late: u.stats.lateCancels,
+                noShows: u.stats.noShows,
+              })}
             </dd>
           </div>
         </dl>
@@ -100,12 +114,12 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
 
       <section aria-labelledby="trust" className="mt-6 rounded-xl bg-white p-5 shadow-sm">
         <h2 id="trust" className="text-lg font-semibold text-neutral-900">
-          Trust score: {u.trustScore} ({u.tier})
+          {t('admin.user.trust', { score: u.trustScore, tier: t(`trust.tier.${u.tier}`) })}
         </h2>
         <div
           className="mt-3 h-2 w-full rounded-full bg-neutral-100"
           role="img"
-          aria-label={`${u.trustScore} out of 100`}
+          aria-label={t('admin.user.outOf', { score: u.trustScore })}
         >
           <div
             className={`h-2 rounded-full ${BAR[u.tier]}`}
@@ -133,7 +147,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-neutral-700">No changes yet.</p>
+          <p className="mt-3 text-sm text-neutral-700">{t('admin.user.noChanges')}</p>
         )}
       </section>
 

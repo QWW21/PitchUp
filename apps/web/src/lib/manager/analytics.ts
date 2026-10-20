@@ -26,7 +26,6 @@ import {
   percentChange,
   venueClock,
   venueTimeToUtc,
-  SIZE_LABELS,
   type AnalyticsOccupancy,
   type AnalyticsPeriod,
   type AnalyticsRevenue,
@@ -35,6 +34,8 @@ import {
   type RevenuePoint,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { webT } from '@/i18n/catalog'
+import { getLocale } from '@/i18n/server'
 import { dayIntervals, type PitchSchedule } from '@/lib/venues/availability'
 
 const OCCUPYING = new Set(['CONFIRMED', 'COMPLETED', 'NO_SHOW'])
@@ -381,11 +382,11 @@ export async function analyticsPitches(
   })
 }
 
-const PAYMENT_WORDS: Record<string, string> = {
-  ONLINE: 'Online',
-  VENUE_DEPOSIT_TOWARDS: 'At venue, deposit towards price',
-  VENUE_REFUND_DEPOSIT: 'At venue, deposit refunded',
-}
+const PAYMENT_WORDS = {
+  ONLINE: 'analytics.csv.paymentOnline',
+  VENUE_DEPOSIT_TOWARDS: 'analytics.csv.paymentDepositTowards',
+  VENUE_REFUND_DEPOSIT: 'analytics.csv.paymentDepositRefunded',
+} as const
 
 /**
  * E14-05: every booking of the period with what it earned, newest first, at
@@ -429,25 +430,30 @@ export async function analyticsCsv(
     },
   })
   const truncated = rows.length > ANALYTICS_EXPORT_LIMIT
-  const header = csvLine([
-    'Reference',
-    'Date',
-    'Start',
-    'End',
-    'Pitch',
-    'Size',
-    'Player',
-    'Status',
-    'Price (RON)',
-    'Payment',
-    'Earned (RON)',
-    'Online (RON)',
-    'At venue (RON)',
-    'PitchUp fee (RON)',
-    'Payout (RON)',
-    'Refunded (RON)',
-    'Teams',
-  ])
+  const t = webT(await getLocale())
+  const header = csvLine(
+    (
+      [
+        'reference',
+        'date',
+        'start',
+        'end',
+        'pitch',
+        'size',
+        'player',
+        'status',
+        'price',
+        'payment',
+        'earned',
+        'online',
+        'atVenue',
+        'fee',
+        'payout',
+        'refunded',
+        'teams',
+      ] as const
+    ).map(column => t(`analytics.csv.${column}`))
+  )
   const lines = rows.slice(0, ANALYTICS_EXPORT_LIMIT).map(b => {
     const s = venueClock(b.startTime)
     const e = venueClock(b.endTime)
@@ -471,11 +477,11 @@ export async function analyticsCsv(
       fromMinutes(s.minutes),
       endLabel(e.date === s.date ? e.minutes : 24 * 60),
       b.pitch.name,
-      SIZE_LABELS[b.pitch.size as keyof typeof SIZE_LABELS] ?? b.pitch.size,
+      t.has(`size.${b.pitch.size}`) ? t(`size.${b.pitch.size}` as 'size.CUSTOM') : b.pitch.size,
       b.player.name,
-      b.status,
+      t(`bookingStatus.${b.status}`),
       Number(b.totalAmount),
-      PAYMENT_WORDS[b.paymentMethod] ?? b.paymentMethod,
+      t(PAYMENT_WORDS[b.paymentMethod]),
       earned.gross,
       earned.online,
       earned.atVenue,

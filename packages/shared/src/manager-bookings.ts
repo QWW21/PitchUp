@@ -76,7 +76,7 @@ export function generateSlots(openTime: string, closeTime: string, minutes: numb
 
 // ── The list (E11-01) ────────────────────────────────────────────────────────
 
-const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'v.useIsoDate')
 
 export const ManagerBookingQuerySchema = z
   .object({
@@ -84,7 +84,7 @@ export const ManagerBookingQuerySchema = z
     status: z.enum(MANAGER_BOOKING_STATUSES).optional(),
     dateFrom: date.optional(),
     dateTo: date.optional(),
-    search: z.string().trim().min(2, 'Type at least 2 letters').max(100).optional(),
+    search: z.string().trim().min(2, 'v.type2letters').max(100).optional(),
     cursor: z.string().min(1).optional(),
     // Clamped rather than refused.
     limit: z.coerce
@@ -95,7 +95,7 @@ export const ManagerBookingQuerySchema = z
       .transform(n => Math.min(n, 100)),
   })
   .refine(q => !q.dateFrom || !q.dateTo || q.dateFrom <= q.dateTo, {
-    message: 'The start date is after the end date',
+    message: 'v.startAfterEnd',
     path: ['dateFrom'],
   })
 export type ManagerBookingQuery = z.infer<typeof ManagerBookingQuerySchema>

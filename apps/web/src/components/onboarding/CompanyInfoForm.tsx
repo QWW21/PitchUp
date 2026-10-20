@@ -16,6 +16,7 @@ import { Alert } from '@/components/ui/Alert'
 import { TextField } from '@/components/ui/TextField'
 import { send } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/upload-client'
+import { useT } from '@/i18n/client'
 
 interface Values {
   name: string
@@ -31,7 +32,7 @@ const MAX_LOGO_BYTES = 2 * 1024 * 1024
 const MIN_LOGO_SIDE = 200
 
 /** Width and height of an image file, read in the browser before uploading. */
-function imageSize(file: File): Promise<{ width: number; height: number }> {
+function imageSize(file: File, unreadable: string): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)
     const img = new Image()
@@ -40,7 +41,7 @@ function imageSize(file: File): Promise<{ width: number; height: number }> {
       URL.revokeObjectURL(url)
     }
     img.onerror = () => {
-      reject(new Error('That file is not an image we can read'))
+      reject(new Error(unreadable))
       URL.revokeObjectURL(url)
     }
     img.src = url
@@ -58,6 +59,7 @@ export function CompanyInfoForm({
   uploadsEnabled: boolean
   inSettings?: boolean
 }) {
+  const t = useT()
   const router = useRouter()
   const [v, setV] = useState<Values>(
     existing ?? {
@@ -84,7 +86,7 @@ export function CompanyInfoForm({
       const found: Partial<Record<Field, string>> = {}
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as Field | undefined
-        if (key && !found[key]) found[key] = issue.message
+        if (key && !found[key]) found[key] = t.text(issue.message)
       }
       setErrors(found)
       return
@@ -111,7 +113,7 @@ export function CompanyInfoForm({
     <form onSubmit={submit} noValidate className="mt-8 space-y-6">
       <div>
         <TextField
-          label="Company name"
+          label={t('onboarding.step1.name')}
           value={v.name}
           onChange={set('name')}
           maxLength={80}
@@ -122,7 +124,8 @@ export function CompanyInfoForm({
       </div>
       <div>
         <label htmlFor="description" className="mb-1.5 block text-sm font-medium text-neutral-900">
-          Description <span className="font-normal text-neutral-500">(optional)</span>
+          {t('onboarding.step1.description')}{' '}
+          <span className="font-normal text-neutral-500">{t('onboarding.optional')}</span>
         </label>
         <textarea
           id="description"
@@ -143,7 +146,7 @@ export function CompanyInfoForm({
       />
 
       <TextField
-        label="Website (optional)"
+        label={t('onboarding.step1.website')}
         type="url"
         value={v.websiteUrl}
         onChange={set('websiteUrl')}
@@ -151,7 +154,9 @@ export function CompanyInfoForm({
         error={errors.websiteUrl}
       />
       <fieldset className="space-y-4">
-        <legend className="text-sm font-medium text-neutral-900">Social links (optional)</legend>
+        <legend className="text-sm font-medium text-neutral-900">
+          {t('onboarding.step1.social')}
+        </legend>
         <TextField
           label="Facebook"
           type="url"
@@ -173,7 +178,7 @@ export function CompanyInfoForm({
       {error && <Alert>{error}</Alert>}
       {sent && (
         <p role="status" className="rounded-md bg-primary-50 p-3 text-sm text-primary-700">
-          Sent to PitchUp for approval. Your page shows the current details until then.
+          {t('onboarding.sentForApproval')}
         </p>
       )}
       <button
@@ -181,7 +186,11 @@ export function CompanyInfoForm({
         disabled={busy}
         className="h-12 w-full rounded-md bg-primary-600 font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
       >
-        {busy ? 'Saving…' : inSettings ? 'Send for approval' : 'Next: location'}
+        {busy
+          ? t('onboarding.saving')
+          : inSettings
+            ? t('onboarding.sendForApproval')
+            : t('onboarding.step1.next')}
       </button>
     </form>
   )
@@ -199,6 +208,7 @@ function LogoUploadZone({
   enabled: boolean
   onChange: (url: string | null) => void
 }) {
+  const t = useT()
   const input = useRef<HTMLInputElement>(null)
   const [dragging, setDragging] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -207,12 +217,13 @@ function LogoUploadZone({
   const take = async (file: File | undefined) => {
     if (!file) return
     setError(null)
-    if (!['image/jpeg', 'image/png'].includes(file.type)) return setError('Use a JPEG or PNG image')
-    if (file.size > MAX_LOGO_BYTES) return setError('File too large (max 2MB)')
+    if (!['image/jpeg', 'image/png'].includes(file.type))
+      return setError(t('onboarding.step1.logoType'))
+    if (file.size > MAX_LOGO_BYTES) return setError(t('onboarding.step1.logoLarge'))
     try {
-      const { width, height } = await imageSize(file)
+      const { width, height } = await imageSize(file, t('onboarding.step1.unreadable'))
       if (width < MIN_LOGO_SIDE || height < MIN_LOGO_SIDE) {
-        return setError(`Image too small (min ${MIN_LOGO_SIDE}×${MIN_LOGO_SIDE}px)`)
+        return setError(t('onboarding.step1.logoSmall', { n: MIN_LOGO_SIDE }))
       }
     } catch (caught) {
       return setError((caught as Error).message)
@@ -221,7 +232,7 @@ function LogoUploadZone({
     try {
       onChange(await uploadToCloudinary('COMPANY', ownerId, file))
     } catch {
-      setError('Upload failed, try again')
+      setError(t('onboarding.step1.uploadFailed'))
     }
     setBusy(false)
   }
@@ -229,23 +240,24 @@ function LogoUploadZone({
   return (
     <div>
       <p className="mb-1.5 text-sm font-medium text-neutral-900">
-        Logo <span className="font-normal text-neutral-500">(optional)</span>
+        {t('onboarding.step1.logo')}{' '}
+        <span className="font-normal text-neutral-500">{t('onboarding.optional')}</span>
       </p>
       {!enabled ? (
         <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-          Logo uploads aren&rsquo;t set up yet. You can add one later.
+          {t('onboarding.step1.noUploads')}
         </p>
       ) : url ? (
         <div className="relative h-40 w-40">
           <img
             src={url}
-            alt="Your logo"
+            alt={t('onboarding.step1.yourLogo')}
             className="h-40 w-40 rounded-md border border-neutral-200 object-cover"
           />
           <button
             type="button"
             onClick={() => onChange(null)}
-            aria-label="Remove logo"
+            aria-label={t('onboarding.step1.removeLogo')}
             className="absolute -right-2 -top-2 rounded-full bg-white p-1 shadow-md hover:bg-neutral-100"
           >
             <X className="h-4 w-4 text-neutral-700" aria-hidden="true" />
@@ -270,7 +282,7 @@ function LogoUploadZone({
           }`}
         >
           <ImageUp className="h-8 w-8 text-neutral-400" aria-hidden="true" />
-          {busy ? 'Uploading…' : 'Drag logo here or click to upload'}
+          {busy ? t('onboarding.step1.uploading') : t('onboarding.step1.drop')}
         </button>
       )}
       <input
@@ -282,7 +294,7 @@ function LogoUploadZone({
         aria-hidden="true"
         onChange={e => void take(e.target.files?.[0])}
       />
-      <p className="mt-1 text-xs text-neutral-500">JPEG or PNG, at least 200×200 px, up to 2MB.</p>
+      <p className="mt-1 text-xs text-neutral-500">{t('onboarding.step1.rules')}</p>
       {error && (
         <p role="alert" className="mt-1 text-sm text-error-600">
           {error}

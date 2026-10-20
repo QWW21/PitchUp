@@ -17,6 +17,7 @@ import { MAP_SHEET_HEIGHT, MapCompanySheet } from '../../components/discover/Map
 import { useDiscoverStore } from '../../stores/discoverStore'
 import { useLocation } from '../../hooks/useLocation'
 import { colors, shadows } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 /** Roughly a 12 km radius around the centre. */
 const SPAN = 0.22
@@ -33,6 +34,7 @@ function regionAround(lat: number, lng: number, span = SPAN): Region {
 }
 
 export function DiscoverMapView({ companies, onOpenCompany }: DiscoverMapViewProps) {
+  const t = useT()
   const insets = useSafeAreaInsets()
   const mapRef = useRef<MapView>(null)
   const coords = useDiscoverStore(s => s.userCoords)
@@ -175,7 +177,7 @@ export function DiscoverMapView({ companies, onOpenCompany }: DiscoverMapViewPro
         onPress={goToMyLocation}
         style={[styles.locate, { bottom: locateBottom }]}
         accessibilityRole="button"
-        accessibilityLabel="Show my location"
+        accessibilityLabel={t('discover.home.myLocation')}
       >
         <Icon name="crosshairs-gps" size={20} color={colors.primary[600]} />
       </Pressable>

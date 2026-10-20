@@ -2,21 +2,23 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useT } from '@/i18n/client'
 
 const LINKS = [
-  { href: '/profile', label: 'Overview' },
-  { href: '/profile/settings', label: 'Account settings' },
-  { href: '/profile/change-password', label: 'Change password' },
-  { href: '/profile/trust-score', label: 'Trust score' },
-  { href: '/profile/notifications', label: 'Notifications' },
-  { href: '/profile/payment-methods', label: 'Payment methods' },
-  { href: '/profile/delete-account', label: 'Delete account' },
-]
+  { href: '/profile', label: 'overview' },
+  { href: '/profile/settings', label: 'settings' },
+  { href: '/profile/change-password', label: 'password' },
+  { href: '/profile/trust-score', label: 'trust' },
+  { href: '/profile/notifications', label: 'notifications' },
+  { href: '/profile/payment-methods', label: 'payment' },
+  { href: '/profile/delete-account', label: 'delete' },
+] as const
 
 export function ProfileNav() {
+  const t = useT()
   const pathname = usePathname()
   return (
-    <nav aria-label="Profile" className="md:w-[200px] md:shrink-0">
+    <nav aria-label={t('profile.nav.label')} className="md:w-[200px] md:shrink-0">
       <ul className="-mx-4 flex gap-1 overflow-x-auto px-4 md:mx-0 md:flex-col md:px-0">
         {LINKS.map(l => {
           const active = pathname === l.href
@@ -33,7 +35,7 @@ export function ProfileNav() {
                       : 'text-neutral-700 hover:bg-neutral-100'
                 }`}
               >
-                {l.label}
+                {t(`profile.nav.${l.label}`)}
               </Link>
             </li>
           )

@@ -3,7 +3,8 @@
  * booking detail (the detail is a superset of the confirmation).
  */
 import 'server-only'
-import type { BookingDetail } from '@pitchup/shared'
+import type { BookingDetail, Locale } from '@pitchup/shared'
+import { getLocale } from '@/i18n/server'
 import { prisma } from '@/lib/prisma'
 import { notFound } from '@/lib/api/errors'
 import { providerFor } from '@/lib/payments'
@@ -14,9 +15,9 @@ const findBooking = (id: string) =>
   prisma.booking.findUnique({ where: { id }, select: detailSelect })
 
 /** For server-side use (emails): no viewer check, no settling. */
-export async function loadConfirmation(id: string): Promise<BookingDetail | null> {
+export async function loadConfirmation(id: string, locale: Locale): Promise<BookingDetail | null> {
   const b = await findBooking(id)
-  return b ? toDetail(b) : null
+  return b ? toDetail(b, locale) : null
 }
 
 /**
@@ -33,7 +34,7 @@ export async function getBookingForViewer(
 ): Promise<BookingDetail> {
   let b = await findBooking(id)
   if (!b || (b.playerId !== viewer.id && viewer.role !== 'ADMIN')) {
-    throw notFound('Booking not found')
+    throw notFound('api.bookingNotFound')
   }
 
   const provider = providerFor(b.paymentProvider)
@@ -44,5 +45,5 @@ export async function getBookingForViewer(
   }
   await settlePlayerBookings(b.playerId)
   b = (await findBooking(id))!
-  return toDetail(b)
+  return toDetail(b, await getLocale())
 }

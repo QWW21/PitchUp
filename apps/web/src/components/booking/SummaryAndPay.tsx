@@ -21,12 +21,12 @@ import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
 import { CalendarDays, Clock, Info, MapPin, NotebookPen, Shirt, Users } from 'lucide-react'
 import {
-  DAY_LONG,
-  PAYMENT_METHOD_LABELS,
+  INTL_LOCALE,
   bookingPrice,
   describePayment,
+  paymentMethodLabel,
   paymentSplit,
-  dayOfWeek,
+  formatDateLong,
   formatDuration,
   freeCancellationUntil,
   partialRefundUntil,
@@ -37,12 +37,15 @@ import {
   toMinutes,
   type BookingConfirmation,
   type BookingPaymentMethod,
+  type Locale,
   type CreateBookingResult,
   type PaymentOptions,
   type PaymentConfig,
   type SavedCard,
 } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
+import { useLocale, useT } from '@/i18n/client'
+import type { WebT } from '@/i18n/catalog'
 import { stepPath, useBooking, type BookingDraft } from './draft'
 
 interface ApiError {
@@ -59,36 +62,39 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
   })
   const body = await res.json().catch(() => null)
   if (!res.ok || !body || body.error) {
-    throw (
-      (body?.error as ApiError) ?? { code: 'NETWORK', message: 'Something went wrong. Try again.' }
-    )
+    throw (body?.error as ApiError) ?? { code: 'NETWORK', message: '' }
   }
   return body.data as T
 }
 
-const MESSAGES: Record<string, string> = {
-  SLOT_CONFLICT: 'Someone has just booked that time. Please pick another.',
-  TRUST_SCORE_TOO_LOW: 'Your account cannot make bookings right now.',
-  SHIRTS_UNAVAILABLE: 'There are not enough shirts for that many teams.',
-  PAYMENT_METHOD_UNAVAILABLE: 'That way of paying is not available. Choose another.',
-  ACTIVE_BOOKING_LIMIT:
-    'At your trust score you can have one upcoming booking at a time. Play or cancel it first.',
+const KNOWN_REASONS = [
+  'SLOT_CONFLICT',
+  'TRUST_SCORE_TOO_LOW',
+  'SHIRTS_UNAVAILABLE',
+  'PAYMENT_METHOD_UNAVAILABLE',
+  'ACTIVE_BOOKING_LIMIT',
+] as const
+type KnownReason = (typeof KNOWN_REASONS)[number]
+/** Our own words for the refusals we know; the server's message otherwise. */
+const describe = (t: WebT, e: ApiError) => {
+  const reason = e.details?.reason
+  if (reason && (KNOWN_REASONS as readonly string[]).includes(reason)) {
+    return t(`booking.summary.error.${reason as KnownReason}`)
+  }
+  return e.message || t('booking.summary.error.generic')
 }
-const describe = (e: ApiError) => (e.details?.reason && MESSAGES[e.details.reason]) || e.message
 /** Refusals that come from the player's trust score link to the trust page. */
 const TRUST_REASONS = ['TRUST_SCORE_TOO_LOW', 'TRUST_TIER_INSUFFICIENT', 'ACTIVE_BOOKING_LIMIT']
 
-const dateLabel = (date: string) =>
-  `${DAY_LONG[dayOfWeek(date)]}, ${new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`))}`
-
-const atVenue = new Intl.DateTimeFormat('en-GB', {
-  weekday: 'short',
-  day: 'numeric',
-  month: 'short',
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Bucharest',
-})
+const atVenue = (locale: Locale) =>
+  new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'Europe/Bucharest',
+  })
 
 function bookingBody(
   pitchId: string,
@@ -114,6 +120,8 @@ function bookingBody(
 }
 
 export function SummaryStep() {
+  const t = useT()
+  const locale = useLocale()
   const { pitch, draft, ready } = useBooking()
   const router = useRouter()
   const config = useQuery({
@@ -160,11 +168,11 @@ export function SummaryStep() {
   return (
     <section aria-labelledby="summary-heading" className="space-y-4">
       <h1 id="summary-heading" className="text-xl font-semibold text-neutral-900">
-        Check and pay
+        {t('booking.summary.heading')}
       </h1>
 
       <ul className="space-y-3 rounded-xl bg-neutral-100 p-4 text-sm text-neutral-900">
-        <Row icon={<CalendarDays />}>{dateLabel(draft.date)}</Row>
+        <Row icon={<CalendarDays />}>{formatDateLong(draft.date, locale)}</Row>
         <Row icon={<Clock />}>
           {draft.startTime}–{draft.endTime} ({formatDuration(draft.minutes)})
         </Row>
@@ -172,13 +180,9 @@ export function SummaryStep() {
           {pitch.name} · {pitch.companyName}
         </Row>
         <Row icon={<Users />}>
-          {draft.teamCount} teams · {players} players
+          {t('booking.summary.teamsPlayers', { teams: draft.teamCount, players })}
         </Row>
-        {sets > 0 && (
-          <Row icon={<Shirt />}>
-            Free shirts: {sets} {sets === 1 ? 'set' : 'sets'}
-          </Row>
-        )}
+        {sets > 0 && <Row icon={<Shirt />}>{t('booking.summary.freeShirts', { count: sets })}</Row>}
         {draft.note.trim() && (
           <Row icon={<NotebookPen />}>
             <span className="line-clamp-1">{draft.note.trim()}</span>
@@ -188,33 +192,36 @@ export function SummaryStep() {
 
       <section aria-labelledby="price-heading" className="rounded-xl bg-white p-4 shadow-sm">
         <h2 id="price-heading" className="text-base font-semibold text-neutral-900">
-          Price
+          {t('booking.summary.price')}
         </h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between text-neutral-700">
             <dt>
-              Pitch ({formatDuration(draft.minutes)} × {pitch.hourlyRate} RON/h)
+              {t('booking.teams.pitchLine', {
+                duration: formatDuration(draft.minutes),
+                rate: pitch.hourlyRate,
+              })}
             </dt>
             <dd>{price.total} RON</dd>
           </div>
           {sets > 0 && (
             <div className="flex justify-between text-neutral-700">
-              <dt>Shirts</dt>
-              <dd>Free</dd>
+              <dt>{t('booking.summary.shirts')}</dt>
+              <dd>{t('booking.teams.free')}</dd>
             </div>
           )}
           <div className="flex justify-between border-t border-neutral-200 pt-2 text-base font-semibold text-neutral-900">
-            <dt>Total</dt>
+            <dt>{t('booking.teams.total')}</dt>
             <dd className="font-mono">{price.total} RON</dd>
           </div>
         </dl>
-        <p className="mt-2 text-xs text-neutral-500">No booking fee: you pay the pitch price.</p>
+        <p className="mt-2 text-xs text-neutral-500">{t('booking.summary.noFee')}</p>
       </section>
 
       {methods.length > 1 && (
         <fieldset className="rounded-xl bg-white p-4 shadow-sm">
           <legend className="text-base font-semibold text-neutral-900">
-            How do you want to pay?
+            {t('booking.summary.howToPay')}
           </legend>
           <div className="mt-3 space-y-2">
             {methods.map(m => {
@@ -236,10 +243,12 @@ export function SummaryStep() {
                   <span>
                     <span className="block text-sm font-medium text-neutral-900">
                       {s.payNow === 0 && m !== 'ONLINE'
-                        ? 'Pay at the venue'
-                        : PAYMENT_METHOD_LABELS[m]}
+                        ? t('booking.summary.payAtVenue')
+                        : paymentMethodLabel(m, locale)}
                     </span>
-                    <span className="block text-sm text-neutral-700">{describePayment(s)}</span>
+                    <span className="block text-sm text-neutral-700">
+                      {describePayment(s, locale)}
+                    </span>
                   </span>
                 </label>
               )
@@ -249,7 +258,7 @@ export function SummaryStep() {
       )}
       {methods.length === 1 && split && split.method !== 'ONLINE' && (
         <p className="rounded-xl bg-white p-4 text-sm font-medium text-neutral-900 shadow-sm">
-          {describePayment(split)}
+          {describePayment(split, locale)}
         </p>
       )}
 
@@ -258,13 +267,15 @@ export function SummaryStep() {
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-info-500" aria-hidden="true" />
           <span>
             {freeUntil.getTime() > now
-              ? `Free cancellation until ${atVenue.format(freeUntil)}.`
+              ? t('booking.summary.freeUntil', { when: atVenue(locale).format(freeUntil) })
               : partUntil.getTime() > now && policy.partialRefundPercent > 0
-                ? `Cancelling now refunds ${policy.partialRefundPercent}%, until ${atVenue.format(partUntil)}.`
-                : 'This booking starts soon: cancelling it will not be refunded.'}{' '}
-            {describeRefundPolicy(policy)}
-            {options.data?.autoApproveBookings === false &&
-              ' This venue confirms each booking: you pay now, and get it all back if they decline.'}
+                ? t('booking.summary.partialNow', {
+                    percent: policy.partialRefundPercent,
+                    when: atVenue(locale).format(partUntil),
+                  })
+                : t('booking.summary.noRefundSoon')}{' '}
+            {describeRefundPolicy(policy, locale)}
+            {options.data?.autoApproveBookings === false && t('booking.summary.confirmsByHand')}
           </span>
         </p>
       </div>
@@ -272,11 +283,7 @@ export function SummaryStep() {
       {(config.isLoading || options.isLoading) && (
         <div className="h-24 animate-pulse rounded-xl bg-neutral-100" />
       )}
-      {options.isSuccess && !method && (
-        <Alert>
-          This venue takes payment at the venue only, for players with a trust score of 70 or more.
-        </Alert>
-      )}
+      {options.isSuccess && !method && <Alert>{t('booking.summary.venueOnly')}</Alert>}
       {split && split.payNow === 0 && <NoPayment method={split.method} onDone={done} />}
       {split && split.payNow > 0 && config.data?.provider === 'test' && (
         <TestPayment
@@ -297,7 +304,7 @@ export function SummaryStep() {
         </Elements>
       )}
       {(config.isError || (config.isSuccess && !config.data.provider)) && (
-        <Alert>Payments are not available right now. Nothing has been booked.</Alert>
+        <Alert>{t('booking.summary.unavailable')}</Alert>
       )}
     </section>
   )
@@ -325,6 +332,7 @@ function PayButton({
   busy: boolean
   onClick: () => void
 }) {
+  const t = useT()
   return (
     <button
       type="button"
@@ -333,7 +341,9 @@ function PayButton({
       aria-busy={busy || undefined}
       className="flex h-14 w-full items-center justify-center rounded-md bg-accent-600 text-base font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
     >
-      {busy ? 'Processing…' : `Confirm & pay ${amount} RON${deposit ? ' deposit' : ''}`}
+      {busy
+        ? t('booking.summary.processing')
+        : t(deposit ? 'booking.summary.payDeposit' : 'booking.summary.pay', { amount })}
     </button>
   )
 }
@@ -352,6 +362,7 @@ function NoPayment({
   method: BookingPaymentMethod
   onDone: (b: CreateBookingResult) => void
 }) {
+  const t = useT()
   const { pitch, draft } = useBooking()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -368,21 +379,21 @@ function NoPayment({
         })
       )
     } catch (caught) {
-      setError(describe(caught as ApiError))
+      setError(describe(t, caught as ApiError))
       setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
   }
 
   return (
-    <section aria-label="Payment" className="space-y-3">
+    <section aria-label={t('booking.summary.payment')} className="space-y-3">
       {error && <Alert>{error}</Alert>}
       {error && trustRefusal && (
         <a
           href="/profile/trust-score"
           className="block text-sm font-medium text-primary-700 underline"
         >
-          View your trust score
+          {t('booking.summary.viewTrust')}
         </a>
       )}
       <button
@@ -392,7 +403,7 @@ function NoPayment({
         aria-busy={busy || undefined}
         className="flex h-14 w-full items-center justify-center rounded-md bg-accent-600 text-base font-semibold text-white hover:bg-accent-700 disabled:opacity-60"
       >
-        {busy ? 'Booking…' : 'Confirm booking'}
+        {busy ? t('booking.summary.booking') : t('booking.summary.confirm')}
       </button>
     </section>
   )
@@ -405,6 +416,7 @@ function TestPayment({
   method,
   onDone,
 }: PayProps & { onDone: (b: BookingConfirmation) => void }) {
+  const t = useT()
   const { pitch, draft } = useBooking()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -425,9 +437,9 @@ function TestPayment({
       if (result.status === 'CONFIRMED' || result.status === 'AWAITING_APPROVAL') {
         return onDone(result)
       }
-      setError('Your card was declined. Nothing was charged; try again.')
+      setError(t('booking.summary.declined'))
     } catch (caught) {
-      setError(describe(caught as ApiError))
+      setError(describe(t, caught as ApiError))
       setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
@@ -439,11 +451,11 @@ function TestPayment({
       className="space-y-3 rounded-xl bg-white p-4 shadow-sm"
     >
       <h2 id="payment-heading" className="text-base font-semibold text-neutral-900">
-        Payment
+        {t('booking.summary.payment')}
       </h2>
       <p className="rounded-md bg-warning-50 p-3 text-sm text-neutral-700">
-        <strong>Test mode.</strong> Stripe is not set up, so no card is needed and nothing is
-        charged.
+        <strong>{t('booking.summary.testMode')}</strong>
+        {t('booking.summary.testModeBody')}
       </p>
       {error && <Alert>{error}</Alert>}
       {error && trustRefusal && (
@@ -451,7 +463,7 @@ function TestPayment({
           href="/profile/trust-score"
           className="block text-sm font-medium text-primary-700 underline"
         >
-          View your trust score
+          {t('booking.summary.viewTrust')}
         </a>
       )}
       <PayButton amount={amount} deposit={deposit} busy={busy} onClick={() => pay('succeed')} />
@@ -461,7 +473,7 @@ function TestPayment({
         onClick={() => pay('decline')}
         className="h-10 w-full text-sm font-medium text-neutral-700 underline-offset-2 hover:underline"
       >
-        Simulate a declined card
+        {t('booking.summary.simulateDecline')}
       </button>
     </section>
   )
@@ -474,6 +486,7 @@ function StripePayment({
   method: payWith,
   onDone,
 }: PayProps & { onDone: (b: CreateBookingResult) => void }) {
+  const t = useT()
   const { pitch, draft } = useBooking()
   const stripe = useStripe()
   const elements = useElements()
@@ -502,7 +515,7 @@ function StripePayment({
         body: JSON.stringify(bookingBody(pitch.id, draft, payWith, saved)),
       })
       if (created.payment.provider !== 'stripe')
-        throw { code: 'X', message: 'Unexpected payment mode' }
+        throw { code: 'X', message: t('booking.summary.unexpected') }
       const card = elements.getElement(CardElement)
       const result = await (stripe as Stripe).confirmCardPayment(created.payment.clientSecret, {
         payment_method: saved ?? { card: card! },
@@ -510,12 +523,12 @@ function StripePayment({
       })
       if (result.error) {
         // Stripe's own words for a decline are the clearest ones.
-        setError(result.error.message ?? 'Payment failed. Nothing was charged; try again.')
+        setError(result.error.message ?? t('booking.summary.stripeFailed'))
       } else {
         return onDone(created)
       }
     } catch (caught) {
-      setError(describe(caught as ApiError))
+      setError(describe(t, caught as ApiError))
       setTrustRefusal(TRUST_REASONS.includes((caught as ApiError).details?.reason ?? ''))
     }
     setBusy(false)
@@ -527,10 +540,10 @@ function StripePayment({
       className="space-y-3 rounded-xl bg-white p-4 shadow-sm"
     >
       <h2 id="payment-heading" className="text-base font-semibold text-neutral-900">
-        Payment
+        {t('booking.summary.payment')}
       </h2>
       <fieldset className="space-y-2">
-        <legend className="sr-only">Payment method</legend>
+        <legend className="sr-only">{t('booking.summary.paymentMethod')}</legend>
         {cards.data?.map(c => (
           <label
             key={c.id}
@@ -556,7 +569,7 @@ function StripePayment({
               checked={method === 'new'}
               onChange={() => setMethod('new')}
             />
-            Add a new card
+            {t('booking.summary.newCard')}
           </label>
         )}
       </fieldset>
@@ -579,7 +592,7 @@ function StripePayment({
           </div>
           <label className="flex items-center gap-2 text-sm text-neutral-700">
             <input type="checkbox" checked={save} onChange={e => setSave(e.target.checked)} />
-            Save this card for next time
+            {t('booking.summary.saveCard')}
           </label>
         </>
       )}
@@ -589,7 +602,7 @@ function StripePayment({
           href="/profile/trust-score"
           className="block text-sm font-medium text-primary-700 underline"
         >
-          View your trust score
+          {t('booking.summary.viewTrust')}
         </a>
       )}
       <PayButton amount={amount} deposit={deposit} busy={busy || !stripe} onClick={pay} />

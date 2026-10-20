@@ -7,7 +7,7 @@
  */
 import 'server-only'
 import {
-  COMPANY_STATUS_LABELS,
+  companyStatusLabel,
   COMPANY_TRANSITIONS,
   type AdminCompanyPage,
   type AdminCompanyQuery,
@@ -15,6 +15,7 @@ import {
   type PendingCompany,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { getLocale } from '@/i18n/server'
 import { ApiException, notFound } from '@/lib/api/errors'
 import { deliverSoon, notify } from '@/lib/notifications/dispatch'
 
@@ -49,9 +50,9 @@ async function pending(companyId: string) {
     where: { id: companyId },
     include: { owner: { select: { id: true, email: true } } },
   })
-  if (!company) throw notFound('Company not found')
+  if (!company) throw notFound('api.companyNotFound')
   if (company.status !== 'PENDING') {
-    throw new ApiException('CONFLICT', 'This venue is not waiting for approval', {
+    throw new ApiException('CONFLICT', 'api.notWaitingApproval', {
       reason: 'NOT_PENDING',
     })
   }
@@ -69,8 +70,8 @@ export async function approveCompany(companyId: string, now: Date = new Date()):
     await notify(tx, {
       userId: company.owner.id,
       type: 'COMPANY_APPROVED',
-      title: `${company.name} is approved`,
-      body: 'Your venue is live on PitchUp. Add your pitches to start taking bookings.',
+      title: t => t('notify.companyApproved.title', { company: company.name }),
+      body: t => t('notify.companyApproved.body'),
       data: { companyId, companyName: company.name, link: '/manager/overview' },
     })
   })
@@ -91,8 +92,8 @@ export async function rejectCompany(
     await notify(tx, {
       userId: company.owner.id,
       type: 'COMPANY_REJECTED',
-      title: `${company.name} needs changes`,
-      body: reason,
+      title: t => t('notify.companyRejected.title', { company: company.name }),
+      body: () => reason,
       data: { companyId, companyName: company.name, reason, link: '/onboarding' },
     })
   })
@@ -156,12 +157,17 @@ export async function setCompanyStatus(
     where: { id: companyId },
     select: { id: true, name: true, status: true, ownerId: true },
   })
-  if (!company) throw notFound('Company not found')
+  if (!company) throw notFound('api.companyNotFound')
   if (!COMPANY_TRANSITIONS[company.status].includes(input.status)) {
+    const locale = await getLocale()
     throw new ApiException(
       'CONFLICT',
-      `A venue that is ${COMPANY_STATUS_LABELS[company.status].toLowerCase()} can't become ${COMPANY_STATUS_LABELS[input.status].toLowerCase()}`,
-      { reason: 'INVALID_TRANSITION', from: company.status, to: input.status }
+      'api.company.invalidTransition',
+      { reason: 'INVALID_TRANSITION', from: company.status, to: input.status },
+      {
+        from: companyStatusLabel(company.status, locale).toLowerCase(),
+        to: companyStatusLabel(input.status, locale).toLowerCase(),
+      }
     )
   }
   if (company.status === 'PENDING') {
@@ -182,10 +188,14 @@ export async function setCompanyStatus(
     await notify(tx, {
       userId: company.ownerId,
       type: 'ADMIN_NOTICE',
-      title: suspending ? `${company.name} is suspended` : `${company.name} is live again`,
-      body: suspending
-        ? `${input.reason} Players can't find or book it until PitchUp reinstates it. Bookings already made stay.`
-        : 'PitchUp reinstated your venue: players can find and book it again.',
+      title: t =>
+        suspending
+          ? t('notify.companySuspended.title', { company: company.name })
+          : t('notify.companyReinstated.title', { company: company.name }),
+      body: t =>
+        suspending
+          ? t('notify.companySuspended.body', { reason: input.reason ?? '' })
+          : t('notify.companyReinstated.body'),
       data: { companyId, link: '/manager/overview' },
     })
   })

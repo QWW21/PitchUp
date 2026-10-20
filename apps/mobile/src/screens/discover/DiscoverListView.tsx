@@ -10,6 +10,7 @@ import { CompanyCardSkeleton } from '../../components/discover/CompanyCardSkelet
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors } from '../../theme/tokens'
+import { useT } from '../../i18n'
 
 interface DiscoverListViewProps {
   companies: CompanyListItem[]
@@ -38,6 +39,7 @@ export function DiscoverListView({
   onClearFilters,
   onOpenCompany,
 }: DiscoverListViewProps) {
+  const t = useT()
   if (isLoading) {
     return (
       <View style={styles.content}>
@@ -75,9 +77,9 @@ export function DiscoverListView({
         ) : (
           <EmptyState
             illustration={<Icon name="magnify-close" size={64} color={colors.neutral[300]} />}
-            title={`No pitches found in ${city}`}
-            description="Try changing your filters or selecting a different city"
-            ctaLabel="Clear filters"
+            title={t('discover.home.noneIn', { city })}
+            description={t('discover.home.tryChanging')}
+            ctaLabel={t('discover.home.clearFilters')}
             onCta={onClearFilters}
           />
         )

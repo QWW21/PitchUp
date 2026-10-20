@@ -13,6 +13,7 @@ import { CardElement, Elements, useElements, useStripe } from '@stripe/react-str
 import type { SavedCard } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
+import { useT } from '@/i18n/client'
 
 const brand = (b: string) => b.charAt(0).toUpperCase() + b.slice(1)
 
@@ -23,6 +24,7 @@ export function PaymentMethods({
   cards: SavedCard[]
   publishableKey: string | null
 }) {
+  const t = useT()
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [removing, setRemoving] = useState<string | null>(null)
@@ -33,7 +35,12 @@ export function PaymentMethods({
   )
 
   const remove = async (card: SavedCard) => {
-    if (!window.confirm(`Remove the ${brand(card.brand)} ending ${card.last4}?`)) return
+    if (
+      !window.confirm(
+        t('profile.payment.removeConfirm', { brand: brand(card.brand), last4: card.last4 })
+      )
+    )
+      return
     setRemoving(card.id)
     setError(null)
     try {
@@ -49,16 +56,15 @@ export function PaymentMethods({
     <div className="mt-4 space-y-4">
       {!publishableKey && (
         <p className="rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
-          Saving cards needs Stripe, which isn&rsquo;t set up here yet. Bookings use test payments
-          for now.
+          {t('profile.payment.noStripe')}
         </p>
       )}
       <div className="overflow-hidden rounded-xl bg-white shadow-sm">
         {cards.length === 0 ? (
           <div className="flex flex-col items-center px-6 py-10 text-center">
             <CreditCard className="h-12 w-12 text-neutral-300" aria-hidden="true" />
-            <p className="mt-3 font-semibold text-neutral-900">No saved cards</p>
-            <p className="mt-1 text-sm text-neutral-700">Add a card to book faster.</p>
+            <p className="mt-3 font-semibold text-neutral-900">{t('profile.payment.none')}</p>
+            <p className="mt-1 text-sm text-neutral-700">{t('profile.payment.addHint')}</p>
           </div>
         ) : (
           <ul>
@@ -78,10 +84,13 @@ export function PaymentMethods({
                   type="button"
                   onClick={() => void remove(c)}
                   disabled={removing === c.id}
-                  aria-label={`Remove ${brand(c.brand)} ending ${c.last4}`}
+                  aria-label={t('profile.payment.removeLabel', {
+                    brand: brand(c.brand),
+                    last4: c.last4,
+                  })}
                   className="text-sm font-medium text-error-600 hover:underline disabled:opacity-60"
                 >
-                  {removing === c.id ? 'Removing…' : 'Remove'}
+                  {removing === c.id ? t('profile.payment.removing') : t('profile.payment.remove')}
                 </button>
               </li>
             ))}
@@ -94,7 +103,7 @@ export function PaymentMethods({
             className="flex w-full items-center gap-2 border-t border-neutral-100 px-4 py-3 text-sm font-semibold text-primary-700 hover:bg-neutral-50"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Add new card
+            {t('profile.payment.addNew')}
           </button>
         )}
       </div>
@@ -108,7 +117,7 @@ export function PaymentMethods({
           onClick={e => e.target === dialog.current && dialog.current?.close()}
         >
           <h2 id="add-card-title" className="text-lg font-semibold text-neutral-900">
-            Add a card
+            {t('profile.payment.addTitle')}
           </h2>
           <Elements stripe={stripePromise}>
             <AddCard
@@ -126,6 +135,7 @@ export function PaymentMethods({
 }
 
 function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const t = useT()
   const stripe = useStripe()
   const elements = useElements()
   const [busy, setBusy] = useState(false)
@@ -145,7 +155,7 @@ function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => voi
       const result = await (stripe as Stripe).confirmCardSetup(clientSecret, {
         payment_method: { card },
       })
-      if (result.error) throw new Error(result.error.message ?? 'The card could not be saved')
+      if (result.error) throw new Error(result.error.message ?? t('profile.payment.notSaved'))
       onDone()
     } catch (caught) {
       setError((caught as Error).message)
@@ -165,7 +175,7 @@ function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => voi
           onClick={onCancel}
           className="h-10 rounded-md px-4 text-sm font-semibold text-neutral-700 hover:bg-neutral-100"
         >
-          Cancel
+          {t('profile.payment.cancel')}
         </button>
         <button
           type="button"
@@ -173,7 +183,7 @@ function AddCard({ onDone, onCancel }: { onDone: () => void; onCancel: () => voi
           disabled={busy || !stripe}
           className="h-10 rounded-md bg-primary-600 px-4 text-sm font-semibold text-white hover:bg-primary-700 disabled:opacity-60"
         >
-          {busy ? 'Saving…' : 'Save card'}
+          {busy ? t('profile.payment.saving') : t('profile.payment.save')}
         </button>
       </div>
     </div>

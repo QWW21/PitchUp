@@ -19,14 +19,14 @@ export const RefundPolicySchema = z
   .object({
     fullRefundHours: z
       .number()
-      .int('Whole hours')
+      .int('v.wholeHours')
       .min(0)
-      .max(REFUND_POLICY_LIMITS.MAX_FULL_REFUND_HOURS, 'At most a week (168 hours)'),
-    partialRefundHours: z.number().int('Whole hours').min(0),
-    partialRefundPercent: z.number().int('A whole percentage').min(0).max(100),
+      .max(REFUND_POLICY_LIMITS.MAX_FULL_REFUND_HOURS, 'v.maxWeek'),
+    partialRefundHours: z.number().int('v.wholeHours').min(0),
+    partialRefundPercent: z.number().int('v.wholePercent').min(0).max(100),
   })
   .refine(p => p.partialRefundHours <= p.fullRefundHours, {
-    message: 'The partial refund must end after the full refund ends (fewer hours before kick-off)',
+    message: 'v.partialAfterFull',
     path: ['partialRefundHours'],
   })
 
@@ -40,7 +40,7 @@ export interface VenueBookingSettings {
 export const VenueBookingSettingsSchema = z
   .object({ autoApproveBookings: z.boolean(), refundPolicy: RefundPolicySchema })
   .partial()
-  .refine(v => Object.keys(v).length > 0, { message: 'Nothing to change' })
+  .refine(v => Object.keys(v).length > 0, { message: 'v.nothingToChange' })
 export type VenueBookingSettingsInput = z.infer<typeof VenueBookingSettingsSchema>
 
 // ── Approving bookings by hand (C-13) ──────────────────────────────────────
@@ -66,7 +66,7 @@ export function approvalDeadline(paidAt: Date, start: Date): Date {
 
 /** POST /manager/bookings/:id/cancel — declining a request, or cancelling a booking (C-12). */
 export const ManagerCancelSchema = z.object({
-  reason: z.string().trim().min(5, 'Tell the player why, in a few words').max(300),
+  reason: z.string().trim().min(5, 'v.tellPlayerWhy').max(300),
 })
 
 // ── The venue's details (C-13) ──────────────────────────────────────────────
