@@ -43,6 +43,10 @@ test.describe('registration', () => {
     const user = await db.user.findUniqueOrThrow({ where: { email } })
     expect(user).toMatchObject({ role: 'PLAYER', emailVerified: false, phoneVerified: false })
     expect(user.passwordHash).not.toContain(PASSWORD)
+    // The phone is verified later, from the profile: no text at sign-up (#163).
+    expect(await db.verificationCode.count({ where: { userId: user.id, channel: 'PHONE' } })).toBe(
+      0
+    )
   })
 
   test('answers an existing email exactly like a new one (no enumeration)', async ({ request }) => {

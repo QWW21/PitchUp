@@ -173,10 +173,7 @@ export const MUTABLE_NOTIFICATION_TYPES = NOTIFICATION_PREFERENCE_GROUPS.flatMap
 export interface NotificationPreferences {
   pushEnabled: boolean
   emailEnabled: boolean
-  /** Off until switched on; needs a phone number. */
-  smsEnabled: boolean
   disabledTypes: NotificationType[]
-  hasPhone: boolean
 }
 
 /** PUT /notifications/preferences — only the fields sent change; disabledTypes is replaced whole. */
@@ -184,7 +181,6 @@ export const NotificationPreferencesSchema = z
   .object({
     pushEnabled: z.boolean(),
     emailEnabled: z.boolean(),
-    smsEnabled: z.boolean(),
     disabledTypes: z
       .array(z.enum(MUTABLE_NOTIFICATION_TYPES as [NotificationType, ...NotificationType[]]))
       .max(20),

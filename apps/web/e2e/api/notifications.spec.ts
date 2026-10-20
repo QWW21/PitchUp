@@ -79,9 +79,7 @@ test.describe('preferences (E13-07)', () => {
     ).toEqual({
       pushEnabled: true,
       emailEnabled: true,
-      smsEnabled: false,
       disabledTypes: [],
-      hasPhone: true,
     })
     const changed = await put<NotificationPreferences>(s.player, '/notifications/preferences', {
       emailEnabled: false,
@@ -98,11 +96,12 @@ test.describe('preferences (E13-07)', () => {
         .status
     ).toBe(400)
 
-    // Every account has a phone (E02), so text messages can be switched on.
+    // Text messages are not a channel any more (2026-10-20): the field is ignored.
     const sms = await put<NotificationPreferences>(s.player, '/notifications/preferences', {
       smsEnabled: true,
+      pushEnabled: true,
     })
-    expect(sms.data?.smsEnabled).toBe(true)
+    expect(sms.data).not.toHaveProperty('smsEnabled')
   })
 })
 
@@ -188,11 +187,10 @@ test.describe('the inbox (E13-06)', () => {
 })
 
 test.describe('the hourly job (E13-04)', () => {
-  test('reminds once, 23–25 hours ahead, by text too when switched on; and sweeps the outbox', async ({
+  test('reminds once, 23–25 hours ahead, by email and push; and sweeps the outbox', async ({
     request,
   }) => {
     const s = await setup()
-    await put(s.player, '/notifications/preferences', { smsEnabled: true })
     const soon = await seedBooking({
       pitchId: s.pitchId,
       playerId: s.playerId,
@@ -216,7 +214,7 @@ test.describe('the hourly job (E13-04)', () => {
     expect(reminders).toHaveLength(1)
     expect(reminders[0]!.data).toEqual({ bookingId: soon.id })
     expect(reminders[0]!.title).toBe('Your game is tomorrow')
-    expect(reminders[0]).toMatchObject({ sentEmail: true, sentSms: true })
+    expect(reminders[0]).toMatchObject({ sentEmail: true })
     expect(
       (await db.booking.findUniqueOrThrow({ where: { id: soon.id } })).reminderSentAt
     ).not.toBeNull()

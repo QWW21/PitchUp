@@ -133,7 +133,7 @@ Tracked under the **E16 — Testing** milestone (#178–#187, #189–#192).
 
 The build goes to **`.next-e2e`**, not `.next`: building into the folder a
 running `pnpm dev` serves from broke that dev server. And the run **blanks
-every integration key** (Stripe, Resend, Twilio, Cloudinary, Firebase), so it always
+every integration key** (Stripe, Resend, Twilio including Verify, Cloudinary, Firebase), so it always
 uses test payments, logged emails and SMS, and no uploads, whatever real keys
 are in `apps/web/.env`. Without that, a developer's Resend key made every test
 registration send a real email to a made-up address, and fail.

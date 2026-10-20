@@ -16,7 +16,12 @@ import {
   SMS_PER_PHONE_RATE_LIMIT,
   checkRateLimit,
 } from '@/lib/api/rate-limit'
-import { getEmailProvider, getSmsProvider } from '@/lib/notifications'
+import {
+  getEmailProvider,
+  getSmsProvider,
+  isTwilioVerifyConfigured,
+  twilioVerify,
+} from '@/lib/notifications'
 import { renderAlreadyRegisteredEmail, renderVerificationEmail } from '@/lib/emails/verification'
 import { renderPhoneOtpSms } from '@/lib/emails/phone-otp'
 import { renderPasswordChangedEmail, renderPasswordResetEmail } from '@/lib/emails/password-reset'
@@ -108,6 +113,12 @@ export async function sendPhoneOtp(userId: string, phone: string): Promise<void>
   // attacker rotating IPs must not be able to text one number repeatedly.
   const quota = checkRateLimit(`sms-to:${phone}`, SMS_PER_PHONE_RATE_LIMIT)
   if (!quota.allowed) throw new RecipientThrottledError(quota.retryAfterSeconds)
+
+  // Twilio Verify makes, sends and checks the code itself (see twilio-provider).
+  if (isTwilioVerifyConfigured()) {
+    await twilioVerify.start(phone)
+    return
+  }
 
   const code = generateCode()
 
@@ -226,16 +237,9 @@ async function registerAccount(input: RegisterAccountInput): Promise<RegisterRes
     throw caught
   }
 
-  // SMS is best-effort by comparison. Phone verification is not required to
-  // sign in, and /auth/resend-code can send another, so a Twilio outage
-  // should not undo a registration whose email already went out.
-  try {
-    await sendPhoneOtp(user.id, input.phone)
-  } catch (caught) {
-    // Includes RecipientThrottledError: someone re-registering a number
-    // several times in an hour still gets an account, just no new text.
-    console.error('[auth] Could not send the phone OTP at registration:', caught)
-  }
+  // No text here: the phone is verified later, from the profile, when the
+  // person asks for a code (sendOwnPhoneCode). A code sent at registration
+  // expired unused before anyone could reach a screen to type it in.
 
   return { outcome: 'CREATED', userId: user.id }
 }
@@ -482,9 +486,33 @@ export async function verifyPhoneCode(
   // No attemptsRemaining here: reporting a count for an address with no
   // account would confirm which addresses are registered.
   if (!user) return { failure: 'INVALID_CODE' }
+  return verifyPhoneCodeFor(user.id, code)
+}
+
+/**
+ * Texts a code to the signed-in person's own number (#163). ALREADY_VERIFIED
+ * when there is nothing to do; RecipientThrottledError when the number has
+ * had its quota of texts.
+ */
+export async function sendOwnPhoneCode(userId: string): Promise<'SENT' | 'ALREADY_VERIFIED'> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { phone: true, phoneVerified: true },
+  })
+  if (user.phoneVerified) return 'ALREADY_VERIFIED'
+  await sendPhoneOtp(userId, user.phone)
+  return 'SENT'
+}
+
+/** The signed-in form of verifyPhoneCode: the account is known, so counts are safe to give. */
+export async function verifyPhoneCodeFor(
+  userId: string,
+  code: string
+): Promise<{ verified: true } | VerifyFailureDetail> {
+  if (isTwilioVerifyConfigured()) return verifyWithTwilio(userId, code)
 
   const record = await prisma.verificationCode.findFirst({
-    where: { userId: user.id, channel: 'PHONE', usedAt: null },
+    where: { userId, channel: 'PHONE', usedAt: null },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -510,12 +538,34 @@ export async function verifyPhoneCode(
       data: { usedAt: new Date() },
     }),
     prisma.user.update({
-      where: { id: user.id },
+      where: { id: userId },
       data: { phoneVerified: true },
     }),
   ])
 
   return { verified: true }
+}
+
+/** verifyPhoneCodeFor when Twilio holds the code. Twilio counts the attempts, so no count is given. */
+async function verifyWithTwilio(
+  userId: string,
+  code: string
+): Promise<{ verified: true } | VerifyFailureDetail> {
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { phone: true },
+  })
+  switch (await twilioVerify.check(user.phone, code)) {
+    case 'APPROVED':
+      await prisma.user.update({ where: { id: userId }, data: { phoneVerified: true } })
+      return { verified: true }
+    case 'EXPIRED':
+      return { failure: 'CODE_EXPIRED' }
+    case 'TOO_MANY_ATTEMPTS':
+      return { failure: 'TOO_MANY_ATTEMPTS' }
+    default:
+      return { failure: 'INVALID_CODE' }
+  }
 }
 
 // ─── Password reset ──────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ import { TextField } from '@/components/ui/TextField'
 import { send } from '@/lib/http'
 import { uploadToCloudinary } from '@/lib/upload-client'
 import { Avatar } from './Avatar'
+import { PhoneVerification } from './PhoneVerification'
 
 type Field = 'name' | 'phone' | 'city'
 
@@ -131,9 +132,7 @@ export function SettingsForm({
           error={errors.phone}
           autoComplete="tel"
         />
-        {!profile.phoneVerified && (
-          <p className="mt-1 text-sm text-neutral-500">Not verified yet.</p>
-        )}
+        {!profile.phoneVerified && !changes.phone && <PhoneVerification phone={profile.phone} />}
         {changes.phone && (
           <p className="mt-1 text-sm text-neutral-500">A new number has to be verified again.</p>
         )}

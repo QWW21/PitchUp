@@ -109,6 +109,14 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.name}>{p.name}</Text>
           <Text style={styles.muted}>{p.email}</Text>
           <Text style={styles.muted}>{p.phone}</Text>
+          {!p.phoneVerified ? (
+            <Pressable
+              onPress={() => navigation.navigate('VerifyPhone', { phone: p.phone })}
+              accessibilityRole="link"
+            >
+              <Text style={styles.link}>Verify phone number →</Text>
+            </Pressable>
+          ) : null}
           {p.city ? (
             <View style={styles.chip}>
               <Icon name="map-marker" size={14} color={colors.neutral[500]} />

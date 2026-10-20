@@ -1,8 +1,7 @@
 /**
- * Notification settings — E13-09. Channel switches (push, email, text) and
- * a switch per kind of notification; each saves at once and goes back if
- * the save fails. Text messages need a phone number: without one, the
- * switch opens Edit profile instead.
+ * Notification settings — E13-09. Channel switches (push, email) and a
+ * switch per kind of notification; each saves at once and goes back if the
+ * save fails.
  */
 import React from 'react'
 import {
@@ -36,13 +35,12 @@ type Props = NativeStackScreenProps<AppStackParamList, 'NotificationSettings'>
 const KEY = ['notification-preferences'] as const
 
 const CHANNELS: {
-  key: 'pushEnabled' | 'emailEnabled' | 'smsEnabled'
+  key: 'pushEnabled' | 'emailEnabled'
   label: string
   hint: string
 }[] = [
   { key: 'pushEnabled', label: 'Push notifications', hint: 'On this phone' },
   { key: 'emailEnabled', label: 'Email', hint: 'To the address on your account' },
-  { key: 'smsEnabled', label: 'Text messages', hint: 'Reminders and changes on the day only' },
 ]
 
 export function NotificationSettingsScreen({ navigation }: Props) {
@@ -69,13 +67,7 @@ export function NotificationSettingsScreen({ navigation }: Props) {
   if (!prefs.data) return <ActivityIndicator style={styles.loading} color={colors.primary[600]} />
   const p = prefs.data
 
-  const toggleChannel = (key: (typeof CHANNELS)[number]['key']) => {
-    if (key === 'smsEnabled' && !p.smsEnabled && !p.hasPhone) {
-      navigation.navigate('EditProfile')
-      return
-    }
-    save.mutate({ [key]: !p[key] })
-  }
+  const toggleChannel = (key: (typeof CHANNELS)[number]['key']) => save.mutate({ [key]: !p[key] })
   const muted = (types: readonly NotificationType[]) =>
     types.every(t => p.disabledTypes.includes(t))
   const toggleGroup = (types: readonly NotificationType[]) =>
@@ -107,11 +99,7 @@ export function NotificationSettingsScreen({ navigation }: Props) {
             <Row
               key={c.key}
               label={c.label}
-              hint={
-                c.key === 'smsEnabled' && !p.hasPhone
-                  ? 'Add a phone number to turn this on'
-                  : c.hint
-              }
+              hint={c.hint}
               value={p[c.key]}
               onChange={() => toggleChannel(c.key)}
             />

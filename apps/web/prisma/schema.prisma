@@ -541,8 +541,7 @@ model Notification {
   isRead      Boolean          @default(false)
   sentPush    Boolean          @default(false)
   sentEmail   Boolean          @default(false)
-  sentSms     Boolean          @default(false)
-  /// Set when the email, SMS and push for it were attempted (E13): an outbox.
+  /// Set when the email and push for it were attempted (E13): an outbox.
   deliveredAt DateTime?
   createdAt   DateTime         @default(now())
 
@@ -559,7 +558,6 @@ model NotificationPreference {
   userId        String             @unique
   pushEnabled   Boolean            @default(true)
   emailEnabled  Boolean            @default(true)
-  smsEnabled    Boolean            @default(false)
   disabledTypes NotificationType[] @default([])
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

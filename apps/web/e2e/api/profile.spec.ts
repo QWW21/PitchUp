@@ -11,7 +11,15 @@ import {
 } from '@playwright/test'
 import type { NotificationPage, Profile, ReviewPage, TrustScoreDetail } from '@pitchup/shared'
 import { del, get, post, put } from '../support/api'
-import { createPlayer, db, seedBooking, uniqueEmail, uniquePhone, venue } from '../support/db'
+import {
+  createPlayer,
+  db,
+  seedBooking,
+  setVerificationCode,
+  uniqueEmail,
+  uniquePhone,
+  venue,
+} from '../support/db'
 import { E2E_BASE_URL } from '../support/env'
 import { resetRateLimits, signInApi } from '../support/helpers'
 
@@ -366,5 +374,46 @@ test.describe('notifications (E08-09, E08-10)', () => {
     expect(
       (await post(api, '/notifications/device-token', { token, platform: 'windows' })).status
     ).toBe(400)
+  })
+})
+
+test.describe('verifying the phone (#163)', () => {
+  test('needs a session', async ({ request }) => {
+    expect((await post(request, '/profile/phone/code', {})).status).toBe(401)
+    expect((await post(request, '/profile/phone/verify', { code: '123456' })).status).toBe(401)
+  })
+
+  test('texts a code on request, takes it once, then has nothing left to do', async () => {
+    const sent = await post(api, '/profile/phone/code', {})
+    expect(sent.status).toBe(200)
+    expect(sent.data).toEqual({ sent: true })
+    expect(
+      await db.verificationCode.count({ where: { userId: me.id, channel: 'PHONE', usedAt: null } })
+    ).toBe(1)
+
+    // The texted code is only stored hashed; put a known one in its place.
+    await setVerificationCode(me.email, '112233', 'PHONE')
+    const wrong = await post(api, '/profile/phone/verify', { code: '000000' })
+    expect(wrong.status).toBe(400)
+    expect(wrong.error?.details).toEqual({ reason: 'INVALID_CODE', attemptsRemaining: 2 })
+    expect((await post(api, '/profile/phone/verify', { code: '12' })).status).toBe(400)
+
+    const right = await post(api, '/profile/phone/verify', { code: '112233' })
+    expect(right.status).toBe(200)
+    expect((await get<Profile>(api, '/profile')).data?.phoneVerified).toBe(true)
+
+    const again = await post(api, '/profile/phone/code', {})
+    expect(again.status).toBe(409)
+    expect(again.error?.details).toEqual({ reason: 'ALREADY_VERIFIED' })
+  })
+
+  test('an expired code answers 410', async () => {
+    await setVerificationCode(me.email, '445566', 'PHONE')
+    await db.verificationCode.updateMany({
+      where: { userId: me.id, channel: 'PHONE', usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    })
+    const r = await post(api, '/profile/phone/verify', { code: '445566' })
+    expect(r.status).toBe(410)
   })
 })

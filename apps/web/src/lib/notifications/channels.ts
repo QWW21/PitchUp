@@ -1,13 +1,16 @@
 /**
- * The three outside channels for one notification — E13-02 … E13-04 — each
+ * The outside channels for one notification — E13-02, E13-03 — each
  * following the person's preferences:
  *
  * - email (on by default): the booking and venue emails keep their own
  *   templates; everything else gets the standard layout with a button to the
  *   right page;
- * - SMS (off by default, needs a phone): only what matters on the day;
  * - push (on by default): every registered phone; tokens the phone has
  *   dropped are deleted.
+ *
+ * Text messages were a third channel (E13-04) until 2026-10-20: the owner
+ * dropped text reminders for launch, so SMS is used only for phone
+ * verification codes.
  */
 import 'server-only'
 import type { Notification } from '@prisma/client'
@@ -23,16 +26,8 @@ import {
   renderMutedParagraph,
   renderParagraph,
 } from '@/lib/emails/layout'
-import { getEmailProvider, getSmsProvider } from './index'
+import { getEmailProvider } from './index'
 import { sendPush } from './push'
-
-/** Texts cost money: only what matters on the day. */
-const SMS_TYPES = new Set([
-  'BOOKING_REMINDER_24H',
-  'BOOKING_REMINDER_2H',
-  'BOOKING_CANCELLED_MANAGER',
-  'NO_SHOW_REPORTED',
-])
 
 const appUrl = () => env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
 
@@ -66,7 +61,6 @@ async function emailFor(n: Notification, data: Record<string, string>) {
 
 export interface Sent {
   sentEmail: boolean
-  sentSms: boolean
   sentPush: boolean
 }
 
@@ -74,12 +68,12 @@ export async function sendChannels(n: Notification): Promise<Sent> {
   const [user, prefs, tokens] = await Promise.all([
     prisma.user.findUnique({
       where: { id: n.userId },
-      select: { email: true, phone: true, deletedAt: true },
+      select: { email: true, deletedAt: true },
     }),
     prisma.notificationPreference.findUnique({ where: { userId: n.userId } }),
     prisma.deviceToken.findMany({ where: { userId: n.userId }, select: { id: true, token: true } }),
   ])
-  const sent: Sent = { sentEmail: false, sentSms: false, sentPush: false }
+  const sent: Sent = { sentEmail: false, sentPush: false }
   if (!user || user.deletedAt) return sent
   const data = (n.data ?? {}) as Record<string, string>
   const failed = (channel: string) => (caught: unknown) =>
@@ -95,12 +89,6 @@ export async function sendChannels(n: Notification): Promise<Sent> {
       await getEmailProvider().send({ to: user.email, ...email })
       sent.sentEmail = true
     })().catch(failed('email')),
-    (async () => {
-      if (!prefs?.smsEnabled || !user.phone || !SMS_TYPES.has(n.type)) return
-      const body = `PitchUp: ${n.title}. ${n.body}`
-      await getSmsProvider().send({ to: user.phone, body: body.slice(0, 160) })
-      sent.sentSms = true
-    })().catch(failed('sms')),
     (async () => {
       if (!(prefs?.pushEnabled ?? true) || !tokens.length) return
       const result = await sendPush(tokens, {

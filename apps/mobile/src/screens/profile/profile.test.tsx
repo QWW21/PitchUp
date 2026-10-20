@@ -23,6 +23,7 @@ import { openNotification, registerPushToken, startPush, stopPush } from '../../
 import { ProfileScreen } from './ProfileScreen'
 import { TrustScoreDetailScreen, withMonths } from './TrustScoreDetailScreen'
 import { EditProfileScreen } from './EditProfileScreen'
+import { VerifyPhoneScreen } from './VerifyPhoneScreen'
 import { ChangePasswordScreen } from './ChangePasswordScreen'
 import { DeleteAccountScreen } from './DeleteAccountScreen'
 import { PaymentMethodsScreen } from './PaymentMethodsScreen'
@@ -127,6 +128,65 @@ describe('Profile (E08-04)', () => {
     expect(logout).not.toHaveBeenCalled()
     answer(alert, 'Log out')
     await waitFor(() => expect(logout).toHaveBeenCalled())
+  })
+})
+
+describe('Verify phone number (#163)', () => {
+  function showVerify(n: Nav) {
+    const S = VerifyPhoneScreen as unknown as React.ComponentType<{
+      navigation: Nav
+      route: object
+    }>
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <S navigation={n} route={{ key: 'k', name: 'n', params: { phone: '+40712345678' } }} />
+      </QueryClientProvider>
+    )
+  }
+
+  it('Profile offers it only while the number is unverified', async () => {
+    api.get.mockResolvedValue({ ...profile, phoneVerified: false })
+    const n = nav()
+    show(ProfileScreen, n)
+    fireEvent.press(await screen.findByText('Verify phone number →'))
+    expect(n.navigate).toHaveBeenCalledWith('VerifyPhone', { phone: '+40712345678' })
+  })
+
+  it('is not offered once verified', async () => {
+    show(ProfileScreen, nav())
+    await screen.findByText('Maria Ionescu')
+    expect(screen.queryByText('Verify phone number →')).toBeNull()
+  })
+
+  it('texts a code only when asked, then verifies it and goes back', async () => {
+    api.sendPhoneCode.mockResolvedValue({ sent: true })
+    api.verifyPhone.mockResolvedValue({ verified: true })
+    const n = nav()
+    showVerify(n)
+    expect(api.sendPhoneCode).not.toHaveBeenCalled()
+    fireEvent.press(screen.getByText('Text me a code'))
+    expect(await screen.findByText('We texted a code to +40712345678.')).toBeOnTheScreen()
+    fireEvent.changeText(screen.getByLabelText('Code'), '12a3456')
+    fireEvent.press(screen.getByText('Verify'))
+    await waitFor(() => expect(n.goBack).toHaveBeenCalled())
+    expect(api.verifyPhone).toHaveBeenCalledWith('123456')
+  })
+
+  it('wants all six digits, and shows what the server says about a wrong code', async () => {
+    api.sendPhoneCode.mockResolvedValue({ sent: true })
+    api.verifyPhone.mockRejectedValue(new ApiError('VALIDATION_ERROR', 'That code is not correct'))
+    const n = nav()
+    showVerify(n)
+    fireEvent.press(screen.getByText('Text me a code'))
+    await screen.findByLabelText('Code')
+    fireEvent.changeText(screen.getByLabelText('Code'), '123')
+    fireEvent.press(screen.getByText('Verify'))
+    expect(screen.getByText('Enter the 6-digit code from the text.')).toBeOnTheScreen()
+    fireEvent.changeText(screen.getByLabelText('Code'), '000000')
+    fireEvent.press(screen.getByText('Verify'))
+    expect(await screen.findByText('That code is not correct')).toBeOnTheScreen()
+    expect(n.goBack).not.toHaveBeenCalled()
   })
 })
 

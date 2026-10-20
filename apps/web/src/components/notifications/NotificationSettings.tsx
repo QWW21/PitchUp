@@ -2,11 +2,9 @@
 
 /**
  * Notification settings — E13-10. Each switch saves at once; a failed save
- * puts it back and says why. Text messages need a phone number on the
- * account; muting a kind of notification stops it everywhere, the inbox
- * included.
+ * puts it back and says why. Muting a kind of notification stops it
+ * everywhere, the inbox included.
  */
-import Link from 'next/link'
 import { useState } from 'react'
 import {
   preferenceGroupsFor,
@@ -16,12 +14,11 @@ import {
 import { Alert } from '@/components/ui/Alert'
 import { send } from '@/lib/http'
 
-type Channel = 'pushEnabled' | 'emailEnabled' | 'smsEnabled'
+type Channel = 'pushEnabled' | 'emailEnabled'
 
 const CHANNELS: { key: Channel; label: string; hint: string }[] = [
   { key: 'emailEnabled', label: 'Email', hint: 'To the address on your account' },
   { key: 'pushEnabled', label: 'Push', hint: 'On phones where you use the PitchUp app' },
-  { key: 'smsEnabled', label: 'Text messages', hint: 'Reminders and changes on the day only' },
 ]
 
 export function NotificationSettings({
@@ -71,40 +68,22 @@ export function NotificationSettings({
           Everything also appears in the bell at the top of the page.
         </p>
         <ul className="mt-3 divide-y divide-neutral-100">
-          {CHANNELS.map(c => {
-            const needsPhone = c.key === 'smsEnabled' && !prefs.hasPhone
-            return (
-              <li key={c.key} className="flex items-center justify-between gap-4 py-3">
-                <span>
-                  <span id={`ch-${c.key}`} className="block text-sm font-medium text-neutral-900">
-                    {c.label}
-                  </span>
-                  <span className="block text-xs text-neutral-500">
-                    {needsPhone ? (
-                      <>
-                        Add a phone number in{' '}
-                        <Link
-                          href="/profile/settings"
-                          className="font-medium text-primary-700 underline"
-                        >
-                          account settings
-                        </Link>{' '}
-                        first.
-                      </>
-                    ) : (
-                      c.hint
-                    )}
-                  </span>
+          {CHANNELS.map(c => (
+            <li key={c.key} className="flex items-center justify-between gap-4 py-3">
+              <span>
+                <span id={`ch-${c.key}`} className="block text-sm font-medium text-neutral-900">
+                  {c.label}
                 </span>
-                <Switch
-                  labelledBy={`ch-${c.key}`}
-                  on={prefs[c.key]}
-                  disabled={busy || (needsPhone && !prefs.smsEnabled)}
-                  onChange={() => void save({ [c.key]: !prefs[c.key] })}
-                />
-              </li>
-            )
-          })}
+                <span className="block text-xs text-neutral-500">{c.hint}</span>
+              </span>
+              <Switch
+                labelledBy={`ch-${c.key}`}
+                on={prefs[c.key]}
+                disabled={busy}
+                onChange={() => void save({ [c.key]: !prefs[c.key] })}
+              />
+            </li>
+          ))}
         </ul>
       </section>
 

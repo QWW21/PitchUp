@@ -31,6 +31,15 @@ export const profileApi = {
     }),
   deleteAccount: (body: DeleteAccountInput) =>
     apiRequest<{ message: string }>({ method: 'DELETE', url: '/profile', data: body }),
+  // ── Phone verification (#163) ──
+  sendPhoneCode: () =>
+    apiRequest<{ sent: true }>({ method: 'POST', url: '/profile/phone/code', data: {} }),
+  verifyPhone: (code: string) =>
+    apiRequest<{ verified: true }>({
+      method: 'POST',
+      url: '/profile/phone/verify',
+      data: { code },
+    }),
 
   // ── Saved cards (E05-09 endpoints) ──
   cards: () => apiRequest<SavedCard[]>({ method: 'GET', url: '/payments/methods' }),

@@ -22,5 +22,5 @@ export function getSmsProvider(): SmsProvider {
 }
 
 export { EmailDeliveryError } from './resend-provider'
-export { SmsDeliveryError } from './twilio-provider'
+export { SmsDeliveryError, isTwilioVerifyConfigured, twilioVerify } from './twilio-provider'
 export type { EmailMessage, EmailProvider, SmsMessage, SmsProvider } from './types'

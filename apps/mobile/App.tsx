@@ -37,6 +37,7 @@ import { MyReviewsScreen } from './src/screens/bookings/MyReviewsScreen'
 import { ProfileScreen } from './src/screens/profile/ProfileScreen'
 import { TrustScoreDetailScreen } from './src/screens/profile/TrustScoreDetailScreen'
 import { EditProfileScreen } from './src/screens/profile/EditProfileScreen'
+import { VerifyPhoneScreen } from './src/screens/profile/VerifyPhoneScreen'
 import { ChangePasswordScreen } from './src/screens/profile/ChangePasswordScreen'
 import { DeleteAccountScreen } from './src/screens/profile/DeleteAccountScreen'
 import { PaymentMethodsScreen } from './src/screens/profile/PaymentMethodsScreen'
@@ -93,6 +94,8 @@ export type AppStackParamList = {
   Profile: undefined
   TrustScore: undefined
   EditProfile: undefined
+  /** #163: texted code for the number on the account. */
+  VerifyPhone: { phone: string }
   ChangePassword: undefined
   DeleteAccount: undefined
   PaymentMethods: undefined
@@ -156,6 +159,7 @@ function AppNavigator() {
       <AppStack.Screen name="Profile" component={ProfileScreen} />
       <AppStack.Screen name="TrustScore" component={TrustScoreDetailScreen} />
       <AppStack.Screen name="EditProfile" component={EditProfileScreen} />
+      <AppStack.Screen name="VerifyPhone" component={VerifyPhoneScreen} />
       <AppStack.Screen name="ChangePassword" component={ChangePasswordScreen} />
       <AppStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
       <AppStack.Screen name="PaymentMethods" component={PaymentMethodsScreen} />

@@ -16,9 +16,7 @@ const api = jest.mocked(profileApi)
 const prefs = (over: Partial<NotificationPreferences> = {}): NotificationPreferences => ({
   pushEnabled: true,
   emailEnabled: true,
-  smsEnabled: false,
   disabledTypes: [],
-  hasPhone: true,
   ...over,
 })
 
@@ -62,26 +60,22 @@ describe('Notification settings (E13-09)', () => {
     )
   })
 
-  it('without a phone, text messages open Edit profile instead', async () => {
-    api.notificationPreferences.mockResolvedValue(prefs({ hasPhone: false }))
-    const nav = show()
-    expect(await screen.findByText('Add a phone number to turn this on')).toBeOnTheScreen()
-    fireEvent(screen.getByLabelText('Text messages'), 'valueChange', true)
-    expect(nav.navigate).toHaveBeenCalledWith('EditProfile')
-    expect(api.updateNotificationPreferences).not.toHaveBeenCalled()
+  it('offers no text messages: they are not a notification channel', async () => {
+    api.notificationPreferences.mockResolvedValue(prefs())
+    show()
+    expect(await screen.findByLabelText('Push notifications')).toBeOnTheScreen()
+    expect(screen.queryByLabelText('Text messages')).toBeNull()
   })
 
   it('puts a switch back and says why when saving fails', async () => {
     api.notificationPreferences.mockResolvedValue(prefs())
     api.updateNotificationPreferences.mockRejectedValue(
-      new ApiError('VALIDATION_ERROR', 'Add a phone number to get text messages')
+      new ApiError('INTERNAL_ERROR', 'Something went wrong')
     )
     const alert = jest.spyOn(Alert, 'alert')
     show()
     fireEvent(await screen.findByLabelText('Push notifications'), 'valueChange', false)
-    await waitFor(() =>
-      expect(alert).toHaveBeenCalledWith('Not saved', 'Add a phone number to get text messages')
-    )
+    await waitFor(() => expect(alert).toHaveBeenCalledWith('Not saved', 'Something went wrong'))
     expect(screen.getByLabelText('Push notifications')).toHaveProp('value', true)
   })
 })

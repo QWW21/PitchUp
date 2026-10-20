@@ -49,6 +49,8 @@ export const env = createEnv({
     TWILIO_PHONE_NUMBER: optionalUntilIntegrated(
       z.string().regex(/^\+\d{8,15}$/, 'Must be E.164, e.g. +40712345678')
     ),
+    /** Phone codes through Twilio Verify instead of our own texts (needed on a trial account). */
+    TWILIO_VERIFY_SERVICE_SID: z.string().startsWith('VA').optional(),
     FCM_SERVER_KEY: optionalUntilIntegrated(z.string().min(1)),
     /** E13-02: a Firebase service account, for push. All three, or none. */
     FIREBASE_PROJECT_ID: z.string().min(1).optional(),
@@ -95,6 +97,7 @@ export const env = createEnv({
     TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN,
     TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER,
+    TWILIO_VERIFY_SERVICE_SID: process.env.TWILIO_VERIFY_SERVICE_SID || undefined,
     FCM_SERVER_KEY: process.env.FCM_SERVER_KEY,
     FIREBASE_PROJECT_ID: process.env.FIREBASE_PROJECT_ID || undefined,
     FIREBASE_CLIENT_EMAIL: process.env.FIREBASE_CLIENT_EMAIL || undefined,

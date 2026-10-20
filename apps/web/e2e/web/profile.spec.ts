@@ -5,7 +5,14 @@
  * docs/test-evidence/web/profile.
  */
 import { expect, test, type Page } from '@playwright/test'
-import { createPlayer, db, seedBooking, uniqueEmail, venue } from '../support/db'
+import {
+  createPlayer,
+  db,
+  seedBooking,
+  setVerificationCode,
+  uniqueEmail,
+  venue,
+} from '../support/db'
 import { PHONE, resetRateLimits, signIn, snap } from '../support/helpers'
 
 const AREA = 'profile'
@@ -76,6 +83,26 @@ test('account settings: change name and city; a bad phone is caught', async ({ p
   await page.getByRole('link', { name: 'Overview' }).click()
   await expect(page.getByRole('region', { name: 'Your details' })).toContainText('Maria Pop')
   await expect(page.getByRole('region', { name: 'Your details' })).toContainText('Iași')
+})
+
+test('verifying the phone: a code on request, typed in here (#163)', async ({ page }, info) => {
+  await page.goto('/profile/settings')
+  await expect(page.getByText('Not verified yet.')).toBeVisible()
+  await page.getByRole('button', { name: 'Text me a code' }).click()
+  await expect(page.getByText(/We texted a code to \+40/)).toBeVisible()
+  // The real code went to the log; a known one replaces it.
+  await setVerificationCode(me.email, '778899', 'PHONE')
+  await page.getByLabel('Code').fill('000000')
+  await page.getByRole('button', { name: 'Verify' }).click()
+  await expect(
+    page.getByRole('alert').filter({ hasText: 'That code is not correct' })
+  ).toBeVisible()
+  await page.getByLabel('Code').fill('778899')
+  await snap(page, info, AREA, '02b-verify-phone')
+  // Enter verifies; it must not submit the settings form around it.
+  await page.getByLabel('Code').press('Enter')
+  await expect(page.getByText('Not verified yet.')).toBeHidden()
+  expect((await db.user.findUniqueOrThrow({ where: { id: me.id } })).phoneVerified).toBe(true)
 })
 
 test('trust score: the ring, the tiers, and the history in pages', async ({ page }, info) => {

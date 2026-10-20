@@ -14,7 +14,7 @@ import { createRemoteJWKSet, jwtVerify, type JWTVerifyGetKey } from 'jose'
 import { AUTH, type GoogleSignInInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { env } from '@/lib/env'
-import { issueTokens, sendPhoneOtp, type LoginSuccess } from './service'
+import { issueTokens, type LoginSuccess } from './service'
 
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com']
 
@@ -111,16 +111,11 @@ export async function signInWithGoogle(
       city: input.profile.city,
       dateOfBirth: new Date(`${input.profile.dateOfBirth}T00:00:00Z`),
       role: 'PLAYER',
-      // Google has confirmed the address; the phone still needs its SMS code.
+      // Google has confirmed the address; the phone is verified later, from
+      // the profile (sendOwnPhoneCode).
       emailVerified: true,
     },
   })
-
-  try {
-    await sendPhoneOtp(user.id, user.phone)
-  } catch (caught) {
-    console.error('[auth] Could not send the phone OTP after Google sign-up:', caught)
-  }
 
   const tokens = await issueTokens(user.id, user.role, userAgent)
   return {

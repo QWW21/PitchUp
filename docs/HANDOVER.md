@@ -3,6 +3,10 @@
 Last updated after Firebase and Google sign-in were connected (E02-07,
 E08-10), following E15 (Admin Panel), E09–E14 and the product changes C-6 to C-13.
 
+**Text messages and phone verification (2026-10-20).** The owner decided:
+no text reminders or text notifications for launch, but phone numbers are
+verified by a texted code. See "Text messages: phone codes only" below.
+
 **Firebase and Google sign-in (2026-10-19).** The owner created the Firebase
 project `pitchup-3221c` and the Google OAuth clients. See "Firebase and
 Google sign-in" below for what is wired, where the secret files live, and
@@ -508,8 +512,8 @@ OAuth provider it would have needed Account/Session tables we don't have.
   in. A new address answers `PROFILE_NEEDED`; `SocialLoginScreen` asks for
   phone, city and date of birth and sends the token again with them. The
   account is created as a player with the email already verified, a random
-  password nobody knows ("Forgot password" sets one), and a phone code sent
-  by SMS.
+  password nobody knows ("Forgot password" sets one). The phone is
+  verified later, from Profile (see "Text messages: phone codes only").
 - Web (the manager portal): the Auth.js Google provider, shown only when
   `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set. It opens existing,
   confirmed, active accounts only; anyone else returns to
@@ -556,13 +560,53 @@ Native changes:
   libraries' documented setup; the first Android build after this change is
   the real check (see "React Native version constraints").
 
+## Text messages: phone codes only
+
+Decided 2026-10-20: **no text reminders or text notifications** for launch.
+Reminders and every other notice go by push and email. The `sentSms` and
+`smsEnabled` columns are gone, and so are the "Text messages" switches on
+web and mobile. SMS is used for one thing: verifying the phone number.
+
+**Phone verification (#163).** It was half-built: a code was texted at
+sign-up but no screen took it. Now:
+
+- Sign-up (password or Google) texts nothing.
+- A signed-in person asks for a code:
+  - Mobile: Profile → "Verify phone number" → `VerifyPhoneScreen`.
+  - Web: Account settings → "Text me a code" under the phone field.
+- `POST /api/v1/profile/phone/code` sends it (409 `ALREADY_VERIFIED`, 429 per-number quota).
+- `POST /api/v1/profile/phone/verify { code }` checks it (400, 410, 429 as before).
+- Verification is still optional; nothing requires it yet.
+
+**Twilio account:** a free trial, "Limited trial" plan, Account SID
+`AC3855…a3d8`.
+
+- It may only send Twilio's own templates, so our own texts are refused
+  (error 572006).
+- Codes therefore go through **Twilio Verify**: Twilio makes, sends and
+  checks them. The service "PitchUp" is `TWILIO_VERIFY_SERVICE_SID` in
+  `apps/web/.env`.
+- Without that variable, and in every test, the code stays ours and goes as
+  a plain text (or to the log).
+- Verified end to end on 2026-10-20: a code reached a Romanian number and
+  was approved.
+
+Trial limits:
+
+- 30 days.
+- About 40 verifications.
+- Only to verified testers (the owner's number).
+- Upgrading the account lifts these; nothing in the code changes.
+
 ## Next
 
 Every epic (E01–E15) is built. What is left:
 
 - **Your testing** of E09 onward, and the **mobile pass**: the mobile tickets
   stay open as "built, awaiting mobile testing".
-- **Twilio** for text messages: the code is ready, the account is not.
+- **Twilio beyond the trial:** the free trial (30 days, about 40 Verify
+  codes, only to verified testers) has to be upgraded before real users
+  verify their phones.
 - **An Apple Developer account** for iPhone push (an APNs key uploaded to
   Firebase) and Sign in with Apple.
 - **Before real data:** versioned migrations, a verified Resend domain, and
@@ -832,7 +876,9 @@ Each is also recorded on its GitHub issue.
   ticket keeps the old refresh token, which would trip the backend's reuse
   detection and log the user out everywhere.
 - **Twilio over Verify** (E02-10), so phone verification stays testable
-  without a live account.
+  without a live account. Reversed in part on 2026-10-20: with
+  `TWILIO_VERIFY_SERVICE_SID` set, Verify is used (a trial account can't
+  send our own texts); without it, the code is still ours.
 - **Social login is a placeholder** (E02-07). The screen exists and is wired
   into the navigator, but no native OAuth is configured.
 
@@ -1121,8 +1167,8 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   net, and only for rows from the last two hours, so old rows aren't mailed
   out when the job first runs.
 - **SMS only for urgent kinds** (reminders, a venue cancelling, a no-show), and only
-  when the user switched it on. Every account has a phone (E02), so the "no
-  phone" refusal (400 `PHONE_REQUIRED`) can't happen from the web today.
+  when the user switched it on. **Removed 2026-10-20**: no text
+  notifications for launch (see "Text messages: phone codes only").
 - **Muting is by group** (confirmed, reminders, cancellations, no-shows,
   reviews, trust); account and venue-approval notices can't be muted.
 - **The existing `PATCH` read endpoints are kept**, and validation errors are

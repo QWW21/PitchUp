@@ -15,7 +15,6 @@ vi.mock('@/lib/prisma', () => ({ prisma: prismaMock }))
 
 const service = vi.hoisted(() => ({
   issueTokens: vi.fn(async () => ({ accessToken: 'at', refreshToken: 'rt' })),
-  sendPhoneOtp: vi.fn(async () => undefined),
 }))
 vi.mock('./service', () => service)
 
@@ -134,7 +133,6 @@ describe('signInWithGoogle', () => {
       emailVerified: true,
     })
     expect(data.passwordHash).toMatch(/^\$2/)
-    expect(service.sendPhoneOtp).toHaveBeenCalledWith('u2', profile.phone)
   })
 
   it('will not take a confirmed account’s phone number', async () => {

@@ -75,6 +75,7 @@ export default defineConfig({
       TWILIO_ACCOUNT_SID: '',
       TWILIO_AUTH_TOKEN: '',
       TWILIO_PHONE_NUMBER: '',
+      TWILIO_VERIFY_SERVICE_SID: '',
       NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: '',
       CLOUDINARY_API_KEY: '',
       CLOUDINARY_API_SECRET: '',
