@@ -12,6 +12,7 @@ import {
   PITCH_DEFAULT_DIMENSIONS,
   PITCH_LIMITS,
   addDays,
+  seasonsOverlap,
   normalizeWeek,
   pitchDayError,
   venueClock,
@@ -20,6 +21,7 @@ import {
   type ManagerPitch,
   type ManagerPitchRow,
   type PitchSize,
+  type CoveredSeasonInput,
 } from '@pitchup/shared'
 import type { z } from 'zod'
 import type {
@@ -235,6 +237,7 @@ export async function getManagerPitch(companyId: string, pitchId: string): Promi
       amenities: { select: { amenityType: true } },
       shirtInventory: { orderBy: { colour: 'asc' }, select: { colour: true, quantity: true } },
       exceptions: { orderBy: { date: 'asc' } },
+      coveredSeasons: { orderBy: { startDate: 'asc' } },
       company: { select: { workingHours: true } },
     },
   })
@@ -264,6 +267,9 @@ export async function getManagerPitch(companyId: string, pitchId: string): Promi
       date: e.date.toISOString().slice(0, 10),
       reason: e.reason,
     })),
+    coveredColdRate: p.coveredColdRate === null ? null : Number(p.coveredColdRate),
+    coveredHotRate: p.coveredHotRate === null ? null : Number(p.coveredHotRate),
+    coveredSeasons: p.coveredSeasons.map(toSeason),
   }
 }
 
@@ -381,17 +387,39 @@ export async function setPricing(
   input: Input<typeof PitchPricingSchema>
 ) {
   const pitch = await ownedPitch(companyId, pitchId)
+  // C-14: a pitch with a season must keep offering some air.
+  const cold = input.coveredColdRate === undefined ? pitch.coveredColdRate : input.coveredColdRate
+  const hot = input.coveredHotRate === undefined ? pitch.coveredHotRate : input.coveredHotRate
+  if (cold === null && hot === null) {
+    const seasons = await prisma.pitchCoveredSeason.count({ where: { pitchId: pitch.id } })
+    if (seasons) throw validationError('api.coveredNeedsAir', { reason: 'COVERED_NEEDS_AIR' })
+  }
   const saved = await prisma.pitch.update({
     where: { id: pitch.id },
-    data: input,
+    data: {
+      hourlyRate: input.hourlyRate,
+      minBookingHours: input.minBookingHours,
+      maxBookingHours: input.maxBookingHours,
+      advanceBookingDays: input.advanceBookingDays,
+      ...(input.coveredColdRate !== undefined ? { coveredColdRate: input.coveredColdRate } : {}),
+      ...(input.coveredHotRate !== undefined ? { coveredHotRate: input.coveredHotRate } : {}),
+    },
     select: {
       hourlyRate: true,
       minBookingHours: true,
       maxBookingHours: true,
       advanceBookingDays: true,
+      coveredColdRate: true,
+      coveredHotRate: true,
     },
   })
-  return { ...saved, hourlyRate: Number(saved.hourlyRate) }
+  const num = (d: Prisma.Decimal | null) => (d === null ? null : Number(d))
+  return {
+    ...saved,
+    hourlyRate: Number(saved.hourlyRate),
+    coveredColdRate: num(saved.coveredColdRate),
+    coveredHotRate: num(saved.coveredHotRate),
+  }
 }
 
 /**
@@ -526,4 +554,56 @@ export async function deleteException(
     throw conflict('api.pastUnblock', { reason: 'PAST' })
   }
   await prisma.pitchException.delete({ where: { id: row.id } })
+}
+
+// ── Covered seasons (C-14) ───────────────────────────────────────────────────
+
+const day = (d: Date) => d.toISOString().slice(0, 10)
+const toSeason = (s: { id: string; startDate: Date; endDate: Date }) => ({
+  id: s.id,
+  startDate: day(s.startDate),
+  endDate: day(s.endDate),
+})
+
+/**
+ * Covers the pitch for a run of days. Needs a covered price first, starts
+ * today or later, and may not overlap another season of the pitch.
+ */
+export async function addCoveredSeason(
+  companyId: string,
+  pitchId: string,
+  input: CoveredSeasonInput,
+  now: Date = new Date()
+) {
+  const pitch = await ownedPitch(companyId, pitchId)
+  if (pitch.coveredColdRate === null && pitch.coveredHotRate === null) {
+    throw validationError('api.coveredNeedsAir', { reason: 'COVERED_NEEDS_AIR' })
+  }
+  if (input.startDate < venueClock(now).date) {
+    throw validationError('api.datePassed', { field: 'startDate' })
+  }
+  return prisma.$transaction(async tx => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'seasons:' + pitch.id}))`
+    const existing = await tx.pitchCoveredSeason.findMany({ where: { pitchId: pitch.id } })
+    if (existing.map(toSeason).some(s => seasonsOverlap(s, input))) {
+      throw conflict('api.seasonOverlap', { reason: 'SEASON_OVERLAP' })
+    }
+    const row = await tx.pitchCoveredSeason.create({
+      data: {
+        pitchId: pitch.id,
+        startDate: new Date(`${input.startDate}T00:00:00Z`),
+        endDate: new Date(`${input.endDate}T00:00:00Z`),
+      },
+    })
+    return toSeason(row)
+  })
+}
+
+/** Removes a season. Bookings on its days keep the price they were made at. */
+export async function deleteCoveredSeason(companyId: string, pitchId: string, seasonId: string) {
+  const pitch = await ownedPitch(companyId, pitchId)
+  const { count } = await prisma.pitchCoveredSeason.deleteMany({
+    where: { id: seasonId, pitchId: pitch.id },
+  })
+  if (!count) throw notFound('api.seasonNotFound')
 }

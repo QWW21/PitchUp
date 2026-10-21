@@ -3,6 +3,7 @@
  */
 import type { AmenityType, PitchSize, ShirtColour, SurfaceType } from '../types'
 import type { DayHours } from '../schedule'
+import type { AirType } from '../covered'
 
 /** A pitch as listed on its company's page. GET /companies/:id. */
 export interface PitchSummary {
@@ -70,8 +71,12 @@ export interface PitchDetail {
   widthMeters: number | null
   lengthMeters: number | null
   isActive: boolean
-  /** RON per hour, the same at any time of day. */
+  /** RON per hour, the same at any time of day; outside covered seasons. */
   hourlyRate: number
+  /** C-14: prices while covered (null = not offered), and the seasons not yet over. */
+  coveredColdRate: number | null
+  coveredHotRate: number | null
+  coveredSeasons: { startDate: string; endDate: string }[]
   minBookingHours: number
   maxBookingHours: number
   advanceBookingDays: number
@@ -118,6 +123,10 @@ export interface PitchAvailability {
   openTime: string | null
   closeTime: string | null
   slots: { time: string; status: SlotStatus }[]
+  /** C-14: the day's price. Covered days list the air on offer, cold first. */
+  covered: boolean
+  hourlyRate: number
+  airOptions: { airType: AirType; hourlyRate: number }[]
 }
 
 /** GET /api/v1/reviews — E04-07. */

@@ -216,7 +216,10 @@ export default async function BookingDetailPage({ params, searchParams }: Props)
         </h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between text-neutral-700">
-            <dt>{t('myBookings.detail.pitchLine', { duration: formatDuration(b.minutes) })}</dt>
+            <dt>
+              {t('myBookings.detail.pitchLine', { duration: formatDuration(b.minutes) })}
+              {b.airType && ` · ${t(`air.${b.airType}`)}`}
+            </dt>
             <dd>{b.total} RON</dd>
           </div>
           {b.shirtSets > 0 && (

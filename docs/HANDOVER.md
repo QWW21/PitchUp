@@ -933,6 +933,38 @@ Schema: `BookingStatus.AWAITING_APPROVAL`, three notification types,
 `refundPartialPercent`, `pendingChanges`, `changesSubmittedAt`,
 `changesRejectionReason`, `Booking.refundPolicy`, `Booking.approvalDeadline`.
 
+### C-14 Covered season (winter dome, cold or hot air)
+
+Plan: `docs/PLAN_COVERED_SEASON_AND_SUBSCRIPTIONS.md` (part A).
+
+- Without a dome a pitch keeps **one price all year** (`Pitch.hourlyRate`).
+- A venue may cover a pitch for **date ranges** (`PitchCoveredSeason`,
+  first and last day included, on the venue's calendar; at most 200 days,
+  no overlaps, starting today or later). While covered it offers **cold
+  air, hot air or both**, each at its own **full** hourly price
+  (`Pitch.coveredColdRate`, `coveredHotRate`; null = not offered). A season
+  needs at least one of them, and the last one cannot be removed while a
+  season exists (`COVERED_NEEDS_AIR`).
+- **The booking's date decides the price**, not hour by hour. Cold air is
+  the default; the player picks only when both are offered. The rate and
+  the air are **snapshotted** on the booking (`pitchRateSnapshot`,
+  `Booking.airType`): changing rates or seasons never reprices a booking.
+- Rules in `packages/shared/src/covered.ts` (`isCoveredOn`, `airOptionsOn`,
+  `rateFor`). The availability response carries the day's `covered`,
+  `hourlyRate` and `airOptions`, so neither client repeats the rules.
+- Managers set it on the pitch's Pricing tab (web only): the air prices save
+  with the rest, the dates save at once, like blocked dates. Discover's
+  "price from" stays the lowest uncovered rate.
+- Seed: Bună Ziua's Teren 1 (cold 180, hot 220) and Sopor's Teren A (cold
+  240 only), covered from 1 November (or today, in winter) to 31 March.
+
+New endpoints: `POST /pitches/:id/covered-seasons`, `DELETE
+/pitches/:id/covered-seasons/:seasonId`; `PUT /pitches/:id/pricing` takes
+`coveredColdRate`, `coveredHotRate`; `POST /bookings` takes `airType`
+(400 `AIR_NOT_OFFERED` when that air isn't offered that day). Schema: `enum
+AirType`, `PitchCoveredSeason`, the two `Pitch` rates, `Booking.airType`
+(all nullable or new: `prisma db push`, no data migration).
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.

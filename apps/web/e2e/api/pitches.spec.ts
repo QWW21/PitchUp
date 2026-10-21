@@ -252,8 +252,16 @@ test.describe('status, pricing, amenities (E10-03, E10-05)', () => {
     )
     // Half-hour limits: from 1h 30 to 2h 30.
     const halves = { ...pricing, minBookingHours: 1.5, maxBookingHours: 2.5 }
-    expect((await put(v.ctx, `/pitches/${id}/pricing`, halves)).data).toEqual(halves)
-    expect((await put(v.ctx, `/pitches/${id}/pricing`, pricing)).data).toEqual(pricing)
+    // No covered season here (C-14): its prices come back empty.
+    const uncovered = { coveredColdRate: null, coveredHotRate: null }
+    expect((await put(v.ctx, `/pitches/${id}/pricing`, halves)).data).toEqual({
+      ...halves,
+      ...uncovered,
+    })
+    expect((await put(v.ctx, `/pitches/${id}/pricing`, pricing)).data).toEqual({
+      ...pricing,
+      ...uncovered,
+    })
 
     expect((await put(v.ctx, `/pitches/${id}/amenities`, { amenities: ['SAUNA'] })).status).toBe(
       400
@@ -414,6 +422,138 @@ test.describe('hours and blocked dates (E10-04)', () => {
     const bookedDay = venueClock(b.startTime).date
     const refused = await post(v.ctx, `/pitches/${id}/exceptions`, { date: bookedDay })
     expect(refused.error?.details).toEqual({ reason: 'HAS_BOOKINGS', bookingIds: [b.id] })
+  })
+})
+
+test.describe('covered season (C-14)', () => {
+  test('cold and hot air priced by the booking date, kept on the booking', async () => {
+    const v = await newVenue()
+    const id = await livePitch(v.ctx)
+    const pricing = {
+      hourlyRate: 100,
+      minBookingHours: 1,
+      maxBookingHours: 4,
+      advanceBookingDays: 60,
+    }
+    const first = openDay(10)
+    const season = { startDate: first, endDate: addDays(first, 20) }
+    const seasons = `/pitches/${id}/covered-seasons`
+
+    // A season needs a covered price first.
+    const noAir = await post(v.ctx, seasons, season)
+    expect(noAir.status).toBe(400)
+    expect(noAir.error?.details).toMatchObject({ reason: 'COVERED_NEEDS_AIR' })
+
+    expect(
+      (
+        await put(v.ctx, `/pitches/${id}/pricing`, {
+          ...pricing,
+          coveredColdRate: 130,
+          coveredHotRate: 160,
+        })
+      ).status
+    ).toBe(200)
+    const added = await post<{ id: string }>(v.ctx, seasons, season)
+    expect(added.status).toBe(201)
+    expect(added.data).toMatchObject(season)
+
+    // Overlaps, past starts and an end before the start are refused.
+    const overlap = await post(v.ctx, seasons, {
+      startDate: addDays(first, 20),
+      endDate: addDays(first, 25),
+    })
+    expect(overlap.status).toBe(409)
+    expect(overlap.error?.details).toMatchObject({ reason: 'SEASON_OVERLAP' })
+    expect(
+      (await post(v.ctx, seasons, { startDate: addDays(today, -1), endDate: today })).status
+    ).toBe(400)
+    expect(
+      (await post(v.ctx, seasons, { startDate: addDays(first, 40), endDate: addDays(first, 30) }))
+        .status
+    ).toBe(400)
+    // With a season, some air must stay on offer.
+    const noneLeft = await put(v.ctx, `/pitches/${id}/pricing`, {
+      ...pricing,
+      coveredColdRate: null,
+      coveredHotRate: null,
+    })
+    expect(noneLeft.error?.details).toMatchObject({ reason: 'COVERED_NEEDS_AIR' })
+
+    const editor = (await get<ManagerPitch>(v.ctx, `/manager/pitches/${id}`)).data!
+    expect(editor).toMatchObject({
+      coveredColdRate: 130,
+      coveredHotRate: 160,
+      coveredSeasons: [season],
+    })
+
+    // The availability says the day's price.
+    const before = (
+      await get<PitchAvailability>(v.ctx, `/pitches/${id}/availability?date=${openDay(1)}`)
+    ).data!
+    expect(before).toMatchObject({ covered: false, hourlyRate: 100, airOptions: [] })
+    const covered = (
+      await get<PitchAvailability>(v.ctx, `/pitches/${id}/availability?date=${first}`)
+    ).data!
+    expect(covered).toMatchObject({
+      covered: true,
+      hourlyRate: 130,
+      airOptions: [
+        { airType: 'COLD', hourlyRate: 130 },
+        { airType: 'HOT', hourlyRate: 160 },
+      ],
+    })
+
+    const playerEmail = uniqueEmail('pitchmgr-player')
+    await createPlayer(playerEmail)
+    const player = await context(playerEmail, 'Testing123')
+    const book = (date: string, startTime: string, airType?: string) =>
+      post<{ bookingId: string; total: number }>(player, '/bookings', {
+        pitchId: id,
+        date,
+        startTime,
+        endTime: `${Number(startTime.slice(0, 2)) + 2}:00`,
+        teamCount: 2,
+        teamsData: [{}, {}],
+        ...(airType ? { airType } : {}),
+      })
+
+    const hot = await book(first, '10:00', 'HOT')
+    expect(hot.status).toBe(201)
+    expect(hot.data!.total).toBe(320)
+    const cold = await book(first, '14:00')
+    expect(cold.data!.total).toBe(260)
+    expect(
+      (await db.booking.findUniqueOrThrow({ where: { id: cold.data!.bookingId } })).airType
+    ).toBe('COLD')
+    const plain = await book(openDay(1), '10:00')
+    expect(plain.data!.total).toBe(200)
+    expect(
+      (await db.booking.findUniqueOrThrow({ where: { id: plain.data!.bookingId } })).airType
+    ).toBeNull()
+
+    // New prices never reprice a booking already made.
+    await put(v.ctx, `/pitches/${id}/pricing`, {
+      ...pricing,
+      coveredColdRate: 130,
+      coveredHotRate: null,
+    })
+    const kept = await get<{ total: number; airType: string }>(
+      player,
+      `/bookings/${hot.data!.bookingId}`
+    )
+    expect(kept.data).toMatchObject({ total: 320, airType: 'HOT' })
+
+    // Cold only now: hot air is refused.
+    const refused = await book(first, '18:00', 'HOT')
+    expect(refused.status).toBe(400)
+    expect(refused.error?.details).toMatchObject({ reason: 'AIR_NOT_OFFERED' })
+
+    // Removing the season makes the days uncovered again.
+    expect((await del(v.ctx, `${seasons}/${added.data!.id}`)).status).toBe(200)
+    expect((await del(v.ctx, `${seasons}/${added.data!.id}`)).status).toBe(404)
+    const after = (await get<PitchAvailability>(v.ctx, `/pitches/${id}/availability?date=${first}`))
+      .data!
+    expect(after).toMatchObject({ covered: false, hourlyRate: 100 })
   })
 })
 

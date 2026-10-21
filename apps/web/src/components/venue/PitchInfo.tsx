@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import {
   ALL_AMENITIES,
+  formatDayMonth,
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
@@ -74,16 +75,26 @@ export function AmenitiesGrid({ amenities }: { amenities: PitchDetail['amenities
   )
 }
 
-/** One hourly rate at any time of day; shirts are free. */
+/** One hourly rate at any time of day, others while covered (C-14); shirts are free. */
 export function PricingCard({ pitch }: { pitch: PitchDetail }) {
   const t = useT()
   const locale = useLocale()
   const colours = formatShirtColours(pitch.shirtInventory, locale)
+  // C-14: the covered prices, for the seasons not over yet.
+  const airs = (
+    [
+      ['COLD', pitch.coveredColdRate],
+      ['HOT', pitch.coveredHotRate],
+    ] as const
+  ).filter((a): a is readonly ['COLD' | 'HOT', number] => typeof a[1] === 'number')
+  const seasons = airs.length ? pitch.coveredSeasons : []
   return (
     <div className="rounded-lg bg-neutral-50 p-3">
       <dl>
         <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-xs text-neutral-500">{t('venue.pricing.anyTime')}</dt>
+          <dt className="text-xs text-neutral-500">
+            {t(seasons.length ? 'venue.pricing.uncovered' : 'venue.pricing.anyTime')}
+          </dt>
           <dd className="font-mono text-xl font-bold text-neutral-900">
             {pitch.hourlyRate} RON
             <span className="font-sans text-sm font-normal text-neutral-500">
@@ -91,6 +102,28 @@ export function PricingCard({ pitch }: { pitch: PitchDetail }) {
             </span>
           </dd>
         </div>
+        {seasons.map(s => (
+          <div key={s.startDate} className="border-t border-neutral-200 py-2">
+            <dt className="text-xs text-neutral-500">
+              {t('venue.pricing.coveredSeason', {
+                covered: t('covered'),
+                from: formatDayMonth(s.startDate, locale),
+                to: formatDayMonth(s.endDate, locale),
+              })}
+            </dt>
+            {airs.map(([air, rate]) => (
+              <dd key={air} className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-neutral-700">{t(`air.${air}`)}</span>
+                <span className="font-mono font-semibold text-neutral-900">
+                  {rate} RON
+                  <span className="font-sans text-sm font-normal text-neutral-500">
+                    {t('venue.pricing.perHour')}
+                  </span>
+                </span>
+              </dd>
+            ))}
+          </div>
+        ))}
       </dl>
       <p className="mt-2 text-xs text-neutral-500">
         {t('venue.pricing.limits', {

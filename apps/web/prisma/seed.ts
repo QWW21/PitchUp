@@ -860,6 +860,43 @@ async function seedDetailFixtures(): Promise<void> {
   console.log(`✓ Pitch detail fixtures seeded (${photos} new photos)`)
 }
 
+/**
+ * C-14: two pitches covered this winter (1 Nov to 31 Mar), one with cold and
+ * hot air, one with cold air only, so demos and E2E show both cases.
+ */
+async function seedCoveredFixtures(): Promise<void> {
+  const today = venueClock(new Date()).date
+  const [year, month] = today.split('-').map(Number) as [number, number]
+  // Inside a winter already: from today to its 31 March.
+  const start = month <= 3 || month >= 11 ? today : `${year}-11-01`
+  const end = `${month <= 3 ? year : year + 1}-03-31`
+  const fixtures = [
+    { slug: 'buna-ziua', cold: 180, hot: 220 },
+    { slug: 'sopor', cold: 240, hot: null },
+  ]
+  for (const f of fixtures) {
+    const pitch = await prisma.pitch.findFirst({
+      where: { company: { owner: { email: `venue-${f.slug}@demo.ro` } } },
+      include: { coveredSeasons: true },
+    })
+    if (!pitch || pitch.coveredSeasons.length) continue
+    await prisma.pitch.update({
+      where: { id: pitch.id },
+      data: {
+        coveredColdRate: f.cold,
+        coveredHotRate: f.hot,
+        coveredSeasons: {
+          create: {
+            startDate: new Date(`${start}T00:00:00Z`),
+            endDate: new Date(`${end}T00:00:00Z`),
+          },
+        },
+      },
+    })
+  }
+  console.log('✓ Covered-season fixtures seeded')
+}
+
 async function main(): Promise<void> {
   console.log('Seeding database…')
   await seedCities()
@@ -867,6 +904,7 @@ async function main(): Promise<void> {
   await seedDevFixtures()
   await seedDiscoverFixtures()
   await seedDetailFixtures()
+  await seedCoveredFixtures()
   console.log('Seed complete.')
 }
 

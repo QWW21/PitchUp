@@ -125,7 +125,17 @@ export const PitchAmenitiesSchema = z.object({
 const oneOf = <T extends readonly number[]>(values: T, message: string) =>
   z.number().refine(v => (values as readonly number[]).includes(v), message)
 
-/** PUT /pitches/:id/pricing — one hourly rate (C-2) and the booking limits. */
+const coveredRate = z
+  .number({ invalid_type_error: 'v.enterPrice' })
+  .min(1, 'v.priceAboveZero')
+  .max(9999, 'v.max9999')
+  .nullable()
+  .optional()
+
+/**
+ * PUT /pitches/:id/pricing — one hourly rate (C-2), the covered prices
+ * (C-14) and the booking limits. Covered rates left out stay as they are.
+ */
 export const PitchPricingSchema = z
   .object({
     hourlyRate: z
@@ -135,6 +145,9 @@ export const PitchPricingSchema = z
     minBookingHours: oneOf(PRICING_OPTIONS.MIN_BOOKING_HOURS, 'v.minBookingChoice'),
     maxBookingHours: oneOf(PRICING_OPTIONS.MAX_BOOKING_HOURS, 'v.maxBookingChoice'),
     advanceBookingDays: oneOf(PRICING_OPTIONS.ADVANCE_BOOKING_DAYS, 'v.advanceChoice'),
+    /** C-14: full hourly prices while covered; null = that air is not offered. */
+    coveredColdRate: coveredRate,
+    coveredHotRate: coveredRate,
   })
   .refine(d => d.minBookingHours <= d.maxBookingHours, {
     message: 'v.shortestLongest',
@@ -270,4 +283,8 @@ export interface ManagerPitch {
   workingHours: DayHours[] | null
   venueHours: DayHours[]
   exceptions: { id: string; date: string; reason: string | null }[]
+  /** C-14: prices while covered, and the covered days. */
+  coveredColdRate: number | null
+  coveredHotRate: number | null
+  coveredSeasons: { id: string; startDate: string; endDate: string }[]
 }

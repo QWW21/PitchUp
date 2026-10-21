@@ -20,7 +20,7 @@ import {
 } from '@pitchup/shared'
 import { Button } from '@/components/ui/Button'
 import { useT } from '@/i18n/client'
-import { stepPath, useBooking } from './draft'
+import { draftRate, stepPath, useBooking } from './draft'
 
 const TEAMS = [0, 1, 2] as const
 
@@ -39,7 +39,7 @@ export function TeamsStep() {
   const stock = pitch.shirtStock.filter(s => s.quantity > 0)
   const totalSets = stock.reduce((n, s) => n + s.quantity, 0)
   const enoughShirts = totalSets >= shirtSetsFor(teams, true)
-  const price = bookingPrice(pitch.hourlyRate, draft.minutes)
+  const price = bookingPrice(draftRate(pitch, draft), draft.minutes)
   const teamName = (i: number) => t(`booking.teams.team.${i as 0 | 1 | 2}`)
 
   const setPlayers = (team: number, value: number) => {
@@ -236,7 +236,7 @@ export function TeamsStep() {
           <span>
             {t('booking.teams.pitchLine', {
               duration: formatDuration(draft.minutes),
-              rate: pitch.hourlyRate,
+              rate: draftRate(pitch, draft),
             })}
           </span>
           <span>{price.total} RON</span>

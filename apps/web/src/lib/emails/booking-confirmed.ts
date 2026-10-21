@@ -21,6 +21,7 @@ export function renderBookingConfirmedEmail(b: BookingDetail, locale: Locale): V
     t('email.bookingConfirmed.pitchAt', { pitch: b.pitch.name, company: b.company.name }),
     `${b.company.address}, ${b.company.city}`,
     when,
+    ...(b.airType ? [t(`air.${b.airType}`)] : []),
     t('email.bookingConfirmed.teams', { count: b.teamCount }),
     ...(b.shirtSets > 0 ? [t('email.bookingConfirmed.shirts', { count: b.shirtSets })] : []),
     b.paymentMethod === 'ONLINE'

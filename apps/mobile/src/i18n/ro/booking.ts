@@ -36,6 +36,10 @@ export const bookingRo: CatalogShape<typeof bookingEn> = {
     howLong: 'Cât timp?',
     noFit: ', nu încape',
     choose: 'Alege cât joci, apoi ora de început',
+    coveredDay: '{covered} în această zi · {air} · {rate} RON/oră',
+    airHeading: 'Aer rece sau cald?',
+    airHint: 'Terenul este acoperit în această zi. Prețul pe oră depinde de aer.',
+    airOption: '{air} · {rate} RON/h',
   },
   teams: {
     names: { 0: 'Echipa A', 1: 'Echipa B', 2: 'Echipa C' },

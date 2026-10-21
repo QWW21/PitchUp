@@ -1521,6 +1521,26 @@ stores; verifying OIDC ID tokens (JWKS, `aud`, `iss`); account linking by
 verified email and its risks; push token lifecycles; which "config" is
 secret.
 
+## 30a. Seasonal prices as data (C-14)
+
+A covered pitch has up to three prices: the all-year rate, and cold or hot
+air while a dome is up. The dome is not a switch but a list of date ranges
+per pitch. Bookings are made weeks ahead, so the price of a future date has
+to be known when it is shown; a switch flipped in November would change the
+price of bookings already quoted. Ranges also allow two winters at once.
+
+The date of the booking (the venue's calendar day of its start) picks the
+price; a booking is never split across two prices. The rules are three pure
+functions in `packages/shared/src/covered.ts`, and the server answers the
+question for the clients: the availability for a day carries `covered`, the
+day's `hourlyRate` and the `airOptions` with their prices. The web and the
+app only draw what they are told, and send back the `airType` chosen.
+
+As with the refund policy (C-10), what was agreed is copied onto the
+booking: `pitchRateSnapshot` holds the rate actually used and `airType` the
+air. Totals, deposits, refunds and payouts already read the booking, never
+the pitch, so nothing downstream needed to change.
+
 ## 30. Two languages without a framework (i18n)
 
 ### A catalog is a typed object

@@ -13,6 +13,8 @@ export const venueRo: CatalogShape<typeof venueEn> = {
   amenity: { available: 'disponibil', unavailable: 'indisponibil' },
   pricing: {
     anyTime: 'Oricând',
+    uncovered: 'Neacoperit, oricând',
+    coveredSeason: '{covered}, {from} – {to}',
     perHour: '/h',
     limits: 'Min. {min} · Max. {max} · Se plătește la 30 de minute',
     freeShirts: 'Tricouri gratuite',

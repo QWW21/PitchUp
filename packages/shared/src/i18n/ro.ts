@@ -64,6 +64,8 @@ export const ro: CatalogShape<typeof en> = {
     open24: 'Deschis non-stop',
   },
   dayPeriod: { Morning: 'Dimineața', Afternoon: 'După-amiaza', Evening: 'Seara' },
+  air: { COLD: 'Aer rece', HOT: 'Aer cald' },
+  covered: 'Acoperit (balon)',
   amenity: {
     SHOWERS_FREE: 'Dușuri (gratuite)',
     SHOWERS_PAID: 'Dușuri (cu plată)',
@@ -295,6 +297,7 @@ export const ro: CatalogShape<typeof en> = {
       'Returnarea parțială trebuie să se încheie după cea integrală (cu mai puține ore înainte de meci)',
     shortestLongest: 'Cea mai scurtă rezervare nu poate fi mai lungă decât cea mai lungă',
     startAfterEnd: 'Data de început este după data de sfârșit',
+    seasonTooLong: 'Un sezon are cel mult 200 de zile',
     type2chars: 'Scrie cel puțin 2 caractere',
     type2letters: 'Scrie cel puțin 2 litere',
     useIsoDate: 'Folosește AAAA-LL-ZZ',

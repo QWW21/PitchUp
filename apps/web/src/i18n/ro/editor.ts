@@ -65,6 +65,24 @@ export const editorRo: CatalogShape<typeof editorEn> = {
     total: '{n} RON',
     enterRate: 'Introdu un tarif pe oră ca să vezi cât costă o rezervare.',
     save: 'Salvează prețurile',
+    covered: 'Sezon acoperit (balon de iarnă)',
+    coveredHint:
+      'Cât timp terenul e acoperit, aceste prețuri întregi înlocuiesc tariful pe oră. Oferă aer rece, aer cald sau ambele; aerul rece e implicit când le oferi pe amândouă.',
+    coveredPreview: 'Acoperit, {air}: {total} RON pentru {duration}.',
+    seasons: 'Zile acoperite',
+    seasonsHint:
+      'Zilele în care balonul e montat, inclusiv prima și ultima. Rezervările din aceste zile folosesc prețurile de acoperit; rezervările deja făcute își păstrează prețul. Se salvează imediat.',
+    seasonsNeedAir:
+      'Oferă aer rece sau cald mai sus și salvează, înainte de a adăuga zile acoperite.',
+    from: 'De la',
+    to: 'Până la',
+    chooseDates: 'Alege prima și ultima zi',
+    add: 'Adaugă',
+    adding: 'Se adaugă…',
+    noSeasons: 'Nicio zi acoperită.',
+    removeSeason: 'Șterge {from} – {to}',
+    airRate: 'Preț pe oră pentru {air}',
+    seasonRange: '{from} – {to}',
   },
   amenities: {
     legend: 'Ce găsesc jucătorii la acest teren',

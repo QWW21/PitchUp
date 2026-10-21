@@ -7,6 +7,7 @@ import { create } from 'zustand'
 import {
   BOOKING,
   PLAYERS_FOR_SIZE,
+  type AirType,
   type BookingPaymentMethod,
   type PitchSize,
   type ShirtColour,
@@ -31,6 +32,10 @@ interface BookingState {
   startTime: string | null
   endTime: string | null
   minutes: number
+  /** C-14: the air chosen on a covered day; null when uncovered. */
+  airType: AirType | null
+  /** The hourly rate on that day (and air), from the availability. */
+  rate: number | null
   teamCount: 2 | 3
   players: number[]
   wantsShirts: boolean
@@ -39,7 +44,12 @@ interface BookingState {
   note: string
   start: (pitch: BookingPitch, date?: string) => void
   setDate: (date: string) => void
-  setTime: (startTime: string, endTime: string, minutes: number) => void
+  setTime: (
+    startTime: string,
+    endTime: string,
+    minutes: number,
+    price?: { airType: AirType | null; rate: number }
+  ) => void
   setTeamCount: (count: 2 | 3) => void
   setPlayers: (team: number, count: number) => void
   setWantsShirts: (wants: boolean) => void
@@ -54,6 +64,8 @@ const empty = {
   startTime: null,
   endTime: null,
   minutes: 0,
+  airType: null,
+  rate: null,
   teamCount: 2 as const,
   players: [5, 5, 5],
   wantsShirts: false,
@@ -69,8 +81,19 @@ export const useBookingStore = create<BookingState>(set => ({
   },
   // A new date clears the time chosen for the old one.
   setDate: date =>
-    set(s => (s.date === date ? {} : { date, startTime: null, endTime: null, minutes: 0 })),
-  setTime: (startTime, endTime, minutes) => set({ startTime, endTime, minutes }),
+    set(s =>
+      s.date === date
+        ? {}
+        : { date, startTime: null, endTime: null, minutes: 0, airType: null, rate: null }
+    ),
+  setTime: (startTime, endTime, minutes, price) =>
+    set({
+      startTime,
+      endTime,
+      minutes,
+      airType: price?.airType ?? null,
+      rate: price?.rate ?? null,
+    }),
   // A team that no longer exists has no shirts to borrow.
   setTeamCount: teamCount =>
     set(s => ({
@@ -114,5 +137,10 @@ export function bookingBody(
     wantsShirts: s.wantsShirts,
     ...(s.note.trim() ? { noteToManager: s.note.trim() } : {}),
     ...(paymentMethodId ? { paymentMethodId } : {}),
+    ...(s.airType ? { airType: s.airType } : {}),
   }
 }
+
+/** The hourly rate the booking is priced at: the chosen day's, else the pitch's. */
+export const bookingRate = (s: Pick<BookingState, 'rate' | 'pitch'>): number =>
+  s.rate ?? s.pitch!.hourlyRate

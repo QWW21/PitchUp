@@ -11,6 +11,8 @@ import 'server-only'
 import {
   BOOKING,
   addDays,
+  airOptionsOn,
+  rateFor,
   fromMinutes,
   intersectIntervals,
   normalizeWeek,
@@ -18,9 +20,11 @@ import {
   venueClock,
   venueTimeToUtc,
   type CalendarDay,
+  type CoveredPricing,
   type DayHours,
   type PitchAvailability,
 } from '@pitchup/shared'
+import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { notFound, validationError } from '@/lib/api/errors'
 import { liveBookingWhere } from '@/lib/bookings/live'
@@ -124,6 +128,47 @@ function bookingsBetween(pitchId: string, from: string, toExclusive: string, now
   })
 }
 
+/** A pitch's rates and covered seasons (C-14), from a row that includes them. */
+export function coveredPricingOf(p: {
+  hourlyRate: Prisma.Decimal
+  coveredColdRate: Prisma.Decimal | null
+  coveredHotRate: Prisma.Decimal | null
+  coveredSeasons: { startDate: Date; endDate: Date }[]
+}): CoveredPricing {
+  const day = (d: Date) => d.toISOString().slice(0, 10)
+  return {
+    hourlyRate: Number(p.hourlyRate),
+    coveredColdRate: p.coveredColdRate === null ? null : Number(p.coveredColdRate),
+    coveredHotRate: p.coveredHotRate === null ? null : Number(p.coveredHotRate),
+    seasons: p.coveredSeasons.map(s => ({ startDate: day(s.startDate), endDate: day(s.endDate) })),
+  }
+}
+
+export const coveredPricingSelect = {
+  hourlyRate: true,
+  coveredColdRate: true,
+  coveredHotRate: true,
+  coveredSeasons: { select: { startDate: true, endDate: true } },
+} as const
+
+/** The day's price: the all-year rate, or the air on offer while covered. */
+async function dayPrice(pitchId: string, date: string) {
+  const row = await prisma.pitch.findUniqueOrThrow({
+    where: { id: pitchId },
+    select: coveredPricingSelect,
+  })
+  const pricing = coveredPricingOf(row)
+  const airOptions = airOptionsOn(pricing, date).map(airType => ({
+    airType,
+    hourlyRate: rateFor(pricing, date, airType)!.rate,
+  }))
+  return {
+    covered: airOptions.length > 0,
+    hourlyRate: airOptions[0]?.hourlyRate ?? pricing.hourlyRate,
+    airOptions,
+  }
+}
+
 function checkBookableDate(schedule: PitchSchedule, date: string, now: Date) {
   // "Today" is the venue's today, not the server's.
   const today = venueClock(now).date
@@ -141,9 +186,13 @@ export async function getAvailability(
   const schedule = await loadSchedule(pitchId)
   checkBookableDate(schedule, date, now)
 
-  const intervals = dayIntervals(schedule, date, await exceptionDates(pitchId, date, date))
+  const [exceptions, price] = await Promise.all([
+    exceptionDates(pitchId, date, date),
+    dayPrice(pitchId, date),
+  ])
+  const intervals = dayIntervals(schedule, date, exceptions)
   if (!intervals.length) {
-    return { date, pitchId, isClosed: true, openTime: null, closeTime: null, slots: [] }
+    return { date, pitchId, isClosed: true, openTime: null, closeTime: null, slots: [], ...price }
   }
 
   // Includes a booking that started the evening before.
@@ -158,6 +207,7 @@ export async function getAvailability(
     // 24:00 is written as such rather than wrapping to 00:00.
     closeTime: last[1] === 24 * 60 ? '24:00' : fromMinutes(last[1]),
     slots: slotsFor(date, intervals, bookings, now),
+    ...price,
   }
 }
 

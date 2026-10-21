@@ -127,6 +127,23 @@ test('from no pitches to a live one: every tab of the editor', async ({ page }, 
   await page.getByRole('button', { name: 'Save pricing' }).click()
   await expect(page.getByRole('status')).toHaveText('Saved.')
 
+  // Covered season (C-14): the prices first, then the dates.
+  await expect(page.getByText(/before adding covered dates/)).toBeVisible()
+  await page.getByRole('checkbox', { name: 'Cold air' }).check()
+  await page.getByLabel('Cold air price per hour').fill('170')
+  await page.getByRole('checkbox', { name: 'Hot air' }).check()
+  await page.getByLabel('Hot air price per hour').fill('210')
+  await expect(page.getByText('Covered, hot air: 420 RON for 2h.')).toBeVisible()
+  await page.getByRole('button', { name: 'Save pricing' }).click()
+  await expect(page.getByRole('status')).toHaveText('Saved.')
+  const today = venueClock(new Date()).date
+  await page.getByLabel('From', { exact: true }).fill(addDays(today, 10))
+  await page.getByLabel('To', { exact: true }).fill(addDays(today, 40))
+  await page.getByRole('button', { name: 'Add', exact: true }).click()
+  await expect(page.getByRole('button', { name: /^Remove / })).toBeVisible()
+  await snap(page, info, AREA, '04b-covered-season', { fullPage: true })
+  await audit(page)
+
   // Shirts (E10-09, C-1).
   await page.getByRole('link', { name: 'Shirts' }).click()
   await page.getByRole('switch', { name: 'Lend shirts' }).click()

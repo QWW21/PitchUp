@@ -40,6 +40,15 @@ export function formatDateLong(date: string, locale: Locale): string {
   )
 }
 
+/** "5 Nov" · "5 nov.": a short day and month, for date ranges. */
+export function formatDayMonth(date: string, locale: Locale): string {
+  const t = sharedT(locale)
+  return t('date.dayMonth', {
+    day: Number(date.slice(8, 10)),
+    month: t(`month.short.${Number(date.slice(5, 7))}` as 'month.short.1'),
+  })
+}
+
 /** "October 2026" · "Octombrie 2026", from any YYYY-MM-DD in that month. */
 export function formatMonth(date: string, locale: Locale): string {
   const t = sharedT(locale)

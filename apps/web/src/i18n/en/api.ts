@@ -148,4 +148,8 @@ export const apiEn = {
     other: 'This pitch has {count} upcoming bookings. Cancel them first.',
   },
   bookingLength: 'This pitch is booked for {min} to {max} at a time',
+  airNotOffered: 'That air is not offered on this day',
+  coveredNeedsAir: 'Set a price for cold air, hot air or both before adding a season',
+  seasonOverlap: 'This season overlaps another one',
+  seasonNotFound: 'Season not found',
 } as const

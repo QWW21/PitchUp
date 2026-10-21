@@ -18,6 +18,7 @@ import {
   rangeFrom,
   rangeTimes,
   startOptions,
+  type AirType,
   type DayPeriod,
   type PitchAvailability,
 } from '@pitchup/shared'
@@ -50,6 +51,7 @@ export function TimeStep() {
   const router = useRouter()
   const [minutes, setMinutes] = useState<number | null>(null)
   const [startTime, setStartTime] = useState<string | null>(null)
+  const [pickedAir, setAir] = useState<AirType | null>(null)
 
   useEffect(() => {
     if (ready && !draft.date) router.replace(stepPath(pitch.id, 'date'))
@@ -62,6 +64,11 @@ export function TimeStep() {
     staleTime: 0,
   })
   const slots = day.data?.slots ?? []
+  // C-14: on a covered day, the air on offer; cold first and by default.
+  const airOptions = day.data?.airOptions ?? []
+  const air =
+    airOptions.find(o => o.airType === (pickedAir ?? draft.airType)) ?? airOptions[0] ?? null
+  const rate = air?.hourlyRate ?? day.data?.hourlyRate ?? pitch.hourlyRate
   const minMinutes = pitch.minBookingHours * 60
   const maxMinutes = pitch.maxBookingHours * 60
   const durations = durationChoices(slots, minMinutes, maxMinutes)
@@ -97,11 +104,17 @@ export function TimeStep() {
 
   const chosen =
     startIndex >= 0 && minutes !== null ? rangeTimes(slots, rangeFrom(startIndex, minutes)) : null
-  const price = chosen ? bookingPrice(pitch.hourlyRate, chosen.minutes) : null
+  const price = chosen ? bookingPrice(rate, chosen.minutes) : null
 
   const next = () => {
     if (!chosen) return
-    update({ startTime: chosen.startTime, endTime: chosen.endTime, minutes: chosen.minutes })
+    update({
+      startTime: chosen.startTime,
+      endTime: chosen.endTime,
+      minutes: chosen.minutes,
+      airType: air?.airType,
+      rate,
+    })
     router.push(stepPath(pitch.id, 'teams'))
   }
 
@@ -141,6 +154,39 @@ export function TimeStep() {
 
       {day.isSuccess && !noneFree && (
         <>
+          {airOptions.length === 1 && air && (
+            <p className="mt-4 rounded-lg bg-primary-50 p-3 text-sm text-primary-900">
+              {t('booking.time.coveredDay', {
+                covered: t('covered'),
+                air: t(`air.${air.airType}`),
+                rate: air.hourlyRate,
+              })}
+            </p>
+          )}
+          {airOptions.length > 1 && (
+            <section aria-labelledby="air-heading" className="mt-5">
+              <h2 id="air-heading" className="text-base font-semibold text-neutral-900">
+                {t('booking.time.airHeading')}
+              </h2>
+              <p className="mt-1 text-sm text-neutral-500">{t('booking.time.airHint')}</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {airOptions.map(o => (
+                  <button
+                    key={o.airType}
+                    type="button"
+                    aria-pressed={air?.airType === o.airType}
+                    onClick={() => setAir(o.airType)}
+                    className={chip(air?.airType === o.airType)}
+                  >
+                    {t('booking.time.airOption', {
+                      air: t(`air.${o.airType}`),
+                      rate: o.hourlyRate,
+                    })}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
           <section aria-labelledby="duration-heading" className="mt-5">
             <h2 id="duration-heading" className="text-base font-semibold text-neutral-900">
               {t('booking.time.howLong')}

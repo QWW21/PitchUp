@@ -131,7 +131,9 @@ export default async function ManagerBookingPage({ params }: { params: Promise<{
             {t('mBookings.detail.payment')}
           </h2>
           <dl className="mt-3 space-y-1.5 text-sm">
-            <Row label={t('mBookings.detail.price')}>{b.total} RON</Row>
+            <Row label={t('mBookings.detail.price')}>
+              {b.total} RON{b.airType && ` · ${t(`air.${b.airType}`)}`}
+            </Row>
             <Row label={t('mBookings.detail.commission')}>{b.platformFee} RON</Row>
             <Row label={t('mBookings.detail.receive')}>
               <strong>{b.venuePayout} RON</strong>

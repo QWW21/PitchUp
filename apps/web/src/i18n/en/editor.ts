@@ -60,6 +60,23 @@ export const editorEn = {
     total: '{n} RON',
     enterRate: 'Enter an hourly rate to see what a booking costs.',
     save: 'Save pricing',
+    covered: 'Covered season (winter dome)',
+    coveredHint:
+      'While the pitch is covered, these full prices replace the hourly rate. Offer cold air, hot air or both; cold air is the default when you offer both.',
+    coveredPreview: 'Covered, {air}: {total} RON for {duration}.',
+    seasons: 'Covered dates',
+    seasonsHint:
+      'The days the dome is up, first and last included. Bookings on these days use the covered prices; bookings already made keep theirs. Saved straight away.',
+    seasonsNeedAir: 'Offer cold or hot air above, and save, before adding covered dates.',
+    from: 'From',
+    to: 'To',
+    chooseDates: 'Choose the first and the last day',
+    add: 'Add',
+    adding: 'Adding…',
+    noSeasons: 'No covered dates.',
+    removeSeason: 'Remove {from} to {to}',
+    airRate: '{air} price per hour',
+    seasonRange: '{from} to {to}',
   },
   amenities: {
     legend: 'What players get at this pitch',

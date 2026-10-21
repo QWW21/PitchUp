@@ -37,7 +37,7 @@ import {
 } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
 import { ApiError } from '../../lib/apiClient'
-import { bookingBody, useBookingStore } from '../../stores/bookingStore'
+import { bookingBody, bookingRate, useBookingStore } from '../../stores/bookingStore'
 import { useToast } from '../../components/common/Toast'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
@@ -81,7 +81,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
   const { show, toast } = useToast(insets.bottom + 120)
   const shake = useRef(new Animated.Value(0)).current
 
-  const price = bookingPrice(pitch.hourlyRate, s.minutes)
+  const price = bookingPrice(bookingRate(s), s.minutes)
   const split = method ? paymentSplit(price.total, method, options.data!.depositPercent) : null
   const isStripe = config.data?.provider === 'stripe' && !!split && split.payNow > 0
   const isTest = config.data?.provider === 'test' && !!split && split.payNow > 0
@@ -152,6 +152,11 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
           <Row icon="map-marker">
             {pitch.name} · {pitch.companyName}
           </Row>
+          {s.airType ? (
+            <Row icon="thermometer">
+              {t('covered')} · {t(`air.${s.airType}`)}
+            </Row>
+          ) : null}
           <Row icon="account-group">
             {t('booking.summary.teamsPlayers', { teams: s.teamCount, players })}
           </Row>
@@ -171,7 +176,7 @@ export function Step4SummaryScreen({ navigation }: BookingScreenProps<'BookingSu
             <Text style={styles.body15}>
               {t('booking.teams.pitchLine', {
                 duration: formatDuration(s.minutes),
-                rate: pitch.hourlyRate,
+                rate: bookingRate(s),
               })}
             </Text>
             <Text style={styles.body15}>{price.total} RON</Text>

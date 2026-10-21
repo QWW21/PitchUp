@@ -175,6 +175,7 @@ export function BookingDetailScreen({ navigation, route }: Props) {
           <Row icon="calendar">{formatDateLong(b.date, locale)}</Row>
           <Row icon="clock-outline">
             {b.startTime}–{b.endTime} · {formatDuration(b.minutes)}
+            {b.airType ? ` · ${t(`air.${b.airType}`)}` : ''}
           </Row>
           <Row icon="map-marker">
             {b.pitch.name} · {t(`surface.${b.pitch.surfaceType}`)}

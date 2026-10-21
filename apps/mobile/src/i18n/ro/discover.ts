@@ -98,6 +98,8 @@ export const discoverRo: CatalogShape<typeof discoverEn> = {
     available: '{amenity}, disponibil',
     notAvailable: '{amenity}, indisponibil',
     anyTime: 'Oricând',
+    uncovered: 'Neacoperit, oricând',
+    coveredSeason: '{covered}, {from} – {to}',
     minBilled: 'Minim {duration} · Facturat la 30 de minute',
     freeShirts: 'Tricouri gratuite',
     shirtsIn: ' în culorile {colours}',

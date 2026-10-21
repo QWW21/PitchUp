@@ -10,6 +10,7 @@ export const analyticsRo: CatalogShape<typeof analyticsEn> = {
     end: 'Sfârșit',
     pitch: 'Teren',
     size: 'Mărime',
+    air: 'Aer',
     player: 'Jucător',
     status: 'Stare',
     price: 'Preț (RON)',

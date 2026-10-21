@@ -165,6 +165,12 @@ enum ReviewReportCategory {
   FAKE
 }
 
+/// C-14: the air a covered (dome) pitch offers. Cold is the default.
+enum AirType {
+  COLD
+  HOT
+}
+
 enum CancelledBy {
   PLAYER
   MANAGER
@@ -295,6 +301,9 @@ model Pitch {
   advanceBookingDays Int         @default(60)
   /// One price per hour at any time of day. No peak pricing.
   hourlyRate         Decimal     @db.Decimal(10, 2)
+  /// C-14: full hourly prices while covered (a dome); null = that air is not offered.
+  coveredColdRate    Decimal?    @db.Decimal(10, 2)
+  coveredHotRate     Decimal?    @db.Decimal(10, 2)
   /// Shirts are always free; the inventory says which colours there are.
   hasShirts          Boolean     @default(false)
   /// The pitch's own week (E10-10), within the venue's hours; null follows the venue.
@@ -313,6 +322,7 @@ model Pitch {
   bookings       Booking[]
   reviews        Review[]
   exceptions     PitchException[]
+  coveredSeasons PitchCoveredSeason[]
 
   @@index([companyId])
   @@index([isActive])
@@ -329,6 +339,19 @@ model PitchException {
   pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
 
   @@unique([pitchId, date])
+}
+
+/// C-14: days a pitch is covered (inclusive), on the venue's calendar.
+model PitchCoveredSeason {
+  id        String   @id @default(cuid())
+  pitchId   String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  pitch Pitch @relation(fields: [pitchId], references: [id], onDelete: Cascade)
+
+  @@index([pitchId, startDate])
 }
 
 model PitchPhoto {
@@ -383,7 +406,10 @@ model Booking {
   cancelledBy           CancelledBy?
   cancelledAt           DateTime?
   cancellationReason    String?
+  /// The hourly rate this booking was priced at (covered or not).
   pitchRateSnapshot     Decimal              @db.Decimal(10, 2)
+  /// C-14: null = uncovered; COLD/HOT = covered, as chosen.
+  airType               AirType?
   /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
   shirtSets             Int                  @default(0)
   /// PitchUp's commission, kept from the venue's payout (8%). Not added to

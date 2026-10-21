@@ -9,6 +9,7 @@ import { NO_SHOW_MARK_AFTER_MINUTES } from './constants/penalties'
 import { fromMinutes, toMinutes } from './schedule'
 import type { BookingPaymentMethod } from './payment'
 import type { BookingStatus } from './types'
+import type { AirType } from './covered'
 
 export const MANAGER_BOOKING_STATUSES = [
   'PENDING',
@@ -177,6 +178,8 @@ export interface ManagerBookingDetail extends ManagerBooking {
   venuePayout: number
   teams: { name: string; players: number | null; colour: string | null }[]
   shirtSets: number
+  /** C-14: the air on a covered pitch; null when uncovered. */
+  airType: AirType | null
   note: string | null
   refundAmount: number | null
   cancellationReason: string | null

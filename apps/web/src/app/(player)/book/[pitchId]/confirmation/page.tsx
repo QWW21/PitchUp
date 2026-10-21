@@ -103,6 +103,7 @@ export default async function ConfirmationPage({ params, searchParams }: Props) 
         <dt className="sr-only">{t('booking.confirmation.when')}</dt>
         <dd className="text-neutral-700">
           {when} ({formatDuration(booking.minutes)})
+          {booking.airType && ` · ${t(`air.${booking.airType}`)}`}
         </dd>
         {booking.shirtSets > 0 && (
           <>

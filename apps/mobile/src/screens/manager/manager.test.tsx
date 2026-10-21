@@ -48,6 +48,7 @@ const detail = (over: Partial<ManagerBookingDetail> = {}): ManagerBookingDetail 
     { name: 'Team B', players: 7, colour: null },
   ],
   shirtSets: 0,
+  airType: null,
   note: null,
   refundAmount: null,
   cancellationReason: null,

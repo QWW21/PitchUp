@@ -107,7 +107,7 @@ export function Step5ConfirmationScreen({
               <Text style={styles.sub}>{b.company.name}</Text>
               <Text style={styles.when}>
                 {formatDateLong(b.date, locale)}, {b.startTime}–{b.endTime} (
-                {formatDuration(b.minutes)})
+                {formatDuration(b.minutes)}){b.airType ? ` · ${t(`air.${b.airType}`)}` : ''}
               </Text>
               {b.shirtSets > 0 ? (
                 <Text style={styles.when}>{t('booking.done.shirts', { count: b.shirtSets })}</Text>

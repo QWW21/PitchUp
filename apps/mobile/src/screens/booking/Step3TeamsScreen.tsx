@@ -25,7 +25,7 @@ import {
   formatDuration,
   shirtSetsFor,
 } from '@pitchup/shared'
-import { useBookingStore } from '../../stores/bookingStore'
+import { bookingRate, useBookingStore } from '../../stores/bookingStore'
 import { Button } from '../../components/ui/Button'
 import { colors, spacing } from '../../theme/tokens'
 import { BookingHeader } from './BookingHeader'
@@ -41,7 +41,7 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
   const sets = shirtSetsFor(s.teamCount, true)
   const stock = pitch.shirtStock.filter(c => c.quantity > 0)
   const totalSets = stock.reduce((n, c) => n + c.quantity, 0)
-  const price = bookingPrice(pitch.hourlyRate, s.minutes)
+  const price = bookingPrice(bookingRate(s), s.minutes)
 
   return (
     <View style={styles.root}>
@@ -209,7 +209,7 @@ export function Step3TeamsScreen({ navigation }: BookingScreenProps<'BookingTeam
             <Text style={styles.muted}>
               {t('booking.teams.pitchLine', {
                 duration: formatDuration(s.minutes),
-                rate: pitch.hourlyRate,
+                rate: bookingRate(s),
               })}
             </Text>
             <Text style={styles.muted}>{price.total} RON</Text>

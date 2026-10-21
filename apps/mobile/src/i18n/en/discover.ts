@@ -91,6 +91,8 @@ export const discoverEn = {
     available: '{amenity}, available',
     notAvailable: '{amenity}, not available',
     anyTime: 'Any time',
+    uncovered: 'Uncovered, any time',
+    coveredSeason: '{covered}, {from} – {to}',
     minBilled: 'Min. {duration} · Billed per 30 min',
     freeShirts: 'Free shirts',
     shirtsIn: ' in {colours}',

@@ -4,6 +4,7 @@ import { REVIEW } from '../constants/review'
 import { SHIRT_COLOURS } from '../constants/shirts'
 import { BOOKING_PAYMENT_METHODS, type BookingPaymentMethod } from '../payment'
 import { idSchema } from './common'
+import { AIR_TYPES, type AirType } from '../covered'
 import type { BookingStatus } from '../types'
 
 const shirtColourSchema = z.enum(SHIRT_COLOURS as unknown as [string, ...string[]])
@@ -53,6 +54,8 @@ export const CreateBookingSchema = z
     paymentMethodId: z.string().min(1).max(100).optional(),
     /** How the player pays (C-8): online, or at the venue with a deposit. */
     paymentMethod: z.enum(BOOKING_PAYMENT_METHODS).default('ONLINE'),
+    /** C-14: on a covered day offering both, the air chosen; cold when left out. */
+    airType: z.enum(AIR_TYPES).optional(),
   })
   .refine(data => minutesOf(data.endTime) > minutesOf(data.startTime), {
     message: 'v.endAfterStart',
@@ -168,6 +171,8 @@ export interface BookingConfirmation {
   teamCount: number
   shirtSets: number
   total: number
+  /** C-14: the air on a covered pitch; null when uncovered. */
+  airType: AirType | null
   paidAt: string | null
   cancellationReason: string | null
   /** C-8: how it is paid, the deposit charged online, and what is left for the venue. */

@@ -6,7 +6,7 @@
  * closes. Nothing personal goes in the URL.
  */
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
-import type { PitchSize, ShirtColour } from '@pitchup/shared'
+import type { AirType, PitchSize, ShirtColour } from '@pitchup/shared'
 
 /** What the steps need to know about the pitch, sent once from the server. */
 export interface BookingPitch {
@@ -28,6 +28,10 @@ export interface BookingDraft {
   startTime?: string | undefined
   endTime?: string | undefined
   minutes?: number | undefined
+  /** C-14: the air chosen on a covered day; unset when uncovered. */
+  airType?: AirType | undefined
+  /** The hourly rate on that day (and air), from the availability. */
+  rate?: number | undefined
   teamCount: 2 | 3
   players: number[]
   wantsShirts: boolean
@@ -39,6 +43,10 @@ export interface BookingDraft {
 }
 
 export { STEPS, stepPath, type Step } from './paths'
+
+/** The hourly rate the booking is priced at: the chosen day's, else the pitch's. */
+export const draftRate = (pitch: BookingPitch, draft: BookingDraft): number =>
+  draft.rate ?? pitch.hourlyRate
 
 const key = (pitchId: string) => `booking_${pitchId}`
 

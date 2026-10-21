@@ -150,6 +150,9 @@ describe('Step 2: start and duration (C-6)', () => {
       time: `${18 + Math.floor(i / 2)}:${i % 2 ? '30' : '00'}`,
       status: c === 'x' ? 'booked' : 'available',
     })),
+    covered: false,
+    hourlyRate: 120,
+    airOptions: [],
   })
 
   beforeEach(() => useBookingStore.getState().setDate(date))
@@ -192,6 +195,50 @@ describe('Step 2: start and duration (C-6)', () => {
     expect(screen.getByText('Choose how long you play, then a start time')).toBeOnTheScreen()
     press('19:00, available')
     expect(screen.getByText('19:00–22:00 · 3h · 360 RON')).toBeOnTheScreen()
+  })
+
+  it('a covered day with both airs: cold by default, hot changes the price and is sent (C-14)', async () => {
+    api.day.mockResolvedValue({
+      ...day('........'),
+      covered: true,
+      hourlyRate: 180,
+      airOptions: [
+        { airType: 'COLD', hourlyRate: 180 },
+        { airType: 'HOT', hourlyRate: 220 },
+      ],
+    })
+    const nav = makeNav()
+    show(Step2TimeScreen, nav)
+    expect(await screen.findByText('Cold or hot air?')).toBeOnTheScreen()
+    press('2h')
+    press('18:00, available')
+    expect(screen.getByText('18:00–20:00 · 2h · 360 RON')).toBeOnTheScreen()
+    press('Hot air · 220 RON/h')
+    expect(screen.getByText('18:00–20:00 · 2h · 440 RON')).toBeOnTheScreen()
+    press('Next')
+    const s = useBookingStore.getState()
+    expect(s).toMatchObject({ airType: 'HOT', rate: 220 })
+    expect(bookingBody(s)).toMatchObject({ airType: 'HOT' })
+  })
+
+  it('one air only: no choice, its price applies; an uncovered day sends no air', async () => {
+    api.day.mockResolvedValue({
+      ...day('........'),
+      covered: true,
+      hourlyRate: 240,
+      airOptions: [{ airType: 'COLD', hourlyRate: 240 }],
+    })
+    show(Step2TimeScreen, makeNav())
+    expect(
+      await screen.findByText(/Covered \(dome\) on this day · Cold air · 240 RON\/hour/)
+    ).toBeOnTheScreen()
+    expect(screen.queryByText('Cold or hot air?')).toBeNull()
+    press('1h')
+    press('18:00, available')
+    expect(screen.getByText('18:00–19:00 · 1h · 240 RON')).toBeOnTheScreen()
+
+    useBookingStore.getState().setTime('18:00', '19:00', 60)
+    expect(bookingBody(useBookingStore.getState())).not.toHaveProperty('airType')
   })
 
   it('opens on the time chosen before', async () => {

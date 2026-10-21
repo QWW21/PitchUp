@@ -10,6 +10,8 @@ export const venueEn = {
   amenity: { available: 'available', unavailable: 'not available' },
   pricing: {
     anyTime: 'Any time',
+    uncovered: 'Uncovered, any time',
+    coveredSeason: '{covered}, {from} – {to}',
     perHour: '/h',
     limits: 'Min. {min} · Max. {max} · Billed per 30 min',
     freeShirts: 'Free shirts',

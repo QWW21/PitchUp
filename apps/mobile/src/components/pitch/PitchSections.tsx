@@ -6,6 +6,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import {
   ALL_AMENITIES,
+  formatDayMonth,
   formatShirtColours,
   type AmenityType,
   type PitchDetail,
@@ -70,14 +71,43 @@ export function PricingCard({ pitch }: { pitch: PitchDetail }) {
   const t = useT()
   const locale = useLocale()
   const colours = formatShirtColours(pitch.shirtInventory, locale)
+  // C-14: the covered prices, for the seasons not over yet.
+  const airs = (
+    [
+      ['COLD', pitch.coveredColdRate],
+      ['HOT', pitch.coveredHotRate],
+    ] as const
+  ).filter((a): a is readonly ['COLD' | 'HOT', number] => typeof a[1] === 'number')
+  const seasons = airs.length ? pitch.coveredSeasons : []
   return (
     <View style={styles.card}>
       <View style={styles.priceRow}>
-        <Text style={styles.range}>{t('discover.pitch.anyTime')}</Text>
+        <Text style={styles.range}>
+          {t(seasons.length ? 'discover.pitch.uncovered' : 'discover.pitch.anyTime')}
+        </Text>
         <Text style={styles.price}>
           {pitch.hourlyRate} RON<Text style={styles.per}>/h</Text>
         </Text>
       </View>
+      {seasons.map(s => (
+        <View key={s.startDate} style={styles.divider}>
+          <Text style={styles.range}>
+            {t('discover.pitch.coveredSeason', {
+              covered: t('covered'),
+              from: formatDayMonth(s.startDate, locale),
+              to: formatDayMonth(s.endDate, locale),
+            })}
+          </Text>
+          {airs.map(([air, rate]) => (
+            <View key={air} style={styles.priceRow}>
+              <Text style={styles.range}>{t(`air.${air}`)}</Text>
+              <Text style={styles.price}>
+                {rate} RON<Text style={styles.per}>/h</Text>
+              </Text>
+            </View>
+          ))}
+        </View>
+      ))}
       <Text style={styles.note}>
         {t('discover.pitch.minBilled', {
           duration: formatShortDuration(pitch.minBookingHours * 60),

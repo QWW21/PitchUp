@@ -291,7 +291,7 @@ test('export: every booking of the period as CSV, names escaped', async () => {
     .trim()
     .split('\r\n')
   expect(lines[0]).toBe(
-    'Reference,Date,Start,End,Pitch,Size,Player,Status,Price (RON),Payment,Earned (RON),Online (RON),At venue (RON),PitchUp fee (RON),Payout (RON),Refunded (RON),Teams'
+    'Reference,Date,Start,End,Pitch,Size,Air,Player,Status,Price (RON),Payment,Earned (RON),Online (RON),At venue (RON),PitchUp fee (RON),Payout (RON),Refunded (RON),Teams'
   )
   expect(lines).toHaveLength(2)
   expect(lines[1]).toContain(`,${day},18:00,20:00,Pitch A,`)

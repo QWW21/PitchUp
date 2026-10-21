@@ -7,6 +7,7 @@ export const analyticsEn = {
     end: 'End',
     pitch: 'Pitch',
     size: 'Size',
+    air: 'Air',
     player: 'Player',
     status: 'Status',
     price: 'Price (RON)',

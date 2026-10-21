@@ -25,6 +25,7 @@ import {
   normalizeWeek,
   paymentMethodsFor,
   paymentSplit,
+  rateFor,
   shirtSetsFor,
   toMinutes,
   trustTier,
@@ -38,7 +39,7 @@ import { env } from '@/lib/env'
 import { prisma } from '@/lib/prisma'
 import { getLocale } from '@/i18n/server'
 import { ApiException, conflict, notFound, unauthorized, validationError } from '@/lib/api/errors'
-import { dayIntervals, exceptionDates } from '@/lib/venues/availability'
+import { coveredPricingOf, dayIntervals, exceptionDates } from '@/lib/venues/availability'
 import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
 import { notifyBookingPaid } from '@/lib/notifications/booking'
@@ -80,6 +81,7 @@ export async function createBooking(
           },
         },
         shirtInventory: true,
+        coveredSeasons: { select: { startDate: true, endDate: true } },
       },
     }),
   ])
@@ -194,12 +196,14 @@ export async function createBooking(
     }
   }
 
+  // C-14: the day's rate, or the chosen air's while covered (cold by default).
+  const rate = rateFor(coveredPricingOf(pitch), input.date, input.airType)
+  if (!rate) {
+    throw validationError('api.airNotOffered', { field: 'airType', reason: 'AIR_NOT_OFFERED' })
+  }
+
   // E15: the commission is the admin's current setting, kept on the booking.
-  const price = bookingPrice(
-    Number(pitch.hourlyRate),
-    minutes,
-    (await platformConfig()).platformFeePercent
-  )
+  const price = bookingPrice(rate.rate, minutes, (await platformConfig()).platformFeePercent)
   const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
   // Nothing to charge online: confirmed now (or sent to the venue), like a paid booking.
   const free = split.payNow === 0
@@ -265,7 +269,8 @@ export async function createBooking(
           partialRefundHours: pitch.company.refundPartialHours,
           partialRefundPercent: pitch.company.refundPartialPercent,
         },
-        pitchRateSnapshot: pitch.hourlyRate,
+        pitchRateSnapshot: rate.rate,
+        airType: rate.airType,
         platformFee: price.platformFee,
         totalAmount: price.total,
         paymentMethod: split.method,

@@ -39,6 +39,10 @@ export const bookingEn = {
     howLong: 'How long?',
     doesntFit: ', doesn’t fit',
     choosePrompt: 'Choose how long you play, then a start time',
+    coveredDay: '{covered} on this day · {air} · {rate} RON/hour',
+    airHeading: 'Cold or hot air?',
+    airHint: 'The pitch is covered on this day. The price per hour depends on the air.',
+    airOption: '{air} · {rate} RON/h',
   },
   teams: {
     headingShirts: 'Teams and shirts',

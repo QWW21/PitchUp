@@ -152,4 +152,9 @@ export const apiRo: CatalogShape<typeof apiEn> = {
     other: 'Acest teren are {count} de rezervări viitoare. Anulează-le mai întâi.',
   },
   bookingLength: 'Acest teren se rezervă pentru {min} până la {max} o dată',
+  airNotOffered: 'Acest tip de aer nu este oferit în ziua aleasă',
+  coveredNeedsAir:
+    'Setează un preț pentru aer rece, aer cald sau ambele înainte de a adăuga un sezon',
+  seasonOverlap: 'Acest sezon se suprapune cu altul',
+  seasonNotFound: 'Sezonul nu a fost găsit',
 }

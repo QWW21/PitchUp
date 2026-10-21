@@ -63,6 +63,9 @@ export const en = {
     open24: 'Open 24 hours',
   },
   dayPeriod: { Morning: 'Morning', Afternoon: 'Afternoon', Evening: 'Evening' },
+  /** C-14: a covered (dome) pitch's air. */
+  air: { COLD: 'Cold air', HOT: 'Hot air' },
+  covered: 'Covered (dome)',
   amenity: {
     SHOWERS_FREE: 'Showers (free)',
     SHOWERS_PAID: 'Showers (paid)',
@@ -293,6 +296,7 @@ export const en = {
       'The partial refund must end after the full refund ends (fewer hours before kick-off)',
     shortestLongest: 'The shortest booking cannot be longer than the longest',
     startAfterEnd: 'The start date is after the end date',
+    seasonTooLong: 'A season is at most 200 days',
     type2chars: 'Type at least 2 characters',
     type2letters: 'Type at least 2 letters',
     useIsoDate: 'Use YYYY-MM-DD',

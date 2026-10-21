@@ -116,6 +116,52 @@ test('a whole booking, from the date to the confirmation', async ({ page }, info
   expect(await page.evaluate(id => sessionStorage.getItem(`booking_${id}`), pitchId)).toBeNull()
 })
 
+test('a covered day offers cold or hot air, each at its price (C-14)', async ({ page }, info) => {
+  // Bună Ziua's Teren 1 is seeded with cold (180) and hot (220) air; its
+  // season is set here so the date is always covered and within reach.
+  const buna = await venue('buna-ziua')
+  const covered = buna.pitches[0]!.id
+  await db.pitchCoveredSeason.deleteMany({ where: { pitchId: covered } })
+  await db.pitchCoveredSeason.create({
+    data: {
+      pitchId: covered,
+      startDate: new Date(`${day(20)}T00:00:00Z`),
+      endDate: new Date(`${day(40)}T00:00:00Z`),
+    },
+  })
+  try {
+    await page.goto(`/book/${covered}/date?date=${day(25)}`)
+    await page.getByRole('button', { name: /^Next: times on/ }).click()
+    await expect(page.getByRole('heading', { name: 'Cold or hot air?' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Cold air · 180 RON/h' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    await page.getByRole('button', { name: 'Hot air · 220 RON/h' }).click()
+    await page.getByRole('button', { name: '2h', exact: true }).click()
+    await page.getByRole('button', { name: '18:00, available' }).click()
+    await expect(page.getByText('18:00–20:00 · 2h · 440 RON')).toBeVisible()
+    await snap(page, info, AREA, '07-covered-time', { fullPage: true })
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByRole('button', { name: 'Next' }).click()
+
+    await expect(page.getByText('Covered (dome) · Hot air')).toBeVisible()
+    await expect(page.getByText('Pitch (2h 00min × 220 RON/h)')).toBeVisible()
+    await snap(page, info, AREA, '08-covered-summary', { fullPage: true })
+    await page.getByRole('button', { name: 'Confirm & pay 440 RON' }).click()
+    await expect(page.getByRole('heading', { name: 'Booking confirmed!' })).toBeVisible()
+    await expect(page.getByText(/· Hot air/)).toBeVisible()
+
+    const booking = await db.booking.findFirstOrThrow({
+      where: { pitchId: covered, startTime: venueTimeToUtc(day(25), 18 * 60) },
+    })
+    expect(booking.airType).toBe('HOT')
+    expect(Number(booking.pitchRateSnapshot)).toBe(220)
+  } finally {
+    await db.booking.deleteMany({ where: { createdAt: { gte: started }, pitchId: covered } })
+  }
+})
+
 test('a declined card keeps the player on the summary, and a retry works', async ({
   page,
 }, info) => {

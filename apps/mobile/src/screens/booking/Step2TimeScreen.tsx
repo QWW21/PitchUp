@@ -17,6 +17,7 @@ import {
   rangeFrom,
   rangeTimes,
   startOptions,
+  type AirType,
   type DayPeriod,
 } from '@pitchup/shared'
 import { bookingApi } from '../../lib/bookingApi'
@@ -69,9 +70,11 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
   const date = useBookingStore(s => s.date)!
   const savedStart = useBookingStore(s => s.startTime)
   const savedMinutes = useBookingStore(s => s.minutes)
+  const savedAir = useBookingStore(s => s.airType)
   const setTime = useBookingStore(s => s.setTime)
   const [minutes, setMinutes] = useState<number | null>(null)
   const [startTime, setStartTime] = useState<string | null>(null)
+  const [pickedAir, setAir] = useState<AirType | null>(null)
 
   const day = useQuery({
     queryKey: ['booking-slots', pitch.id, date],
@@ -79,6 +82,10 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
     staleTime: 0,
   })
   const slots = day.data?.slots ?? []
+  // C-14: on a covered day, the air on offer; cold first and by default.
+  const airOptions = day.data?.airOptions ?? []
+  const air = airOptions.find(o => o.airType === (pickedAir ?? savedAir)) ?? airOptions[0] ?? null
+  const rate = air?.hourlyRate ?? day.data?.hourlyRate ?? pitch.hourlyRate
   const minMinutes = pitch.minBookingHours * 60
   const maxMinutes = pitch.maxBookingHours * 60
   const durations = durationChoices(slots, minMinutes, maxMinutes)
@@ -113,7 +120,7 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
 
   const chosen =
     startIndex >= 0 && minutes !== null ? rangeTimes(slots, rangeFrom(startIndex, minutes)) : null
-  const price = chosen ? bookingPrice(pitch.hourlyRate, chosen.minutes) : null
+  const price = chosen ? bookingPrice(rate, chosen.minutes) : null
   const noneFree =
     day.isSuccess && !startOptions(slots, minMinutes).some(s => s.state === 'available')
 
@@ -137,6 +144,39 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
         />
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
+          {airOptions.length === 1 && air ? (
+            <Text style={styles.covered}>
+              {t('booking.time.coveredDay', {
+                covered: t('covered'),
+                air: t(`air.${air.airType}`),
+                rate: air.hourlyRate,
+              })}
+            </Text>
+          ) : null}
+          {airOptions.length > 1 ? (
+            <>
+              <Text style={styles.heading}>{t('booking.time.airHeading')}</Text>
+              <Text style={styles.hint}>{t('booking.time.airHint')}</Text>
+              <View style={styles.chips}>
+                {airOptions.map(o => {
+                  const label = t('booking.time.airOption', {
+                    air: t(`air.${o.airType}`),
+                    rate: o.hourlyRate,
+                  })
+                  return (
+                    <Chip
+                      key={o.airType}
+                      label={label}
+                      accessibilityLabel={label}
+                      on={air?.airType === o.airType}
+                      disabled={false}
+                      onPress={() => setAir(o.airType)}
+                    />
+                  )
+                })}
+              </View>
+            </>
+          ) : null}
           <Text style={styles.heading}>{t('booking.time.howLong')}</Text>
           <View style={styles.chips}>
             {durations.map(d => (
@@ -189,7 +229,10 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
           disabled={!chosen}
           onPress={() => {
             if (!chosen) return
-            setTime(chosen.startTime, chosen.endTime, chosen.minutes)
+            setTime(chosen.startTime, chosen.endTime, chosen.minutes, {
+              airType: air?.airType ?? null,
+              rate,
+            })
             navigation.navigate('BookingTeams')
           }}
         />
@@ -222,6 +265,13 @@ const styles = StyleSheet.create({
   chipTextOn: { color: colors.neutral[0] },
   chipTextOff: { color: colors.neutral[500], textDecorationLine: 'line-through' },
   hint: { fontSize: 14, color: colors.neutral[500] },
+  covered: {
+    fontSize: 14,
+    color: colors.neutral[900],
+    padding: spacing.sm,
+    borderRadius: 8,
+    backgroundColor: colors.neutral[50],
+  },
   footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, gap: spacing.sm },
   summary: { fontSize: 15, fontWeight: '600', color: colors.neutral[900], textAlign: 'center' },
 })

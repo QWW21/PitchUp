@@ -19,7 +19,16 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { loadStripe, type Stripe } from '@stripe/stripe-js'
 import { CardElement, Elements, useElements, useStripe } from '@stripe/react-stripe-js'
-import { CalendarDays, Clock, Info, MapPin, NotebookPen, Shirt, Users } from 'lucide-react'
+import {
+  CalendarDays,
+  Clock,
+  Info,
+  MapPin,
+  NotebookPen,
+  Shirt,
+  Thermometer,
+  Users,
+} from 'lucide-react'
 import {
   INTL_LOCALE,
   bookingPrice,
@@ -46,7 +55,7 @@ import {
 import { Alert } from '@/components/ui/Alert'
 import { useLocale, useT } from '@/i18n/client'
 import type { WebT } from '@/i18n/catalog'
-import { stepPath, useBooking, type BookingDraft } from './draft'
+import { draftRate, stepPath, useBooking, type BookingDraft } from './draft'
 
 interface ApiError {
   code: string
@@ -116,6 +125,7 @@ function bookingBody(
     wantsShirts: d.wantsShirts,
     ...(d.note.trim() ? { noteToManager: d.note.trim() } : {}),
     ...(paymentMethodId ? { paymentMethodId } : {}),
+    ...(d.airType ? { airType: d.airType } : {}),
   }
 }
 
@@ -150,7 +160,8 @@ export function SummaryStep() {
     return null
   }
 
-  const price = bookingPrice(pitch.hourlyRate, draft.minutes)
+  const rate = draftRate(pitch, draft)
+  const price = bookingPrice(rate, draft.minutes)
   const split = method ? paymentSplit(price.total, method, options.data!.depositPercent) : null
   const sets = shirtSetsFor(draft.teamCount, draft.wantsShirts)
   const start = venueTimeToUtc(draft.date, toMinutes(draft.startTime))
@@ -179,6 +190,11 @@ export function SummaryStep() {
         <Row icon={<MapPin />}>
           {pitch.name} · {pitch.companyName}
         </Row>
+        {draft.airType && (
+          <Row icon={<Thermometer />}>
+            {t('covered')} · {t(`air.${draft.airType}`)}
+          </Row>
+        )}
         <Row icon={<Users />}>
           {t('booking.summary.teamsPlayers', { teams: draft.teamCount, players })}
         </Row>
@@ -199,7 +215,7 @@ export function SummaryStep() {
             <dt>
               {t('booking.teams.pitchLine', {
                 duration: formatDuration(draft.minutes),
-                rate: pitch.hourlyRate,
+                rate,
               })}
             </dt>
             <dd>{price.total} RON</dd>

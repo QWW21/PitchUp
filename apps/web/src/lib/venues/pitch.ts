@@ -2,7 +2,7 @@
  * Pitch detail — E04-02.
  */
 import 'server-only'
-import { describeRefundPolicy, normalizeWeek, type PitchDetail } from '@pitchup/shared'
+import { describeRefundPolicy, normalizeWeek, venueClock, type PitchDetail } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { publicRating } from './ratings'
 import { reviewInclude, toReviewItem } from './reviews'
@@ -36,6 +36,11 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
       photos: { orderBy: { order: 'asc' }, select: { id: true, url: true, order: true } },
       amenities: { orderBy: { amenityType: 'asc' } },
       shirtInventory: { orderBy: { colour: 'asc' } },
+      // C-14: seasons not over yet.
+      coveredSeasons: {
+        where: { endDate: { gte: new Date(`${venueClock(new Date()).date}T00:00:00Z`) } },
+        orderBy: { startDate: 'asc' },
+      },
       reviews: {
         where: { moderationStatus: 'APPROVED', deletedAt: null },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
@@ -62,6 +67,12 @@ export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
     lengthMeters: pitch.lengthMeters,
     isActive: pitch.isActive,
     hourlyRate: Number(pitch.hourlyRate),
+    coveredColdRate: pitch.coveredColdRate === null ? null : Number(pitch.coveredColdRate),
+    coveredHotRate: pitch.coveredHotRate === null ? null : Number(pitch.coveredHotRate),
+    coveredSeasons: pitch.coveredSeasons.map(s => ({
+      startDate: s.startDate.toISOString().slice(0, 10),
+      endDate: s.endDate.toISOString().slice(0, 10),
+    })),
     minBookingHours: pitch.minBookingHours,
     maxBookingHours: pitch.maxBookingHours,
     advanceBookingDays: pitch.advanceBookingDays,
