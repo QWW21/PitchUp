@@ -88,6 +88,8 @@ export const onboardingEn = {
       2: 'Secure identity verification by Stripe',
     },
     testMode: 'Test mode: Stripe isn’t set up on this server, so this step completes without it.',
+    subscription:
+      'PitchUp takes no commission on your bookings. Once we approve your venue, start your free month in Settings → Subscription to go live.',
     connect: 'Connect with Stripe',
     back: 'Back to contact & hours',
     opening: 'Opening Stripe…',

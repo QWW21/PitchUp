@@ -104,8 +104,6 @@ export const mBookingsRo: CatalogShape<typeof mBookingsEn> = {
       'PitchUp nu arată bazelor sportive scorurile de încredere ale jucătorilor; blochează rezervările jucătorilor nesiguri.',
     payment: 'Plată',
     price: 'Preț',
-    commission: 'Comision PitchUp',
-    receive: 'Primești',
     howPaid: 'Cum se plătește',
     refunded: 'Rambursat',
     actions: 'Acțiuni',

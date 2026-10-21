@@ -107,6 +107,18 @@ export default async function AdminCompanyPage({ params }: { params: Promise<{ i
           {row(t('admin.company.contact'), [c.phone, c.email].filter(Boolean).join(' · ') || '—')}
           {row(t('admin.company.website'), c.websiteUrl ?? '—')}
           {row(
+            t('admin.companies.subscription'),
+            [
+              t(`subscriptionStatus.${c.subscriptionStatus}`),
+              c.billingInterval ? t(`manager.billing.interval.${c.billingInterval}`) : null,
+              c.subscriptionPeriodEnd
+                ? t('admin.company.periodEnd', { date: when.format(c.subscriptionPeriodEnd) })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')
+          )}
+          {row(
             t('admin.company.payouts'),
             c.stripeAccountId ? t('admin.companies.stripe') : t('admin.companies.notConnected')
           )}

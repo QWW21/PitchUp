@@ -56,7 +56,7 @@ export const editorEn = {
     ahead: 'Players can book up to',
     daysAhead: '{n} days ahead',
     preview:
-      'A player booking {duration} pays {total}. You receive {payout} RON after PitchUp’s 8% commission.',
+      'A player booking {duration} pays {total}, and all of it is yours: PitchUp takes no commission.',
     total: '{n} RON',
     enterRate: 'Enter an hourly rate to see what a booking costs.',
     save: 'Save pricing',

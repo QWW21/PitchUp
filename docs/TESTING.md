@@ -157,6 +157,16 @@ RSA key standing in for Google's.
 production build, so tests can clear the in-memory rate limits between cases.
 It is never set anywhere else; without it the route is a 404 outside dev.
 
+The same goes for the test payment hooks, which only exist with the test
+provider (no Stripe keys): `POST /api/v1/payments/test/confirm` finishes a
+booking's payment, and `POST /api/v1/payments/test/subscription { outcome:
+'paid' | 'failed' }` makes a venue's next subscription bill pay or fail
+(C-15). The daily `/api/v1/cron/billing` job is called with the E2E cron
+secret; tests move stored dates back (a trial's end, a failed payment's
+date) instead of changing the clock. `createVenue` in `e2e/support/db.ts`
+makes subscribed venues; a test that needs one without a subscription
+resets its fields to `NONE`.
+
 Tests run one at a time (`workers: 1`): they share one seeded database and a
 few change it (a trust score, a booking, a password), always putting it back.
 What a test cannot get through the UI — a verification code or reset token,

@@ -31,11 +31,9 @@ const revenue: AnalyticsRevenue = {
       gross: 300,
       online: 300,
       atVenue: 0,
-      fees: 24,
-      payout: 276,
       bookings: 2,
     },
-    { period: '2026-11-02', gross: 0, online: 0, atVenue: 0, fees: 0, payout: 0, bookings: 0 },
+    { period: '2026-11-02', gross: 0, online: 0, atVenue: 0, bookings: 0 },
   ],
 }
 
@@ -55,6 +53,7 @@ beforeEach(() => {
   jest.clearAllMocks()
   api.analyticsSummary.mockResolvedValue(summary())
   api.analyticsRevenue.mockResolvedValue(revenue)
+  api.billing.mockResolvedValue({ status: 'ACTIVE', interval: 'MONTHLY' } as never)
 })
 
 describe('Venue analytics (E14-10)', () => {

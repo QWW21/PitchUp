@@ -97,8 +97,6 @@ export const mBookingsEn = {
       'PitchUp doesn’t show players’ trust scores to venues; it blocks unreliable players from booking.',
     payment: 'Payment',
     price: 'Price',
-    commission: 'PitchUp commission',
-    receive: 'You receive',
     howPaid: "How it's paid",
     refunded: 'Refunded',
     actions: 'Actions',

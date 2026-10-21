@@ -106,9 +106,8 @@ test.describe('creating and paying', () => {
 
     const row = await db.booking.findUniqueOrThrow({ where: { id: r.data!.bookingId } })
     expect(row).toMatchObject({ status: 'PENDING', paymentProvider: 'test', shirtSets: 0 })
-    // The player pays the pitch price; the 8% commission comes out of the venue's share.
+    // The player pays the pitch price, all of it the venue's (C-15: no commission).
     expect(Number(row.totalAmount)).toBe(240)
-    expect(Number(row.platformFee)).toBe(19.2)
 
     const paid = await pay(request, r.data!.bookingId)
     expect(paid.status).toBe(200)

@@ -90,7 +90,6 @@ function book(
       teamsData: [{ playerCount: 6 }, { playerCount: 6 }],
       status: status as 'CONFIRMED',
       pitchRateSnapshot: 100,
-      platformFee: 16,
       totalAmount: 200,
       paymentProvider: 'test',
       stripePaymentIntentId: `test_pi_mgr_${Math.random().toString(36).slice(2)}`,
@@ -228,7 +227,7 @@ test.describe('the week (E11-02)', () => {
 })
 
 test.describe('one booking (E11-03)', () => {
-  test("the payout, teams and the player's history at this venue; another venue gets a 404", async () => {
+  test("the price, teams and the player's history at this venue; another venue gets a 404", async () => {
     const v = await setup()
     const other = await setup()
     const b = await book(v.a, v.ana.id, hoursFromNow(40), 'CONFIRMED')
@@ -245,8 +244,6 @@ test.describe('one booking (E11-03)', () => {
     const d = (await get<ManagerBookingDetail>(v.ctx, `/manager/bookings/${b.id}`)).data!
     expect(d).toMatchObject({
       total: 200,
-      platformFee: 16,
-      venuePayout: 184,
       minutes: 120,
       teams: [
         { name: 'Team A', players: 6 },

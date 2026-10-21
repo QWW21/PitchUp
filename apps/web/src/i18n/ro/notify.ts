@@ -5,9 +5,35 @@ import type { notifyEn } from '../en/notify'
 export const notifyRo: CatalogShape<typeof notifyEn> = {
   at: '{date}, ora {time}',
   refundedToCard: '{amount} RON îți sunt returnați pe card.',
+  subscription: {
+    started: {
+      title: 'Luna gratuită a început',
+      body: '{company} este publicată pe PitchUp până pe {date}, gratuit. Prima factură vine după aceea.',
+    },
+    trialEnding: {
+      title: 'Luna gratuită se încheie pe {date}',
+      body: 'După aceea, {company} rămâne publicată cu abonamentul tău. Verifică planul în Setări.',
+    },
+    paid: {
+      title: '{company} este din nou publicată',
+      body: 'Plata de {amount} lei a reușit. Jucătorii pot găsi și rezerva din nou baza ta.',
+    },
+    failed: {
+      title: 'Plata abonamentului a eșuat',
+      body: 'Actualizează cardul până pe {date}, altfel {company} nu mai primește rezervări noi.',
+    },
+    paused: {
+      title: '{company} este pusă pe pauză',
+      body: 'Jucătorii nu pot găsi sau rezerva baza ta până când abonamentul merge din nou. Rezervările deja făcute rămân.',
+    },
+    ended: {
+      title: 'Abonamentul s-a încheiat',
+      body: '{company} nu mai este listată. Abonează-te din nou în Setări ca să primești rezervări.',
+    },
+  },
   companyApproved: {
     title: '{company} este aprobată',
-    body: 'Baza ta sportivă este activă pe PitchUp. Adaugă terenurile ca să primești rezervări.',
+    body: 'Adaugă terenurile, apoi începe luna gratuită din Setări ca să fii publicată și să primești rezervări.',
   },
   companyRejected: { title: '{company} are nevoie de modificări' },
   companySuspended: {

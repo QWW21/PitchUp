@@ -404,9 +404,8 @@ sign-in until reinstated; bookings already made stay. **Suspending a venue**
 takes it off Discover and stops new bookings; the manager sees why.
 **Maintenance mode** shows everyone but admins a message, and the API answers
 503 `MAINTENANCE`; sign-in, the admin area, health checks, cron jobs and
-Stripe's webhook stay open. **The commission** (0–20%, default 8%) applies
-to new bookings; each booking keeps the fee it was made with, and the venues'
-analytics use each booking's own.
+Stripe's webhook stay open. **The commission** was removed by C-15:
+Platform settings now holds the subscription prices.
 
 **Making an admin:** the person registers, then
 `pnpm --filter @pitchup/web admin:bootstrap their@email`.
@@ -432,7 +431,7 @@ Schema: `User.suspendedAt`, `suspensionReason`; `Company.suspensionReason`;
 **What revenue means** (decided 2026-10-17): what the venue earned. The full
 price of games played (COMPLETED, or CONFIRMED once started), whether paid
 online or at the venue; plus what it kept from late cancellations and
-no-shows; less refunds. PitchUp's 8% is taken from that. Everything is in the
+no-shows; less refunds. All of it is the venue's (C-15: no commission). Everything is in the
 venue's days and hours (Europe/Bucharest), and periods end now.
 
 New endpoints: `GET /manager/analytics/{revenue,occupancy,pitches,summary,export}`,
@@ -965,6 +964,60 @@ New endpoints: `POST /pitches/:id/covered-seasons`, `DELETE
 AirType`, `PitchCoveredSeason`, the two `Pitch` rates, `Booking.airType`
 (all nullable or new: `prisma db push`, no data migration).
 
+### C-15 Venue subscriptions, no commission
+
+Plan: `docs/PLAN_COVERED_SEASON_AND_SUBSCRIPTIONS.md` (part B, decisions
+1–9). Owner's decisions of 2026-10-21:
+
+- **PitchUp takes no commission.** `Booking.platformFee`,
+  `PlatformConfig.platformFeePercent`, `PLATFORM_FEE_PERCENT` and every fee
+  and payout figure (booking detail, analytics, CSV, admin) are gone; the
+  app is in test mode, so no fee history was kept.
+- **Venues pay a subscription**, monthly or yearly (10 × monthly), VAT
+  included: 10 lei/month or 100/year in the first paid year, 30 or 300
+  after, plus 5 lei/month (50/year) for each **active** pitch beyond 2,
+  counted when each bill is made. All are admin settings
+  (`PlatformConfig.sub*`), these the defaults. Rules in
+  `packages/shared/src/billing.ts` (`subscriptionPrice`, `isSubscribed`).
+- **A free month first** (once per venue), card on file first; the
+  discounted year starts when it ends (`Company.firstPaidAt`).
+- **Onboarding is unchanged.** After approval the manager starts the free
+  month in Settings → Subscription. Until then, and when a subscription is
+  paused (unpaid 7 days after a failed bill) or has ended, the venue is
+  **hidden and takes no new bookings** (`lib/venues/live.ts`, reason
+  `VENUE_PAUSED`) but keeps the bookings it has. Paying brings it back
+  without an admin.
+- Statuses: `NONE → TRIALING → ACTIVE ⇄ PAST_DUE → PAUSED`, and
+  `CANCELLING` until the paid period ends. Monthly/yearly changes apply
+  from the next bill.
+- **Providers**: Stripe Billing when the keys are set (the venue is its own
+  Stripe customer; one Product, each bill priced inline; the webhook keeps
+  the status; the daily job reprices a day before renewal). Otherwise the
+  test provider: no card, the daily job bills when a period ends, and
+  `POST /payments/test/subscription { outcome }` makes the next bill pay or
+  fail.
+- **Existing venues**: the seed puts demo venues in their free month with a
+  test card; any other approved venue without a subscription gets a free
+  month without a card and is paused when it ends unless one is added
+  (`seedSubscriptions` in the seed).
+- Managers see a banner on every page (web) and on Venue bookings and
+  Analytics (app) while not live, in a free month without a card, after a
+  failed payment, or paused; the subscription is managed on the web.
+- Admin: Platform settings has the prices; the venue list a Subscription
+  column and filter; the venue page status, interval and period end; the
+  overview PitchUp's revenue (paid `SubscriptionInvoice`s) and venues by
+  subscription status.
+
+New endpoints: `GET /manager/billing`, `POST /manager/billing/{subscribe,
+cancel,resume}`, `PUT /manager/billing/interval`, `POST
+/payments/test/subscription`, `/cron/billing` (daily, vercel.json). The
+webhook handles `customer.subscription.*`, `invoice.paid`,
+`invoice.payment_failed`. Schema: `BillingInterval`, `SubscriptionStatus`,
+`SubscriptionInvoice`, `NotificationType.SUBSCRIPTION_NOTICE`, the
+`Company` subscription fields, the `PlatformConfig.sub*` prices; dropped
+`Booking.platformFee` and `PlatformConfig.platformFeePercent` (`prisma db
+push --accept-data-loss`, then `pnpm db:seed` to give venues their month).
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.
@@ -1064,10 +1117,10 @@ E04:
 
 ### E05 — booking and payments
 
-- **The player pays the pitch price; PitchUp's 8% comes out of the venue's
-  share** (PRD §8, the owner's call). E05-05's 5% fee on top of the price is
-  not used. `Booking.totalAmount` is what the player pays; `platformFee` is
-  the commission, kept for payouts (E09/E14).
+- **The player pays the pitch price, all of it the venue's.** E05-05's 5%
+  fee on top of the price is not used. PitchUp's 8% commission (PRD §8) was
+  removed by C-15 along with `Booking.platformFee`: venues pay a
+  subscription instead. `Booking.totalAmount` is what the player pays.
 - **Booking times are venue-local** (`date` + `HH:MM`), not the old UTC
   ISO strings, whose "same day" check split a 01:00 booking across two dates.
 - **A per-pitch Postgres advisory lock** serialises booking creation and
@@ -1227,8 +1280,6 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   them. The tests create their own.
 - **Not-admins are sent to their own area**, not to `/login`, when signed in;
   signed out, to `/login`.
-- **The pitch editor's payout preview assumes 8%**; the booking itself uses
-  the current commission.
 
 ### E14 — Analytics
 
@@ -1374,11 +1425,6 @@ isClosed}]`, 0 = Sunday), which Discover and the calendar already read,
   keeps (the deposit or the online payment), trust −20 with its history
   event, and a notification. PRD §9.3's flat fee and 20% penalty, and paying
   the venue out, are still E11/E14.
-- **The commission is recorded, not billed.** `platformFee` is 8% of the
-  price for every booking as before; whether it is kept from the deposit or
-  invoiced to the venue follows from `paymentMethod` and the deposit, and is
-  billed in E14. A deposit below 8% cannot cover it; that remainder is
-  invoiced too.
 - **Settings shows the deposit in steps of 5%** (the API takes any whole
   number from 0 to 50). The rest of Settings is E12.
 - **Attendance is confirmed from kick-off**, a no-show from 30 minutes after

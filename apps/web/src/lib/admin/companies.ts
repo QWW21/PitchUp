@@ -107,6 +107,7 @@ export async function listCompanies(query: AdminCompanyQuery): Promise<AdminComp
   const rows = await prisma.company.findMany({
     where: {
       ...(query.status ? { status: query.status } : {}),
+      ...(query.subscription ? { subscriptionStatus: query.subscription } : {}),
       ...(query.search
         ? {
             OR: [
@@ -138,6 +139,7 @@ export async function listCompanies(query: AdminCompanyQuery): Promise<AdminComp
       submittedAt: c.submittedAt?.toISOString() ?? null,
       hasChanges: !!c.changesSubmittedAt,
       stripeConnected: !!c.stripeAccountId,
+      subscription: c.subscriptionStatus,
     })),
     nextCursor: more ? page.at(-1)!.id : null,
   }

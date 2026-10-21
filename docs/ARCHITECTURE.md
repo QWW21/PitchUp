@@ -121,9 +121,9 @@ a soft delete, because the bookings must survive the user.
 
 ```prisma
 pitchRateSnapshot  Decimal
+airType            AirType?   // C-14
 shirtSets          Int
-platformFee        Decimal
-totalAmount        Decimal
+totalAmount        Decimal    // C-15: all of it the venue's
 ```
 
 The price is copied onto the booking rather than read from the pitch at display
@@ -1461,7 +1461,7 @@ suspension takes effect on the next request, not at the next sign-in.
 
 ### A switch every request reads
 
-Maintenance mode and the commission are read constantly, so they are cached
+Maintenance mode and the subscription prices are read constantly, so they are cached
 for a minute in memory. The first version used Next's data cache, which is
 written to disk and survived a database reset with stale values: a cache
 must be no more durable than what it caches. And the check can't live in
@@ -1540,6 +1540,31 @@ As with the refund policy (C-10), what was agreed is copied onto the
 booking: `pitchRateSnapshot` holds the rate actually used and `airType` the
 air. Totals, deposits, refunds and payouts already read the booking, never
 the pitch, so nothing downstream needed to change.
+
+## 30b. From a commission to subscriptions (C-15)
+
+PitchUp first earned 8% of every booking, kept on the booking as
+`platformFee` so an admin's change never touched bookings already made.
+The owner replaced it with a subscription, and since the app had only test
+data, the commission went completely rather than living on as history: one
+idea of revenue is easier to reason about than two.
+
+A subscription is a state on the company, and being live is a function of
+two states: approved by an admin, and subscribed (`isSubscribed`: the free
+month, paid, the grace after a failed bill, or a cancelled one running to
+its paid end). Every player-facing query builds on one `liveCompanyWhere`,
+so "hidden" means the same in Discover, on the venue and pitch pages, in
+the availability and at checkout. Pausing is not suspending: it needs no
+admin, and paying lifts it at once.
+
+The price depends on the venue's first paid year and on its active pitches
+when each bill is made, so it is computed (`subscriptionPrice`, pure and
+shared) rather than stored as fixed Stripe prices. With Stripe the
+subscription has one item priced inline, and a daily job reprices it a day
+before renewal. As with bookings, a test provider stands in when the keys
+are missing: it bills itself when a period ends, and a test-only hook makes
+the next bill pay or fail, so the whole lifecycle is tested end to end
+without Stripe.
 
 ## 30. Two languages without a framework (i18n)
 

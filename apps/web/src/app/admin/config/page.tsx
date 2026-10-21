@@ -9,7 +9,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const dynamic = 'force-dynamic'
 
-/** Platform settings — E15-09: the commission and maintenance mode. */
+/** Platform settings — E15-09: the subscription prices (C-15) and maintenance mode. */
 export default async function AdminConfigPage() {
   const t = await getT()
   return (

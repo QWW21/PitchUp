@@ -24,6 +24,7 @@ import {
   type CompanySort,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { liveCompanyWhere } from '@/lib/venues/live'
 import { validationError } from '@/lib/api/errors'
 import { companyRating, pitchStats, round1, type PitchStats } from '@/lib/venues/ratings'
 import { liveBookingWhere } from '@/lib/bookings/live'
@@ -90,7 +91,7 @@ export async function listCompanies(
 
   const companies = await prisma.company.findMany({
     where: {
-      status: 'ACTIVE',
+      ...liveCompanyWhere,
       city: q.city,
       ...(q.search ? { name: { contains: q.search, mode: 'insensitive' } } : {}),
       // Always present, even with no filters: a company with no active pitch

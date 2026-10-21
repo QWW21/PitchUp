@@ -5,6 +5,7 @@
 import 'server-only'
 import { isOpenAt, normalizeWeek, type CompanyDetail } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { liveCompanyWhere } from '@/lib/venues/live'
 import { companyRating, pitchStats, publicRating } from './ratings'
 
 /** Null for an unknown company, or one not approved (pending or suspended). */
@@ -13,7 +14,7 @@ export async function getCompanyDetail(
   now: Date = new Date()
 ): Promise<CompanyDetail | null> {
   const company = await prisma.company.findFirst({
-    where: { id, status: 'ACTIVE' },
+    where: { id, ...liveCompanyWhere },
     include: {
       pitches: {
         where: { isActive: true, deletedAt: null },

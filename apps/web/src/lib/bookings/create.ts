@@ -22,6 +22,7 @@ import {
   bookingTrustGate,
   bookingReference,
   formatShortDuration,
+  isSubscribed,
   normalizeWeek,
   paymentMethodsFor,
   paymentSplit,
@@ -44,7 +45,6 @@ import { getPaymentProvider, providerFor } from '@/lib/payments'
 import { getOrCreateCustomer } from '@/lib/payments/stripe'
 import { notifyBookingPaid } from '@/lib/notifications/booking'
 import { paidState } from './approval'
-import { platformConfig } from '@/lib/admin/config'
 import { holdExpiresAt, liveBookingWhere } from './live'
 import { recordStatus } from './status'
 
@@ -71,6 +71,7 @@ export async function createBooking(
           select: {
             name: true,
             status: true,
+            subscriptionStatus: true,
             workingHours: true,
             paymentMode: true,
             depositPercent: true,
@@ -90,6 +91,10 @@ export async function createBooking(
     throw notFound('api.pitchNotFound')
   }
   if (!pitch.isActive) throw forbidden('api.notTakingBookings', 'PITCH_INACTIVE')
+  // C-15: a venue without a running subscription takes no new bookings.
+  if (!isSubscribed(pitch.company.subscriptionStatus)) {
+    throw forbidden('api.notTakingBookings', 'VENUE_PAUSED')
+  }
   // E12-06: suspended players can't book, Poor ones hold one upcoming booking,
   // and a pitch may ask for a better trust score.
   const gate = bookingTrustGate(
@@ -202,8 +207,8 @@ export async function createBooking(
     throw validationError('api.airNotOffered', { field: 'airType', reason: 'AIR_NOT_OFFERED' })
   }
 
-  // E15: the commission is the admin's current setting, kept on the booking.
-  const price = bookingPrice(rate.rate, minutes, (await platformConfig()).platformFeePercent)
+  // C-15: no commission; the whole price is the venue's.
+  const price = bookingPrice(rate.rate, minutes)
   const split = paymentSplit(price.total, input.paymentMethod, pitch.company.depositPercent)
   // Nothing to charge online: confirmed now (or sent to the venue), like a paid booking.
   const free = split.payNow === 0
@@ -271,7 +276,6 @@ export async function createBooking(
         },
         pitchRateSnapshot: rate.rate,
         airType: rate.airType,
-        platformFee: price.platformFee,
         totalAmount: price.total,
         paymentMethod: split.method,
         depositAmount: split.deposit,

@@ -2,7 +2,8 @@
 
 /**
  * Revenue over the period — E14-07. Drawn as SVG rather than with a chart
- * library: three series (revenue, payout, PitchUp's fee), toggled from the
+ * library: three series (revenue, and how much of it was paid online and at
+ * the venue; C-15: PitchUp takes no cut), toggled from the
  * legend; hovering or focusing a period shows its figures; and the same
  * numbers as a table for screen readers and anyone who prefers one.
  */
@@ -12,12 +13,12 @@ import { useLocale, useT } from '@/i18n/client'
 import { compact, ron } from './format'
 
 type Point = RevenuePoint & { label: string }
-type Series = 'gross' | 'payout' | 'fees'
+type Series = 'gross' | 'online' | 'atVenue'
 
 const SERIES: { key: Series; stroke: string; fill?: string; dashed?: boolean }[] = [
   { key: 'gross', stroke: '#15803D', fill: 'rgba(22,163,74,0.18)' },
-  { key: 'payout', stroke: '#4F46E5', fill: 'rgba(99,102,241,0.12)' },
-  { key: 'fees', stroke: '#C2410C', dashed: true },
+  { key: 'online', stroke: '#4F46E5' },
+  { key: 'atVenue', stroke: '#C2410C', dashed: true },
 ]
 
 const W = 640
@@ -36,8 +37,8 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
   const locale = useLocale()
   const [hidden, setHidden] = useState<Record<Series, boolean>>({
     gross: false,
-    payout: false,
-    fees: false,
+    online: false,
+    atVenue: false,
   })
   const [active, setActive] = useState<number | null>(null)
   const empty = points.every(p => p.gross === 0)
@@ -182,8 +183,8 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
               {unit} {shown.label}
             </p>
             <p>{t('analytics.chart.tipRevenue', { amount: ron(shown.gross, locale) })}</p>
-            <p>{t('analytics.chart.tipPayout', { amount: ron(shown.payout, locale) })}</p>
-            <p>{t('analytics.chart.tipFee', { amount: ron(shown.fees, locale) })}</p>
+            <p>{t('analytics.chart.tipOnline', { amount: ron(shown.online, locale) })}</p>
+            <p>{t('analytics.chart.tipAtVenue', { amount: ron(shown.atVenue, locale) })}</p>
             <p>{t('analytics.chart.bookings', { count: shown.bookings })}</p>
           </div>
         )}
@@ -209,9 +210,6 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                 <th scope="col" className="py-1 pr-3 text-right font-medium">
                   {t('analytics.chart.atVenue')}
                 </th>
-                <th scope="col" className="py-1 pr-3 text-right font-medium">
-                  {t('analytics.chart.payout')}
-                </th>
                 <th scope="col" className="py-1 text-right font-medium">
                   {t('analytics.chart.bookingsCol')}
                 </th>
@@ -226,7 +224,6 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                   <td className="py-1 pr-3 text-right">{ron(p.gross, locale)}</td>
                   <td className="py-1 pr-3 text-right">{ron(p.online, locale)}</td>
                   <td className="py-1 pr-3 text-right">{ron(p.atVenue, locale)}</td>
-                  <td className="py-1 pr-3 text-right">{ron(p.payout, locale)}</td>
                   <td className="py-1 text-right">{p.bookings}</td>
                 </tr>
               ))}

@@ -12,6 +12,11 @@ import type Stripe from 'stripe'
 import { prisma } from '@/lib/prisma'
 import { constructWebhookEvent, isStripeConfigured } from '@/lib/payments/stripe'
 import { confirmPaid, markPaymentFailed, recordRefund } from '@/lib/bookings/payment-events'
+import {
+  stripeInvoiceFailed,
+  stripeInvoicePaid,
+  syncStripeSubscription,
+} from '@/lib/billing/webhook'
 
 export const dynamic = 'force-dynamic'
 
@@ -59,6 +64,18 @@ async function handle(event: Stripe.Event): Promise<void> {
       })
       return
     }
+    // C-15: venue subscriptions.
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted':
+      await syncStripeSubscription(event.data.object)
+      return
+    case 'invoice.paid':
+      await stripeInvoicePaid(event.data.object)
+      return
+    case 'invoice.payment_failed':
+      await stripeInvoiceFailed(event.data.object)
+      return
     default:
       return
   }

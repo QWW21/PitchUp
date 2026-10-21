@@ -134,10 +134,6 @@ export default async function ManagerBookingPage({ params }: { params: Promise<{
             <Row label={t('mBookings.detail.price')}>
               {b.total} RON{b.airType && ` · ${t(`air.${b.airType}`)}`}
             </Row>
-            <Row label={t('mBookings.detail.commission')}>{b.platformFee} RON</Row>
-            <Row label={t('mBookings.detail.receive')}>
-              <strong>{b.venuePayout} RON</strong>
-            </Row>
             <Row label={t('mBookings.detail.howPaid')}>{paymentStatusLine(b, locale)}</Row>
             {b.refundAmount !== null && (
               <Row label={t('mBookings.detail.refunded')}>{b.refundAmount} RON</Row>

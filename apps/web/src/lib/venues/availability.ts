@@ -26,6 +26,7 @@ import {
 } from '@pitchup/shared'
 import type { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { liveCompanyWhere } from '@/lib/venues/live'
 import { notFound, validationError } from '@/lib/api/errors'
 import { liveBookingWhere } from '@/lib/bookings/live'
 
@@ -48,7 +49,7 @@ interface Span {
 
 export async function loadSchedule(pitchId: string): Promise<PitchSchedule> {
   const pitch = await prisma.pitch.findFirst({
-    where: { id: pitchId, deletedAt: null, company: { status: 'ACTIVE' } },
+    where: { id: pitchId, deletedAt: null, company: liveCompanyWhere },
     select: {
       id: true,
       isActive: true,

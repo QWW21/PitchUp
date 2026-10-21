@@ -19,18 +19,8 @@ import type { SlotStatus } from './schemas/detail'
 
 describe('bookingPrice', () => {
   it('is the hourly rate times the hours, whatever the time of day', () => {
-    expect(bookingPrice(120, 120)).toEqual({
-      minutes: 120,
-      total: 240,
-      platformFee: 19.2,
-      venuePayout: 220.8,
-    })
+    expect(bookingPrice(120, 120)).toEqual({ minutes: 120, total: 240 })
     expect(bookingPrice(90, 90).total).toBe(135)
-  })
-  it('keeps the 8% fee out of what the player pays', () => {
-    const p = bookingPrice(100, 60)
-    expect(p.total).toBe(100)
-    expect(p.platformFee + p.venuePayout).toBe(p.total)
   })
 })
 

@@ -13,6 +13,7 @@ import {
   type ReviewSort,
 } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { liveCompanyWhere } from '@/lib/venues/live'
 import { getLocale } from '@/i18n/server'
 import { companyRating, pitchStats, publicRating } from './ratings'
 
@@ -84,7 +85,7 @@ export async function listReviews(q: ReviewQuery): Promise<ReviewPage | null> {
   const locale = await getLocale()
   // Only reviews on venues the public can see.
   const pitchWhere: Prisma.PitchWhereInput = {
-    company: { status: 'ACTIVE' },
+    company: liveCompanyWhere,
     ...(q.pitchId ? { id: q.pitchId } : {}),
     ...(q.companyId ? { companyId: q.companyId } : {}),
   }

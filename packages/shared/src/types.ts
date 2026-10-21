@@ -83,6 +83,8 @@ export type NotificationType =
   | 'TRUST_TIER_CHANGED'
   /** From an admin (E15): a review removed, a score adjusted, a venue suspended. */
   | 'ADMIN_NOTICE'
+  /** To the manager: their subscription started, failed, was paid, paused or ended (C-15). */
+  | 'SUBSCRIPTION_NOTICE'
   | 'OTP'
   | 'PASSWORD_RESET'
 

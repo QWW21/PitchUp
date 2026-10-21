@@ -36,6 +36,7 @@ export const managerRo: CatalogShape<typeof managerEn> = {
     tabs: {
       label: 'Setări',
       bookings: 'Rezervări și plăți',
+      billing: 'Abonament',
       venue: 'Detaliile bazei sportive',
       account: 'Contul tău',
     },
@@ -58,7 +59,7 @@ export const managerRo: CatalogShape<typeof managerEn> = {
       deposit: 'Avans plătit online',
       noDeposit: 'Fără avans',
       noDepositHint:
-        'Fără avans nu se plătește nimic online: îți asumi riscul ca jucătorii să nu vină. Comisionul PitchUp îți este facturat.',
+        'Fără avans nu se plătește nimic online: îți asumi riscul ca jucătorii să nu vină.',
       depositHint:
         'Jucătorii aleg: avansul intră în preț sau le este returnat după ce confirmi că au venit și au plătit integral la bază. Dacă nu vin, avansul rămâne la tine.',
     },
@@ -105,6 +106,70 @@ export const managerRo: CatalogShape<typeof managerEn> = {
       contact: 'Contact și program',
       withdrawing: 'Se retrag…',
       withdraw: 'Retrage aceste modificări',
+    },
+  },
+  billing: {
+    title: 'Abonament | PitchUp',
+    heading: 'Abonamentul tău',
+    intro:
+      'PitchUp nu ia comision: baza ta plătește un abonament, iar fiecare rezervare e în întregime a ta. Jucătorii te găsesc și te rezervă cât timp abonamentul merge.',
+    status: {
+      NONE: 'Nepublicată',
+      TRIALING: 'Luna gratuită',
+      ACTIVE: 'Activ',
+      PAST_DUE: 'Plată eșuată',
+      PAUSED: 'Pe pauză',
+      CANCELLING: 'Anulat',
+    },
+    line: {
+      NONE: 'Jucătorii nu pot găsi sau rezerva baza ta până nu te abonezi.',
+      TRIALING: 'Gratuit până pe {date}. Prima factură vine după aceea.',
+      trialNoCard: 'Gratuit până pe {date}. Adaugă cardul ca să rămâi publicată după aceea.',
+      ACTIVE: 'Următoarea factură pe {date}: {amount} lei.',
+      PAST_DUE:
+        'Ultima plată a eșuat. Actualizează cardul până pe {date}, altfel baza ta nu mai primește rezervări noi.',
+      PAUSED: 'Jucătorii nu pot găsi sau rezerva baza ta. Rezervările deja făcute rămân.',
+      CANCELLING: 'Baza ta rămâne publicată până pe {date}, apoi nu mai primește rezervări.',
+    },
+    nextBill: 'Plătești {price}, {interval}.',
+    choose: 'Cum vrei să plătești?',
+    interval: { MONTHLY: 'Lunar', YEARLY: 'Anual' },
+    current: '(actual)',
+    perMonth: '{amount} lei / lună',
+    perYear: '{amount} lei / an',
+    breakdown: '{base} lei + {count} terenuri în plus × {each} lei',
+    discount: 'Preț pentru primul an',
+    yearly: 'Prețul a zece luni pentru douăsprezece.',
+    pitches: {
+      one: 'TVA inclus. Ai {count} teren activ.',
+      few: 'TVA inclus. Ai {count} terenuri active.',
+      other: 'TVA inclus. Ai {count} de terenuri active.',
+    },
+    startTrial: 'Începe luna gratuită ({days} zile)',
+    trialNote: '{days} zile gratuit, apoi {price}. Poți anula oricând înainte.',
+    subscribe: 'Abonează-te și plătește {amount} lei',
+    addCard: 'Adaugă cardul',
+    card: 'Cardul tău',
+    saveCard: 'Salvează cardul',
+    cardFailed: 'Cardul nu a putut fi salvat. Încearcă altul.',
+    switch: 'Plătește {interval} de la următoarea factură',
+    cancel: 'Anulează abonamentul',
+    confirmCancel:
+      'Anulezi abonamentul? Baza ta rămâne publicată până la sfârșitul perioadei plătite, apoi nu mai primește rezervări.',
+    resume: 'Păstrează abonamentul',
+    testMode: 'Mod de test: nu e nevoie de card. Următoarea factură:',
+    test: { paid: 'Plătește acum', failed: 'Eșuează' },
+    invoices: 'Plăți',
+    noInvoices: 'Nicio plată încă.',
+    unavailable: 'Abonamentele nu sunt disponibile încă: plățile nu sunt configurate.',
+    banner: {
+      NONE: 'Baza ta nu este încă publicată: începe luna gratuită ca jucătorii să o poată găsi și rezerva.',
+      trialNoCard: 'Luna gratuită se încheie pe {date}. Adaugă cardul ca să rămâi publicată.',
+      PAST_DUE:
+        'Plata abonamentului a eșuat. Actualizează cardul până pe {date}, altfel baza ta nu mai primește rezervări noi.',
+      PAUSED:
+        'Baza ta este pe pauză: jucătorii nu o pot găsi sau rezerva până când abonamentul merge din nou.',
+      action: 'Mergi la Abonament',
     },
   },
 }

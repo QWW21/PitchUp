@@ -19,8 +19,6 @@ import {
   csvLine,
   dayOfWeek,
   endLabel,
-  feeRate,
-  feesOn,
   fromMinutes,
   normalizeWeek,
   percentChange,
@@ -114,7 +112,6 @@ async function figures(
         startTime: true,
         endTime: true,
         totalAmount: true,
-        platformFee: true,
         paymentMethod: true,
         depositAmount: true,
         dueAtVenue: true,
@@ -138,7 +135,7 @@ async function figures(
     buckets: new Map(
       bucketsBetween(window.from, window.to, groupBy).map(period => [
         period,
-        { period, gross: 0, online: 0, atVenue: 0, fees: 0, payout: 0, bookings: 0 },
+        { period, gross: 0, online: 0, atVenue: 0, bookings: 0 },
       ])
     ),
     online: 0,
@@ -195,11 +192,8 @@ async function figures(
       paid: !!b.paidAt,
       refunded: b.refundAmount === null ? null : Number(b.refundAmount),
     })
-    // Each booking's own commission (E15: an admin can change it).
-    const { fees } = feesOn(earned.gross, feeRate(Number(b.totalAmount), Number(b.platformFee)))
     const bucket = f.buckets.get(bucketOf(at.date, groupBy))
     if (bucket) {
-      bucket.fees += fees
       bucket.gross += earned.gross
       bucket.online += earned.online
       bucket.atVenue += earned.atVenue
@@ -233,8 +227,6 @@ async function figures(
     p.gross = Math.round(p.gross * 100) / 100
     p.online = Math.round(p.online * 100) / 100
     p.atVenue = Math.round(p.atVenue * 100) / 100
-    p.fees = Math.round(p.fees * 100) / 100
-    p.payout = Math.round((p.gross - p.fees) * 100) / 100
   }
   return f
 }
@@ -420,7 +412,6 @@ export async function analyticsCsv(
       teamCount: true,
       airType: true,
       totalAmount: true,
-      platformFee: true,
       paymentMethod: true,
       depositAmount: true,
       dueAtVenue: true,
@@ -449,8 +440,6 @@ export async function analyticsCsv(
         'earned',
         'online',
         'atVenue',
-        'fee',
-        'payout',
         'refunded',
         'teams',
       ] as const
@@ -469,10 +458,6 @@ export async function analyticsCsv(
       paid: !!b.paidAt,
       refunded: b.refundAmount === null ? null : Number(b.refundAmount),
     })
-    const { fees, payout } = feesOn(
-      earned.gross,
-      feeRate(Number(b.totalAmount), Number(b.platformFee))
-    )
     return csvLine([
       bookingReference(b.id),
       s.date,
@@ -488,8 +473,6 @@ export async function analyticsCsv(
       earned.gross,
       earned.online,
       earned.atVenue,
-      fees,
-      payout,
       b.refundAmount === null ? '' : Number(b.refundAmount),
       b.teamCount,
     ])

@@ -297,7 +297,6 @@ export async function managerBookingDetail(
         updatedAt: true,
         paidAt: true,
         cancelledAt: true,
-        platformFee: true,
         teamCount: true,
         teamsData: true,
         shirtSets: true,
@@ -327,8 +326,6 @@ export async function managerBookingDetail(
         AND b."cancelledAt" > b."startTime" - interval '24 hours'`.then(r => Number(r[0]?.n ?? 0)),
   ])
 
-  const total = Number(b.totalAmount)
-  const fee = Number(b.platformFee)
   const teams = Array.isArray(b.teamsData)
     ? (b.teamsData as { playerCount?: number; colour?: string }[])
     : []
@@ -337,8 +334,6 @@ export async function managerBookingDetail(
     ...toRow({ ...b, player: { name: b.player.name } }, colours, now),
     minutes: Math.round((b.endTime.getTime() - b.startTime.getTime()) / 60_000),
     createdAt: b.createdAt.toISOString(),
-    platformFee: fee,
-    venuePayout: Math.round((total - fee) * 100) / 100,
     teams: Array.from({ length: b.teamCount }, (_, i) => ({
       name: TEAM_NAMES[i] ?? `Team ${i + 1}`,
       players: teams[i]?.playerCount ?? null,

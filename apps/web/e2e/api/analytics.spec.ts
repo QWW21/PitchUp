@@ -117,8 +117,6 @@ test('revenue: what the venue earned, in every bucket, and only its own', async 
     gross: 650,
     online: 650,
     atVenue: 0,
-    fees: 52,
-    payout: 598,
     bookings: 3,
   })
   expect(res.data!.data.reduce((n, p) => n + p.gross, 0)).toBe(650)
@@ -291,9 +289,9 @@ test('export: every booking of the period as CSV, names escaped', async () => {
     .trim()
     .split('\r\n')
   expect(lines[0]).toBe(
-    'Reference,Date,Start,End,Pitch,Size,Air,Player,Status,Price (RON),Payment,Earned (RON),Online (RON),At venue (RON),PitchUp fee (RON),Payout (RON),Refunded (RON),Teams'
+    'Reference,Date,Start,End,Pitch,Size,Air,Player,Status,Price (RON),Payment,Earned (RON),Online (RON),At venue (RON),Refunded (RON),Teams'
   )
   expect(lines).toHaveLength(2)
   expect(lines[1]).toContain(`,${day},18:00,20:00,Pitch A,`)
-  expect(lines[1]).toContain(',"Pop, Ioana",Completed,200,Online,200,200,0,16,184,,2')
+  expect(lines[1]).toContain(',"Pop, Ioana",Completed,200,Online,200,200,0,,2')
 })

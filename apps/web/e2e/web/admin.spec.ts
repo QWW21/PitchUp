@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test.afterAll(async () => {
-  await db.platformConfig.updateMany({ data: { maintenanceMode: false, platformFeePercent: 8 } })
+  await db.platformConfig.updateMany({ data: { maintenanceMode: false, subMonthlyRon: 30 } })
   await db.booking.deleteMany({ where: { player: { email: { startsWith: 'web-adm-p-' } } } })
   await db.company.deleteMany({ where: { owner: { email: { startsWith: 'web-adm-mgr-' } } } })
 })
@@ -159,14 +159,14 @@ test('disputes: open and decided tabs', async ({ page }) => {
   await audit(page)
 })
 
-test('settings: the commission, and maintenance mode as a player sees it', async ({
+test('settings: the subscription prices, and maintenance mode as a player sees it', async ({
   page,
   browser,
 }, info) => {
   await asAdmin(page)
   await page.goto('/admin/config')
   await expect(page.getByRole('button', { name: 'Save settings' })).toBeDisabled()
-  await page.getByLabel('PitchUp commission (%)').fill('9')
+  await page.getByLabel('From the second year, monthly').fill('35')
   await page.getByRole('button', { name: 'Save settings' }).click()
   await expect(page.getByRole('status')).toHaveText('Settings saved.')
   await snap(page, info, AREA, '06-settings', { fullPage: true })

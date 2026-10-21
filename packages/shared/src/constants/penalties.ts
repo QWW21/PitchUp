@@ -1,12 +1,9 @@
 /**
- * Platform fee and no-show penalties. PRD §8 (payments) and §9.3.
+ * No-show penalties. PRD §8 (payments) and §9.3.
  *
  * Amounts are in RON. Values are platform defaults; the admin Config panel
  * (PRD §12) can override them per environment.
  */
-
-/** Platform commission on booking value. PRD §8: "8% of booking value". */
-export const PLATFORM_FEE_PERCENT = 8
 
 /** Flat fee charged to a player on a confirmed no-show. PRD §9.3. */
 export const NO_SHOW_FLAT_FEE_RON = 10

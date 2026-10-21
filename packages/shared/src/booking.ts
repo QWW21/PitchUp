@@ -4,7 +4,6 @@
  */
 import { BOOKING } from './constants/booking'
 import { DEFAULT_REFUND_POLICY, type RefundPolicy } from './constants/cancellation'
-import { PLATFORM_FEE_PERCENT } from './constants/penalties'
 import type { PitchSize } from './types'
 import type { SlotStatus } from './schemas/detail'
 import { fromMinutes, toMinutes } from './schedule'
@@ -19,29 +18,13 @@ export const endLabel = (minutes: number): string =>
 
 export interface BookingPrice {
   minutes: number
-  /** What the player pays: hourly rate × hours. */
+  /** What the player pays, and all of it is the venue's (C-15: no commission). */
   total: number
-  /**
-   * PitchUp's commission, kept from the venue's payout; the player does not
-   * pay it on top. PRD §8: 8% of booking value.
-   */
-  platformFee: number
-  /** What the venue receives. */
-  venuePayout: number
 }
 
-/**
- * Price of a booking. One rate at any time of day (C-2); shirts are free
- * (C-1). The commission is an admin setting (E15); 8% unless given.
- */
-export function bookingPrice(
-  hourlyRate: number,
-  minutes: number,
-  feePercent: number = PLATFORM_FEE_PERCENT
-): BookingPrice {
-  const total = round2((hourlyRate * minutes) / 60)
-  const platformFee = round2((total * feePercent) / 100)
-  return { minutes, total, platformFee, venuePayout: round2(total - platformFee) }
+/** Price of a booking. One rate at any time of day (C-2); shirts are free (C-1). */
+export function bookingPrice(hourlyRate: number, minutes: number): BookingPrice {
+  return { minutes, total: round2((hourlyRate * minutes) / 60) }
 }
 
 /** "2h 00min", "1h 30min", "30min". */

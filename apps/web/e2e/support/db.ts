@@ -99,7 +99,8 @@ export async function createManager(email: string, password = 'Testing123'): Pro
 
 /**
  * A venue manager with an approved company and no pitches (E10): open
- * 08:00–23:00, closed on Sundays.
+ * 08:00–23:00, closed on Sundays. Subscribed (C-15: test provider, paid
+ * monthly, the free month used), so players can see it.
  */
 export async function createVenue(email: string, name: string) {
   const userId = await createManager(email)
@@ -108,6 +109,11 @@ export async function createVenue(email: string, name: string) {
       ownerId: userId,
       name,
       status: 'ACTIVE',
+      subscriptionStatus: 'ACTIVE',
+      billingInterval: 'MONTHLY',
+      trialEndsAt: new Date(),
+      firstPaidAt: new Date(),
+      subscriptionPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
       phone: '+40712000444',
       email,
       addressLine1: 'Str. Testului 1',
@@ -162,7 +168,6 @@ export async function seedBooking(opts: {
       teamsData: [{ playerCount: 7, colour: 'RED' }, { playerCount: 6 }],
       status: opts.status,
       pitchRateSnapshot: opts.rate ?? 180,
-      platformFee: total * 0.08,
       totalAmount: total,
       paymentProvider: 'test',
       stripePaymentIntentId: `test_pi_seed_${Math.random().toString(36).slice(2)}`,

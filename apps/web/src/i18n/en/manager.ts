@@ -33,6 +33,7 @@ export const managerEn = {
     tabs: {
       label: 'Settings',
       bookings: 'Bookings and payments',
+      billing: 'Subscription',
       venue: 'Venue details',
       account: 'Your account',
     },
@@ -55,7 +56,7 @@ export const managerEn = {
       deposit: 'Deposit paid online',
       noDeposit: 'No deposit',
       noDepositHint:
-        'With no deposit, nothing is paid online: you take the risk that players don’t come. PitchUp’s commission is invoiced to you.',
+        'With no deposit, nothing is paid online: you take the risk that players don’t come.',
       depositHint:
         'Players choose: the deposit counts towards the price, or it is refunded once you confirm they came and they pay in full here. If they don’t come, you keep it.',
     },
@@ -102,6 +103,69 @@ export const managerEn = {
       contact: 'Contact and opening hours',
       withdrawing: 'Withdrawing…',
       withdraw: 'Withdraw these changes',
+    },
+  },
+  billing: {
+    title: 'Subscription | PitchUp',
+    heading: 'Your subscription',
+    intro:
+      'PitchUp takes no commission: your venue pays one subscription, and every booking is all yours. Players find and book your venue while it runs.',
+    status: {
+      NONE: 'Not live',
+      TRIALING: 'Free month',
+      ACTIVE: 'Active',
+      PAST_DUE: 'Payment failed',
+      PAUSED: 'Paused',
+      CANCELLING: 'Cancelled',
+    },
+    line: {
+      NONE: "Players can't find or book your venue until you subscribe.",
+      TRIALING: 'Free until {date}. Your first bill comes after that.',
+      trialNoCard: 'Free until {date}. Add your card to stay live after that.',
+      ACTIVE: 'Next bill on {date}: {amount} lei.',
+      PAST_DUE:
+        'Your last payment failed. Update your card by {date}, or your venue stops taking new bookings.',
+      PAUSED: "Players can't find or book your venue. Bookings already made stay.",
+      CANCELLING: 'Your venue stays live until {date}, then stops taking bookings.',
+    },
+    nextBill: 'You pay {price}, {interval}.',
+    choose: 'How do you want to pay?',
+    interval: { MONTHLY: 'Monthly', YEARLY: 'Yearly' },
+    current: '(current)',
+    perMonth: '{amount} lei / month',
+    perYear: '{amount} lei / year',
+    breakdown: '{base} lei + {count} extra pitches × {each} lei',
+    discount: 'First-year price',
+    yearly: 'Ten months’ price for twelve.',
+    pitches: {
+      one: 'VAT included. You have {count} active pitch.',
+      other: 'VAT included. You have {count} active pitches.',
+    },
+    startTrial: 'Start your free month ({days} days)',
+    trialNote: '{days} days free, then {price}. Cancel any time before.',
+    subscribe: 'Subscribe and pay {amount} lei',
+    addCard: 'Add my card',
+    card: 'Your card',
+    saveCard: 'Save card',
+    cardFailed: 'The card could not be saved. Try another one.',
+    switch: 'Pay {interval} from the next bill',
+    cancel: 'Cancel subscription',
+    confirmCancel:
+      'Cancel your subscription? Your venue stays live until the end of the period you paid for, then stops taking bookings.',
+    resume: 'Keep my subscription',
+    testMode: 'Test mode: no card is needed. Make the next bill:',
+    test: { paid: 'Pay now', failed: 'Fail' },
+    invoices: 'Payments',
+    noInvoices: 'No payments yet.',
+    unavailable: 'Subscriptions are not available yet: payments are not set up.',
+    banner: {
+      NONE: "Your venue isn't live yet: start your free month so players can find and book it.",
+      trialNoCard: 'Your free month ends on {date}. Add your card to stay live.',
+      PAST_DUE:
+        'Your subscription payment failed. Update your card by {date}, or your venue stops taking new bookings.',
+      PAUSED:
+        "Your venue is paused: players can't find or book it until your subscription runs again.",
+      action: 'Go to Subscription',
     },
   },
 } as const

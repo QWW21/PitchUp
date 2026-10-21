@@ -21,6 +21,7 @@ import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { formatDateLong, type BookingStatus, type ManagerBooking } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
+import { SubscriptionBanner } from '../../components/manager/SubscriptionBanner'
 import { EmptyState } from '../../components/common/EmptyState'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
@@ -75,6 +76,7 @@ export function ManagerBookingsScreen({ navigation }: Props) {
           {t('manager.bookings.title')}
         </Text>
       </View>
+      <SubscriptionBanner />
 
       <ScrollView
         horizontal

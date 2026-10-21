@@ -36,6 +36,8 @@ export default async function AdminCompaniesPage({ searchParams }: Props) {
   const raw = await searchParams
   const parsed = AdminCompanyQuerySchema.safeParse({
     status: typeof raw.status === 'string' && raw.status ? raw.status : undefined,
+    subscription:
+      typeof raw.subscription === 'string' && raw.subscription ? raw.subscription : undefined,
     search: typeof raw.search === 'string' && raw.search.trim() ? raw.search : undefined,
     cursor: typeof raw.cursor === 'string' ? raw.cursor : undefined,
   })
@@ -204,7 +206,11 @@ export default async function AdminCompaniesPage({ searchParams }: Props) {
         </ul>
       )}
       <h2 className="mt-10 text-xl font-bold text-neutral-900">{t('admin.companies.all')}</h2>
-      <VenueFilters status={query.status ?? ''} search={query.search ?? ''} />
+      <VenueFilters
+        status={query.status ?? ''}
+        subscription={query.subscription ?? ''}
+        search={query.search ?? ''}
+      />
       {all.items.length === 0 ? (
         <p className="mt-4 text-sm text-neutral-700">{t('admin.companies.noneMatch')}</p>
       ) : (
@@ -223,6 +229,9 @@ export default async function AdminCompaniesPage({ searchParams }: Props) {
                 </th>
                 <th scope="col" className="px-4 py-2 font-medium">
                   {t('admin.companies.status')}
+                </th>
+                <th scope="col" className="px-4 py-2 font-medium">
+                  {t('admin.companies.subscription')}
                 </th>
               </tr>
             </thead>
@@ -253,6 +262,9 @@ export default async function AdminCompaniesPage({ searchParams }: Props) {
                       </span>
                     )}
                   </td>
+                  <td className="px-4 py-3 text-neutral-700">
+                    {t(`subscriptionStatus.${c.subscription}`)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -263,6 +275,7 @@ export default async function AdminCompaniesPage({ searchParams }: Props) {
         <Link
           href={`/admin/companies?${new URLSearchParams({
             ...(query.status ? { status: query.status } : {}),
+            ...(query.subscription ? { subscription: query.subscription } : {}),
             ...(query.search ? { search: query.search } : {}),
             cursor: all.nextCursor,
           })}`}

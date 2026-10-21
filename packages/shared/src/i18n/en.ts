@@ -213,6 +213,15 @@ export const en = {
     ACTIVE: 'Live',
     SUSPENDED: 'Suspended',
   },
+  /** C-15: a venue's subscription to PitchUp. */
+  subscriptionStatus: {
+    NONE: 'Not subscribed',
+    TRIALING: 'Free month',
+    ACTIVE: 'Active',
+    PAST_DUE: 'Payment failed',
+    PAUSED: 'Paused',
+    CANCELLING: 'Cancelling',
+  },
   analyticsPeriod: {
     '7d': 'Last 7 days',
     '30d': 'Last 30 days',

@@ -4,6 +4,7 @@
  * figures and its settings.
  */
 import { z } from 'zod'
+import { SUBSCRIPTION_STATUSES, type SubscriptionPrices, type SubscriptionStatus } from './billing'
 import type { TrustScoreReason, TrustTierLabel } from './types'
 import { sharedT } from './i18n'
 import type { Locale } from './i18n/core'
@@ -24,6 +25,8 @@ export const companyStatusLabel = (status: CompanyStatusName, locale: Locale): s
 /** GET /admin/companies — newest first. */
 export const AdminCompanyQuerySchema = z.object({
   status: z.enum(COMPANY_STATUSES).optional(),
+  /** C-15: by subscription status. */
+  subscription: z.enum(SUBSCRIPTION_STATUSES).optional(),
   search,
   cursor,
   limit,
@@ -42,6 +45,7 @@ export interface AdminCompanyRow {
   /** New details wait for approval (C-13). */
   hasChanges: boolean
   stripeConnected: boolean
+  subscription: SubscriptionStatus
 }
 
 export interface AdminCompanyPage {
@@ -214,21 +218,32 @@ export interface AdminStats {
   /** Value of played bookings, all time and the last 30 days, in RON. */
   gmv: number
   last30dGmv: number
-  /** PitchUp's commission on those. */
-  fees: number
+  /** PitchUp's income (C-15): paid subscriptions, all time and the last 30 days. */
+  revenue: number
+  last30dRevenue: number
+  /** Venues by subscription status. */
+  subscriptions: Record<SubscriptionStatus, number>
 }
 
-export interface PlatformConfigView {
-  platformFeePercent: number
+export interface PlatformConfigView extends SubscriptionPrices {
   maintenanceMode: boolean
   maintenanceMessage: string
   updatedAt: string | null
 }
 
+const price = z.number().int().min(0).max(10_000)
+
 /** PUT /admin/config — only what is sent changes. */
 export const PlatformConfigSchema = z
   .object({
-    platformFeePercent: z.number().int().min(0).max(20),
+    subIntroMonthlyRon: price,
+    subIntroYearlyRon: price,
+    subMonthlyRon: price,
+    subYearlyRon: price,
+    subExtraPitchMonthlyRon: price,
+    subExtraPitchYearlyRon: price,
+    subIncludedPitches: z.number().int().min(0).max(50),
+    subTrialDays: z.number().int().min(0).max(90),
     maintenanceMode: z.boolean(),
     maintenanceMessage: z.string().trim().min(10).max(500),
   })

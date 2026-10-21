@@ -41,8 +41,6 @@ const detail = (over: Partial<ManagerBookingDetail> = {}): ManagerBookingDetail 
   ...row(),
   minutes: 90,
   createdAt: '2026-11-01T10:00:00Z',
-  platformFee: 10.8,
-  venuePayout: 124.2,
   teams: [
     { name: 'Team A', players: 7, colour: null },
     { name: 'Team B', players: 7, colour: null },
@@ -84,6 +82,7 @@ beforeEach(() => {
     { id: 'p1', name: 'Teren 1' },
     { id: 'p2', name: 'Teren 2' },
   ] as never)
+  api.billing.mockResolvedValue({ status: 'ACTIVE', interval: 'MONTHLY' } as never)
 })
 
 describe('Venue bookings (E11-09)', () => {
@@ -110,18 +109,30 @@ describe('Venue bookings (E11-09)', () => {
     fireEvent.press(screen.getByText('All'))
     fireEvent.press(await screen.findByLabelText(/^Andrei Pop/))
     expect(nav.navigate).toHaveBeenCalledWith('ManagerBookingDetail', { id: 'b1' })
+    // A running subscription: no banner.
+    expect(screen.queryByText(/Manage your subscription/)).toBeNull()
+  })
+
+  it('says when the venue is paused, and where to fix it (C-15)', async () => {
+    api.bookings.mockResolvedValue({ items: [], nextCursor: null })
+    api.billing.mockResolvedValue({ status: 'PAUSED', interval: 'MONTHLY' } as never)
+    show(ManagerBookingsScreen)
+    expect(
+      await screen.findByText("Your venue is paused: players can't find or book it.")
+    ).toBeOnTheScreen()
+    expect(screen.getByText(/Settings → Subscription/)).toBeOnTheScreen()
   })
 })
 
 describe('Venue booking detail (E11-09)', () => {
-  it('shows the booking, the player at this venue and the payout', async () => {
+  it('shows the booking, the player at this venue and the price, with no commission', async () => {
     api.booking.mockResolvedValue(detail())
     show(ManagerBookingDetailScreen, { id: 'b1' })
     expect(await screen.findByText('Booking #B00K1')).toBeOnTheScreen()
     expect(
       screen.getByText('With you: 4 bookings, 3 played, 0 no-shows, 1 late cancellations.')
     ).toBeOnTheScreen()
-    expect(screen.getByText('124.2 RON')).toBeOnTheScreen()
+    expect(screen.queryByText('PitchUp commission')).toBeNull()
     expect(screen.queryByText('Report no-show')).toBeNull()
   })
 

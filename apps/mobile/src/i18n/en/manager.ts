@@ -41,8 +41,6 @@ export const managerEn = {
       'With you: {bookings} bookings, {completed} played, {noShows} no-shows, {late} late cancellations.',
     payment: 'Payment',
     price: 'Price',
-    commission: 'PitchUp commission',
-    receive: 'You receive',
     history: 'History',
     waits:
       '{name} has paid and waits for your answer. Without one by {deadline}, it is declined and refunded.',
@@ -93,5 +91,13 @@ export const managerEn = {
     booked: ' · {n}% booked',
     noReviews: 'No reviews',
     line2: ' · {cancelled}% cancelled · {noShows}% no-shows',
+  },
+  subscription: {
+    NONE: "Your venue isn't live yet: players can't find or book it until you start your free month.",
+    trialNoCard: 'Your free month ends on {date}. Add your card to stay live.',
+    PAST_DUE:
+      'Your subscription payment failed. Update your card by {date}, or your venue stops taking new bookings.',
+    PAUSED: "Your venue is paused: players can't find or book it.",
+    onWeb: 'Manage your subscription on pitchup.ro, in Settings → Subscription.',
   },
 } as const

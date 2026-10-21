@@ -73,12 +73,12 @@ export const emailRo: CatalogShape<typeof emailEn> = {
   companyApproved: {
     subject: '{company} este aprobată pe PitchUp',
     heading: 'Baza ta sportivă este aprobată',
-    live: '{company} este acum activă pe PitchUp. Jucătorii o găsesc în Descoperă.',
-    next: 'Adaugă terenurile și prețurile, și pot începe rezervările.',
+    live: '{company} este aprobată pe PitchUp.',
+    next: 'Adaugă terenurile și prețurile, apoi începe luna gratuită din Setări → Abonament: de atunci jucătorii te găsesc și te rezervă.',
     button: 'Deschide panoul de control',
     footer: 'Primești acest mesaj pentru că ai înscris o bază sportivă pe PitchUp.',
     textLive:
-      'Baza ta sportivă este activă. Adaugă terenurile și prețurile, și pot începe rezervările.',
+      'Baza ta sportivă este aprobată. Adaugă terenurile și prețurile, apoi începe luna gratuită din Setări → Abonament ca să fii publicată.',
     textButton: 'Deschide panoul de control: {url}',
   },
   companyRejected: {

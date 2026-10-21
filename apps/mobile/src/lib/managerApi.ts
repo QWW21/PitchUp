@@ -11,6 +11,7 @@ import type {
   ManagerBookingDetail,
   ManagerBookingPage,
   ManagerPitchRow,
+  ManagerBilling,
 } from '@pitchup/shared'
 import { apiRequest } from './apiClient'
 
@@ -30,6 +31,8 @@ export const managerApi = {
   booking: (id: string) =>
     apiRequest<ManagerBookingDetail>({ method: 'GET', url: `/manager/bookings/${id}` }),
   pitches: () => apiRequest<ManagerPitchRow[]>({ method: 'GET', url: '/manager/pitches' }),
+  /** C-15: the venue's subscription, for the banner (managed on the web). */
+  billing: () => apiRequest<ManagerBilling>({ method: 'GET', url: '/manager/billing' }),
   attended: (id: string) =>
     apiRequest<ManagerBooking>({
       method: 'POST',

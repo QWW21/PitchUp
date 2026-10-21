@@ -185,7 +185,7 @@ test.describe('the four steps (E09-01 … E09-05)', () => {
 })
 
 test.describe('approval (admin, agreed for E09)', () => {
-  test('approve makes it public and tells the manager; send back returns it to DRAFT with the reason', async () => {
+  test('approve tells the manager, who goes public with a subscription; send back returns it to DRAFT with the reason', async () => {
     const admin = await context('admin@pitchup.ro', ADMIN_PASSWORD)
     const a = await newManager()
     const b = await newManager()
@@ -215,6 +215,11 @@ test.describe('approval (admin, agreed for E09)', () => {
     expect((await companyOf(a.id)).status).toBe('ACTIVE')
     expect(await db.notification.count({ where: { userId: a.id, type: 'COMPANY_APPROVED' } })).toBe(
       1
+    )
+    // C-15: approved, but public only once the manager starts the free month.
+    expect((await get(a.ctx, `/companies/${ca.id}`)).status).toBe(404)
+    expect((await post(a.ctx, '/manager/billing/subscribe', { interval: 'MONTHLY' })).status).toBe(
+      200
     )
     expect((await get(a.ctx, `/companies/${ca.id}`)).status).toBe(200)
     const again = await post(admin, `/admin/companies/${ca.id}/approve`, {})

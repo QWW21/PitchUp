@@ -2,9 +2,35 @@
 export const notifyEn = {
   at: '{date} at {time}',
   refundedToCard: '{amount} RON is refunded to your card.',
+  subscription: {
+    started: {
+      title: 'Your free month has started',
+      body: '{company} is live on PitchUp until {date}, free. Your first bill comes after that.',
+    },
+    trialEnding: {
+      title: 'Your free month ends on {date}',
+      body: 'After that, {company} stays live on your subscription. Check your plan in Settings.',
+    },
+    paid: {
+      title: '{company} is live again',
+      body: 'Your payment of {amount} lei went through. Players can find and book your venue again.',
+    },
+    failed: {
+      title: 'Your subscription payment failed',
+      body: 'Update your card by {date}, or {company} stops taking new bookings.',
+    },
+    paused: {
+      title: '{company} is paused',
+      body: "Players can't find or book your venue until your subscription runs again. Bookings already made stay.",
+    },
+    ended: {
+      title: 'Your subscription has ended',
+      body: '{company} is no longer listed. Subscribe again in Settings to take bookings.',
+    },
+  },
   companyApproved: {
     title: '{company} is approved',
-    body: 'Your venue is live on PitchUp. Add your pitches to start taking bookings.',
+    body: 'Add your pitches, then start your free month in Settings to go live and take bookings.',
   },
   companyRejected: { title: '{company} needs changes' },
   companySuspended: {

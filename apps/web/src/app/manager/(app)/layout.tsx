@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { signOut } from '@/auth'
 import { QueryProvider } from '@/components/QueryProvider'
 import { ManagerShell } from '@/components/manager/ManagerShell'
+import { BillingBanner } from '@/components/manager/BillingBanner'
 import { requireActiveManager } from '@/lib/manager/access'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +27,7 @@ export default async function ManagerLayout({ children }: { children: ReactNode 
         userName={session.user.name ?? session.user.email ?? 'Manager'}
         signOutAction={signOutAction}
       >
+        <BillingBanner company={company} />
         {children}
       </ManagerShell>
     </QueryProvider>

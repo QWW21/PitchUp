@@ -1,11 +1,11 @@
 /**
  * The platform's figures — E15-05, all at once. "Bookings" and GMV count
  * games that were played (completed, or confirmed and started), the same
- * rule the venues' analytics use; PitchUp's fees are what those bookings
- * stored.
+ * rule the venues' analytics use. PitchUp's revenue (C-15) is what venues
+ * paid for their subscriptions.
  */
 import 'server-only'
-import type { AdminStats } from '@pitchup/shared'
+import { SUBSCRIPTION_STATUSES, type AdminStats } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 
 const DAY = 86_400_000
@@ -27,6 +27,9 @@ export async function platformStats(now: Date = new Date()): Promise<AdminStats>
     activePitches,
     all,
     recent,
+    paid,
+    paidRecently,
+    subscriptions,
     openDisputes,
     reportedReviews,
   ] = await Promise.all([
@@ -41,12 +44,22 @@ export async function platformStats(now: Date = new Date()): Promise<AdminStats>
     }),
     prisma.booking.aggregate({
       where: played,
-      _sum: { totalAmount: true, platformFee: true },
+      _sum: { totalAmount: true },
       _count: { _all: true },
     }),
     prisma.booking.aggregate({
       where: { ...played, startTime: { gte: new Date(now.getTime() - 30 * DAY), lte: now } },
       _sum: { totalAmount: true },
+    }),
+    prisma.subscriptionInvoice.aggregate({ _sum: { amountRon: true } }),
+    prisma.subscriptionInvoice.aggregate({
+      where: { paidAt: { gte: new Date(now.getTime() - 30 * DAY), lte: now } },
+      _sum: { amountRon: true },
+    }),
+    prisma.company.groupBy({
+      by: ['subscriptionStatus'],
+      where: { status: 'ACTIVE' },
+      _count: { _all: true },
     }),
     prisma.noShow.count({ where: { disputeStatus: 'OPEN' } }),
     prisma.review.count({ where: { deletedAt: null, reports: { some: {} } } }),
@@ -70,6 +83,13 @@ export async function platformStats(now: Date = new Date()): Promise<AdminStats>
     reportedReviews,
     gmv: Number(all._sum.totalAmount ?? 0),
     last30dGmv: Number(recent._sum.totalAmount ?? 0),
-    fees: Number(all._sum.platformFee ?? 0),
+    revenue: Number(paid._sum.amountRon ?? 0),
+    last30dRevenue: Number(paidRecently._sum.amountRon ?? 0),
+    subscriptions: Object.fromEntries(
+      SUBSCRIPTION_STATUSES.map(s => [
+        s,
+        subscriptions.find(row => row.subscriptionStatus === s)?._count._all ?? 0,
+      ])
+    ) as AdminStats['subscriptions'],
   }
 }

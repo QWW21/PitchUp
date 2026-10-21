@@ -95,6 +95,8 @@ export const onboardingRo: CatalogShape<typeof onboardingEn> = {
     },
     testMode:
       'Mod de test: Stripe nu e configurat pe acest server, așa că pasul se încheie fără el.',
+    subscription:
+      'PitchUp nu ia comision din rezervările tale. După ce aprobăm baza ta, începe luna gratuită din Setări → Abonament ca să fii publicată.',
     connect: 'Conectează-te cu Stripe',
     back: 'Înapoi la contact și program',
     opening: 'Se deschide Stripe…',

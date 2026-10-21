@@ -41,6 +41,7 @@ export default async function Step4() {
           </li>
         ))}
       </ul>
+      <p className="mt-6 text-sm text-neutral-700">{t('onboarding.step4.subscription')}</p>
       {testMode && (
         <p className="mt-6 rounded-md bg-neutral-100 p-3 text-sm text-neutral-700">
           {t('onboarding.step4.testMode')}

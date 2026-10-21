@@ -70,11 +70,12 @@ export const emailEn = {
   companyApproved: {
     subject: '{company} is approved on PitchUp',
     heading: 'Your venue is approved',
-    live: '{company} is now live on PitchUp. Players can find it on Discover.',
-    next: 'Add your pitches and their prices, and bookings can start.',
+    live: '{company} is approved on PitchUp.',
+    next: 'Add your pitches and their prices, then start your free month in Settings → Subscription: players can find and book you from then on.',
     button: 'Open your dashboard',
     footer: 'You receive this because you registered a venue on PitchUp.',
-    textLive: 'Your venue is live. Add your pitches and their prices, and bookings can start.',
+    textLive:
+      'Your venue is approved. Add your pitches and their prices, then start your free month in Settings → Subscription to go live.',
     textButton: 'Open your dashboard: {url}',
   },
   companyRejected: {

@@ -173,9 +173,6 @@ export interface ManagerCalendar {
 export interface ManagerBookingDetail extends ManagerBooking {
   minutes: number
   createdAt: string
-  /** PitchUp's commission and what the venue receives (E11-03). */
-  platformFee: number
-  venuePayout: number
   teams: { name: string; players: number | null; colour: string | null }[]
   shirtSets: number
   /** C-14: the air on a covered pitch; null when uncovered. */

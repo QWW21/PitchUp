@@ -157,7 +157,6 @@ export function PricingForm({ pitch }: { pitch: ManagerPitch }) {
                 const [a, b = '', c = ''] = t('editor.pricing.preview', {
                   duration: MARK,
                   total: MARK,
-                  payout: preview.venuePayout,
                 }).split(MARK)
                 return (
                   <>

@@ -27,6 +27,7 @@ import {
 } from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
+import { SubscriptionBanner } from '../../components/manager/SubscriptionBanner'
 import { ErrorState } from '../../components/common/ErrorState'
 import { colors, spacing } from '../../theme/tokens'
 import { useLocale, useT } from '../../i18n'
@@ -78,6 +79,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
           {t('manager.analytics.title')}
         </Text>
       </View>
+      <SubscriptionBanner />
       <View style={styles.chips}>
         {ANALYTICS_PERIODS.map(p => (
           <Pressable

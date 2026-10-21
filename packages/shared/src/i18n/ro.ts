@@ -215,6 +215,14 @@ export const ro: CatalogShape<typeof en> = {
     ACTIVE: 'Activă',
     SUSPENDED: 'Suspendată',
   },
+  subscriptionStatus: {
+    NONE: 'Fără abonament',
+    TRIALING: 'Luna gratuită',
+    ACTIVE: 'Activ',
+    PAUSED: 'Pe pauză',
+    PAST_DUE: 'Plată eșuată',
+    CANCELLING: 'Se anulează',
+  },
   analyticsPeriod: {
     '7d': 'Ultimele 7 zile',
     '30d': 'Ultimele 30 de zile',

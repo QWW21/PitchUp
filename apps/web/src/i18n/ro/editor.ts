@@ -61,7 +61,7 @@ export const editorRo: CatalogShape<typeof editorEn> = {
     ahead: 'Jucătorii pot rezerva cu până la',
     daysAhead: '{n} zile înainte',
     preview:
-      'Un jucător care rezervă {duration} plătește {total}. Tu primești {payout} RON după comisionul PitchUp de 8%.',
+      'Un jucător care rezervă {duration} plătește {total}, și toți banii sunt ai tăi: PitchUp nu ia comision.',
     total: '{n} RON',
     enterRate: 'Introdu un tarif pe oră ca să vezi cât costă o rezervare.',
     save: 'Salvează prețurile',

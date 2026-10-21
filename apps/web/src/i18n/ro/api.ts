@@ -152,6 +152,9 @@ export const apiRo: CatalogShape<typeof apiEn> = {
     other: 'Acest teren are {count} de rezervări viitoare. Anulează-le mai întâi.',
   },
   bookingLength: 'Acest teren se rezervă pentru {min} până la {max} o dată',
+  alreadySubscribed: 'Baza ta are deja un abonament',
+  notSubscribed: 'Baza ta nu are un abonament activ',
+  notCancelling: 'Abonamentul nu este în curs de anulare',
   airNotOffered: 'Acest tip de aer nu este oferit în ziua aleasă',
   coveredNeedsAir:
     'Setează un preț pentru aer rece, aer cald sau ambele înainte de a adăuga un sezon',

@@ -62,7 +62,6 @@ async function venueWithBookings(page: Page, count = 3) {
         teamCount: 2,
         status: 'CONFIRMED',
         pitchRateSnapshot: 100,
-        platformFee: 16,
         totalAmount: 200,
         ...extra,
       },
@@ -141,8 +140,8 @@ test('a booking: the details, and marking a finished game complete', async ({ pa
   await expect(
     page.getByRole('heading', { name: `Booking #${ended.id.slice(-6).toUpperCase()}` })
   ).toBeVisible()
-  await expect(page.getByText('You receive')).toBeVisible()
-  await expect(page.getByText('184 RON')).toBeVisible()
+  // C-15: no commission, so no "you receive" line.
+  await expect(page.getByText('You receive')).toHaveCount(0)
   await expect(page.getByText(/With you: \d+ bookings?/)).toBeVisible()
   await expect(page.getByText('Deposit paid: 40 RON · To pay at the venue: 160 RON')).toBeVisible()
   await snap(page, info, AREA, '02-detail', { fullPage: true })

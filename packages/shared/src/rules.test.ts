@@ -12,7 +12,6 @@ import {
   LoginSchema,
   ManagerReplySchema,
   ManagerReviewQuerySchema,
-  PLATFORM_FEE_PERCENT,
   RegisterPlayerSchema,
   ReportReviewSchema,
   ReviewListQuerySchema,
@@ -45,8 +44,7 @@ describe('constants match the PRD', () => {
     expect(TRUST_TIERS.find(t => t.label === 'Suspended')?.canBook).toBe(false)
   })
 
-  it('platform fee, cities, shirt colours and bcrypt cost', () => {
-    expect(PLATFORM_FEE_PERCENT).toBe(8)
+  it('cities, shirt colours and bcrypt cost', () => {
     expect(CITIES).toHaveLength(10)
     expect(SHIRT_COLOURS).toEqual([
       'RED',

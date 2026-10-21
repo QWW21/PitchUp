@@ -2,7 +2,7 @@
  * The admin panel's API — E15-01 … E15-05: venues and their statuses, users
  * (suspension ends every session, trust adjusted with a reason, players
  * deleted), disputes, review moderation, the figures, and the settings
- * (the commission on new bookings, maintenance mode). Tests run one at a
+ * (the subscription prices, maintenance mode). Tests run one at a
  * time, so switching maintenance on briefly is safe; it is always put back.
  */
 import {
@@ -57,7 +57,7 @@ test.beforeEach(async ({ request }) => {
 })
 
 test.afterAll(async () => {
-  await db.platformConfig.updateMany({ data: { maintenanceMode: false, platformFeePercent: 8 } })
+  await db.platformConfig.updateMany({ data: { maintenanceMode: false, subMonthlyRon: 30 } })
   await db.booking.deleteMany({ where: { player: { email: { startsWith: 'adm-p-' } } } })
   await db.company.deleteMany({ where: { owner: { email: { startsWith: 'adm-mgr-' } } } })
   for (const c of contexts) await c.dispose()
@@ -276,39 +276,18 @@ test.describe('figures and settings (E15-05)', () => {
     expect(stats.data!.gmv).toBeGreaterThanOrEqual(stats.data!.last30dGmv)
   })
 
-  test('the commission applies to new bookings', async () => {
+  test('subscription prices: whole numbers, only what is sent changes (C-15)', async () => {
     const a = await admin()
-    expect((await put(a, '/admin/config', { platformFeePercent: 25 })).status).toBe(400)
-    const saved = await put<PlatformConfigView>(a, '/admin/config', { platformFeePercent: 10 })
-    expect(saved.data!.platformFeePercent).toBe(10)
-    try {
-      const p = await player()
-      const ctx = await context(p.email)
-      const pitch = await db.pitch.findFirstOrThrow({
-        where: {
-          company: { status: 'ACTIVE', autoApproveBookings: true },
-          isActive: true,
-          deletedAt: null,
-        },
-      })
-      const d = new Date(Date.now() + 6 * 86_400_000)
-      const date = (d.getDay() === 0 ? new Date(d.getTime() + 86_400_000) : d)
-        .toISOString()
-        .slice(0, 10)
-      const created = await post<{ bookingId: string }>(ctx, '/bookings', {
-        pitchId: pitch.id,
-        date,
-        startTime: '12:00',
-        endTime: '13:00',
-        teamCount: 2,
-        teamsData: [{}, {}],
-      })
-      expect(created.status).toBe(201)
-      const b = await db.booking.findUniqueOrThrow({ where: { id: created.data!.bookingId } })
-      expect(Number(b.platformFee)).toBeCloseTo(Number(b.totalAmount) * 0.1, 2)
-    } finally {
-      await put(a, '/admin/config', { platformFeePercent: 8 })
-    }
+    expect((await put(a, '/admin/config', { subMonthlyRon: -1 })).status).toBe(400)
+    expect((await put(a, '/admin/config', { subMonthlyRon: 2.5 })).status).toBe(400)
+    const saved = await put<PlatformConfigView>(a, '/admin/config', { subMonthlyRon: 35 })
+    expect(saved.data).toMatchObject({
+      subMonthlyRon: 35,
+      subYearlyRon: 300,
+      subIntroMonthlyRon: 10,
+    })
+    expect(saved.data).not.toHaveProperty('platformFeePercent')
+    await put(a, '/admin/config', { subMonthlyRon: 30 })
   })
 
   test('maintenance mode: 503 for everyone but admins, and back', async ({ request }) => {

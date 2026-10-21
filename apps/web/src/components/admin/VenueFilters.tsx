@@ -3,20 +3,30 @@
 /** Status and search for the venue list — E15-06, kept in the URL. */
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { COMPANY_STATUSES } from '@pitchup/shared'
+import { COMPANY_STATUSES, SUBSCRIPTION_STATUSES } from '@pitchup/shared'
 import { useT } from '@/i18n/client'
 
-export function VenueFilters({ status, search }: { status: string; search: string }) {
+export function VenueFilters({
+  status,
+  subscription,
+  search,
+}: {
+  status: string
+  subscription: string
+  search: string
+}) {
   const t = useT()
   const router = useRouter()
   const pathname = usePathname()
   const [text, setText] = useState(search)
   const [pending, startTransition] = useTransition()
-  const go = (next: { status?: string; search?: string }) => {
+  const go = (next: { status?: string; subscription?: string; search?: string }) => {
     const q = new URLSearchParams()
     const s = next.status ?? status
+    const sub = next.subscription ?? subscription
     const term = (next.search ?? text).trim()
     if (s) q.set('status', s)
+    if (sub) q.set('subscription', sub)
     if (term.length >= 2) q.set('search', term)
     startTransition(() => router.replace(`${pathname}${q.size ? `?${q}` : ''}`))
   }
@@ -42,6 +52,22 @@ export function VenueFilters({ status, search }: { status: string; search: strin
           {COMPANY_STATUSES.map(s => (
             <option key={s} value={s}>
               {t(`companyStatus.${s}`)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex flex-col text-xs font-medium text-neutral-700">
+        {t('admin.companies.subscription')}
+        <select
+          value={subscription}
+          disabled={pending}
+          onChange={e => go({ subscription: e.target.value })}
+          className="h-10 rounded-md border border-neutral-200 bg-white px-3 text-sm"
+        >
+          <option value="">{t('admin.companies.filters.any')}</option>
+          {SUBSCRIPTION_STATUSES.map(s => (
+            <option key={s} value={s}>
+              {t(`subscriptionStatus.${s}`)}
             </option>
           ))}
         </select>

@@ -199,7 +199,6 @@ test('a time someone else books meanwhile is refused with a clear message', asyn
       teamCount: 2,
       status: 'CONFIRMED',
       pitchRateSnapshot: 120,
-      platformFee: 9.6,
       totalAmount: 120,
     },
   })
@@ -226,7 +225,6 @@ test('lengths and starts that do not fit are disabled; a length is never cut sho
       teamCount: 2,
       status: 'CONFIRMED',
       pitchRateSnapshot: 120,
-      platformFee: 9.6,
       totalAmount: 120,
     },
   })

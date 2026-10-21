@@ -151,8 +151,6 @@ export function ManagerBookingDetailScreen({ navigation, route }: Props) {
 
         <Section title={t('manager.detail.payment')}>
           <Line label={t('manager.detail.price')} value={`${b.total} RON`} />
-          <Line label={t('manager.detail.commission')} value={`${b.platformFee} RON`} />
-          <Line label={t('manager.detail.receive')} value={`${b.venuePayout} RON`} />
           <Text style={styles.muted}>{paymentStatusLine(b, locale)}</Text>
         </Section>
 

@@ -4,6 +4,7 @@
 import 'server-only'
 import { describeRefundPolicy, normalizeWeek, venueClock, type PitchDetail } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
+import { liveCompanyWhere } from '@/lib/venues/live'
 import { publicRating } from './ratings'
 import { reviewInclude, toReviewItem } from './reviews'
 import { getLocale } from '@/i18n/server'
@@ -18,7 +19,7 @@ const RECENT_REVIEWS = 3
 export async function getPitchDetail(id: string): Promise<PitchDetail | null> {
   const locale = await getLocale()
   const pitch = await prisma.pitch.findFirst({
-    where: { id, deletedAt: null, company: { status: 'ACTIVE' } },
+    where: { id, deletedAt: null, company: liveCompanyWhere },
     include: {
       company: {
         select: {

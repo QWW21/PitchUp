@@ -18,7 +18,6 @@ import {
   AUTH,
   CITIES,
   DEFAULT_COUNTRY,
-  PLATFORM_FEE_PERCENT,
   addDays,
   toMinutes,
   venueClock,
@@ -593,8 +592,7 @@ async function seedDiscoverFixtures(): Promise<void> {
           teamCount: 2,
           status: BookingStatus.COMPLETED,
           pitchRateSnapshot: pitch.hourlyRate,
-          platformFee: Number(pitch.hourlyRate) * (PLATFORM_FEE_PERCENT / 100),
-          totalAmount: Number(pitch.hourlyRate) * (1 + PLATFORM_FEE_PERCENT / 100),
+          totalAmount: pitch.hourlyRate,
         },
       })
       await prisma.review.create({
@@ -614,7 +612,6 @@ async function seedDiscoverFixtures(): Promise<void> {
             teamCount: 2,
             status: BookingStatus.CONFIRMED,
             pitchRateSnapshot: pitch.hourlyRate,
-            platformFee: 0,
             totalAmount: pitch.hourlyRate,
           },
         })
@@ -764,7 +761,6 @@ async function seedDetailFixtures(): Promise<void> {
           teamCount: 2,
           status: BookingStatus.COMPLETED,
           pitchRateSnapshot: pitch.hourlyRate,
-          platformFee: 0,
           totalAmount: pitch.hourlyRate,
         },
       })
@@ -810,7 +806,6 @@ async function seedDetailFixtures(): Promise<void> {
             teamCount: 2,
             status,
             pitchRateSnapshot: teren.hourlyRate,
-            platformFee: 0,
             totalAmount: teren.hourlyRate,
           },
         })
@@ -897,6 +892,41 @@ async function seedCoveredFixtures(): Promise<void> {
   console.log('✓ Covered-season fixtures seeded')
 }
 
+/**
+ * C-15: no commission, so a venue is live only with a subscription. Seeded
+ * venues start their free month with a test "card" (they bill themselves
+ * when it ends). Approved venues from before C-15 get the free month with
+ * no card: they are asked to add one, and pause when it ends without.
+ */
+async function seedSubscriptions(): Promise<void> {
+  const trialEnd = new Date(Date.now() + 30 * 24 * HOUR)
+  const seeded = await prisma.company.updateMany({
+    where: {
+      status: CompanyStatus.ACTIVE,
+      subscriptionStatus: 'NONE',
+      trialEndsAt: null,
+      owner: { email: { endsWith: '@demo.ro' } },
+    },
+    data: {
+      subscriptionStatus: 'TRIALING',
+      billingInterval: 'MONTHLY',
+      trialEndsAt: trialEnd,
+      subscriptionPeriodEnd: trialEnd,
+    },
+  })
+  const migrated = await prisma.company.updateMany({
+    where: { status: CompanyStatus.ACTIVE, subscriptionStatus: 'NONE', trialEndsAt: null },
+    data: {
+      subscriptionStatus: 'TRIALING',
+      trialEndsAt: trialEnd,
+      subscriptionPeriodEnd: trialEnd,
+    },
+  })
+  console.log(
+    `✓ Subscriptions: ${seeded.count} demo venues in their free month, ${migrated.count} others given one`
+  )
+}
+
 async function main(): Promise<void> {
   console.log('Seeding database…')
   await seedCities()
@@ -905,6 +935,7 @@ async function main(): Promise<void> {
   await seedDiscoverFixtures()
   await seedDetailFixtures()
   await seedCoveredFixtures()
+  await seedSubscriptions()
   console.log('Seed complete.')
 }
 

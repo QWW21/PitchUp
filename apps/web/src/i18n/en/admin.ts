@@ -28,7 +28,9 @@ export const adminEn = {
     played: 'Bookings played',
     value: 'Booking value',
     valueNote: '{amount} in the last 30 days',
-    fees: 'PitchUp fees',
+    revenue: 'PitchUp revenue',
+    subscribed: 'Subscribed venues',
+    subscribedNote: '{trialing} in their free month · {pastDue} payment failed · {off} not live',
     suspended: 'Suspended accounts',
     queue: {
       pending: 'venues wait for approval',
@@ -46,10 +48,20 @@ export const adminEn = {
     heading: 'Platform settings',
     confirmMaintenance:
       'Turn maintenance mode on? Everyone except admins will see the maintenance message.',
-    fee: 'PitchUp commission (%)',
-    feeHint:
-      '0–20%, taken from what venues receive. Applies to new bookings; earlier ones keep theirs. Now: {n}%.',
-    feeInvalid: 'A whole number from 0 to 20.',
+    prices: 'Subscription prices (lei, VAT included)',
+    pricesHint:
+      'Venues pay the new prices from their next bill. Yearly prices are usually 10 × monthly.',
+    sub: {
+      subIntroMonthlyRon: 'First year, monthly',
+      subIntroYearlyRon: 'First year, yearly',
+      subMonthlyRon: 'From the second year, monthly',
+      subYearlyRon: 'From the second year, yearly',
+      subExtraPitchMonthlyRon: 'Each extra pitch, monthly',
+      subExtraPitchYearlyRon: 'Each extra pitch, yearly',
+      subIncludedPitches: 'Pitches included',
+      subTrialDays: 'Free trial (days)',
+    },
+    priceInvalid: 'Whole numbers only.',
     maintenance: 'Maintenance mode',
     on: 'On: everyone but admins sees the message',
     off: 'Off',
@@ -60,6 +72,7 @@ export const adminEn = {
     save: 'Save settings',
   },
   companies: {
+    subscription: 'Subscription',
     title: 'Venue approvals | PitchUp',
     heading: 'Venues',
     waitingHeading: 'Waiting for approval',
@@ -141,6 +154,7 @@ export const adminEn = {
     suspend: 'Suspend',
   },
   company: {
+    periodEnd: 'until {date}',
     title: 'Venue | PitchUp admin',
     back: '← Venues',
     suspended: 'Suspended: {reason}',

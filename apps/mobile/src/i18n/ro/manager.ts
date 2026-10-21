@@ -44,8 +44,6 @@ export const managerRo: CatalogShape<typeof managerEn> = {
       'La tine: {bookings} rezervări, {completed} jucate, {noShows} neprezentări, {late} anulări târzii.',
     payment: 'Plată',
     price: 'Preț',
-    commission: 'Comision PitchUp',
-    receive: 'Primești',
     history: 'Istoric',
     waits:
       '{name} a plătit și așteaptă răspunsul tău. Fără răspuns până la {deadline}, rezervarea e refuzată și banii returnați.',
@@ -96,5 +94,13 @@ export const managerRo: CatalogShape<typeof managerEn> = {
     booked: ' · {n}% rezervat',
     noReviews: 'Fără recenzii',
     line2: ' · {cancelled}% anulate · {noShows}% neprezentări',
+  },
+  subscription: {
+    NONE: 'Baza ta nu este încă publicată: jucătorii nu o pot găsi sau rezerva până nu începi luna gratuită.',
+    trialNoCard: 'Luna gratuită se încheie pe {date}. Adaugă cardul ca să rămâi publicată.',
+    PAST_DUE:
+      'Plata abonamentului a eșuat. Actualizează cardul până pe {date}, altfel baza ta nu mai primește rezervări noi.',
+    PAUSED: 'Baza ta este pe pauză: jucătorii nu o pot găsi sau rezerva.',
+    onWeb: 'Gestionează abonamentul pe pitchup.ro, în Setări → Abonament.',
   },
 }

@@ -207,7 +207,6 @@ test.describe('filters', () => {
             teamCount: 2,
             status: 'CONFIRMED',
             pitchRateSnapshot: p.hourlyRate,
-            platformFee: 0,
             totalAmount: p.hourlyRate,
           },
         })

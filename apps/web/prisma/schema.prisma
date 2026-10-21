@@ -153,6 +153,8 @@ enum NotificationType {
   TRUST_TIER_CHANGED
   /// From an admin (E15): a review removed, a score adjusted, a venue suspended or reinstated.
   ADMIN_NOTICE
+  /// To the manager: their subscription started, failed, was paid, paused or ended (C-15).
+  SUBSCRIPTION_NOTICE
   OTP
   PASSWORD_RESET
 }
@@ -163,6 +165,23 @@ enum ReviewReportCategory {
   OFFENSIVE
   IRRELEVANT
   FAKE
+}
+
+/// C-15: how often a venue pays its subscription. Yearly is 10 × monthly.
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+/// C-15: a venue is live (with an approved company) only while subscribed:
+/// TRIALING, ACTIVE, PAST_DUE (the grace period) or CANCELLING.
+enum SubscriptionStatus {
+  NONE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLING
 }
 
 /// C-14: the air a covered (dome) pitch offers. Cold is the default.
@@ -228,57 +247,70 @@ model User {
 }
 
 model Company {
-  id                     String           @id @default(cuid())
-  ownerId                String           @unique
-  name                   String
-  description            String?
-  logoUrl                String?
-  websiteUrl             String?
-  facebookUrl            String?
-  instagramUrl           String?
+  id                       String             @id @default(cuid())
+  ownerId                  String             @unique
+  name                     String
+  description              String?
+  logoUrl                  String?
+  websiteUrl               String?
+  facebookUrl              String?
+  instagramUrl             String?
   /// Contact and address are filled in steps 2 and 3 of onboarding (E09),
   /// so a DRAFT company may not have them yet. ACTIVE ones always do.
-  phone                  String?
-  email                  String?
-  addressLine1           String?
-  addressLine2           String?
-  city                   String?
-  county                 String?
-  country                String           @default("RO")
-  postalCode             String?
-  lat                    Float?
-  lng                    Float?
-  workingHours           Json?
-  stripeAccountId        String?
+  phone                    String?
+  email                    String?
+  addressLine1             String?
+  addressLine2             String?
+  city                     String?
+  county                   String?
+  country                  String             @default("RO")
+  postalCode               String?
+  lat                      Float?
+  lng                      Float?
+  workingHours             Json?
+  stripeAccountId          String?
   /// Mirrored from Stripe Connect's account.updated webhook (E05-08).
-  stripeChargesEnabled   Boolean          @default(false)
-  stripePayoutsEnabled   Boolean          @default(false)
+  stripeChargesEnabled     Boolean            @default(false)
+  stripePayoutsEnabled     Boolean            @default(false)
   /// C-8: how players pay, and the online deposit (0–50%) when they pay at the venue.
-  paymentMode            VenuePaymentMode @default(ONLINE)
-  depositPercent         Int              @default(20)
+  paymentMode              VenuePaymentMode   @default(ONLINE)
+  depositPercent           Int                @default(20)
   /// C-13: confirm every booking at once, or each by hand.
-  autoApproveBookings    Boolean          @default(true)
+  autoApproveBookings      Boolean            @default(true)
   /// C-10: the venue's refund policy. Bookings keep a copy of it.
-  refundFullHours        Int              @default(12)
-  refundPartialHours     Int              @default(2)
-  refundPartialPercent   Int              @default(75)
+  refundFullHours          Int                @default(12)
+  refundPartialHours       Int                @default(2)
+  refundPartialPercent     Int                @default(75)
   /// C-13: details changed after approval, waiting for an admin (VenueProfileChanges).
-  pendingChanges         Json?
-  changesSubmittedAt     DateTime?
-  changesRejectionReason String?
-  status                 CompanyStatus    @default(DRAFT)
+  pendingChanges           Json?
+  changesSubmittedAt       DateTime?
+  changesRejectionReason   String?
+  status                   CompanyStatus      @default(DRAFT)
   /// When the manager finished onboarding, and when an admin decided.
-  submittedAt            DateTime?
-  reviewedAt             DateTime?
+  submittedAt              DateTime?
+  reviewedAt               DateTime?
   /// Why an admin sent it back; cleared when resubmitted.
-  rejectionReason        String?
+  rejectionReason          String?
   /// E15: why an admin suspended the venue.
-  suspensionReason       String?
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
+  suspensionReason         String?
+  /// C-15: the venue's subscription to PitchUp (no commission on bookings).
+  subscriptionStatus       SubscriptionStatus @default(NONE)
+  billingInterval          BillingInterval?
+  /// The venue as a Stripe customer (not its manager's player customer).
+  stripeCustomerId         String?
+  stripeSubscriptionId     String?            @unique
+  /// Set once: one free month per venue.
+  trialEndsAt              DateTime?
+  /// The first paid period's start: the discounted year runs 12 months from here.
+  firstPaidAt              DateTime?
+  subscriptionPeriodEnd    DateTime?
+  subscriptionPastDueSince DateTime?
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
 
-  owner   User    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  pitches Pitch[]
+  owner    User                  @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  pitches  Pitch[]
+  invoices SubscriptionInvoice[]
 
   @@index([city])
   @@index([status])
@@ -315,7 +347,7 @@ model Pitch {
   createdAt          DateTime    @default(now())
   updatedAt          DateTime    @updatedAt
 
-  company        Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company        Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
   photos         PitchPhoto[]
   amenities      PitchAmenity[]
   shirtInventory ShirtInventory[]
@@ -412,9 +444,6 @@ model Booking {
   airType               AirType?
   /// Free shirt sets lent for this booking: teamCount - 1 when asked for, else 0.
   shirtSets             Int                  @default(0)
-  /// PitchUp's commission, kept from the venue's payout (8%). Not added to
-  /// what the player pays.
-  platformFee           Decimal              @db.Decimal(10, 2)
   /// What the player pays: the pitch rental, hourly rate × hours.
   totalAmount           Decimal              @db.Decimal(10, 2)
   refundAmount          Decimal?             @db.Decimal(10, 2)
@@ -682,12 +711,38 @@ model City {
 
 /// E15: platform settings an admin can change, one row ("singleton").
 model PlatformConfig {
-  id                 String   @id @default("singleton")
-  /// PitchUp's commission on new bookings, 0–20%.
-  platformFeePercent Int      @default(8)
+  id                      String   @id @default("singleton")
+  /// C-15: subscription prices in lei, VAT included (no commission).
+  subIntroMonthlyRon      Int      @default(10)
+  subIntroYearlyRon       Int      @default(100)
+  subMonthlyRon           Int      @default(30)
+  subYearlyRon            Int      @default(300)
+  subExtraPitchMonthlyRon Int      @default(5)
+  subExtraPitchYearlyRon  Int      @default(50)
+  subIncludedPitches      Int      @default(2)
+  subTrialDays            Int      @default(30)
+  /// The Stripe Product the bills are made under; created on first use.
+  stripeBillingProductId  String?
   /// When on, everyone but admins sees the maintenance notice.
-  maintenanceMode    Boolean  @default(false)
-  maintenanceMessage String   @default("PitchUp is down for maintenance. We'll be back shortly.")
-  updatedById        String?
-  updatedAt          DateTime @updatedAt
+  maintenanceMode         Boolean  @default(false)
+  maintenanceMessage      String   @default("PitchUp is down for maintenance. We'll be back shortly.")
+  updatedById             String?
+  updatedAt               DateTime @updatedAt
+}
+
+/// C-15: what a venue paid PitchUp, one row per paid bill.
+model SubscriptionInvoice {
+  id              String          @id @default(cuid())
+  companyId       String
+  amountRon       Decimal         @db.Decimal(10, 2)
+  interval        BillingInterval
+  periodStart     DateTime
+  periodEnd       DateTime
+  /// Stripe's invoice id; null for the test provider.
+  stripeInvoiceId String?         @unique
+  paidAt          DateTime        @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, paidAt])
 }

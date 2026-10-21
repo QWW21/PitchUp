@@ -2,6 +2,7 @@
   "crons": [
     { "path": "/api/v1/cron/auto-complete", "schedule": "0 2 * * *" },
     { "path": "/api/v1/cron/trust-monthly", "schedule": "0 3 1 * *" },
-    { "path": "/api/v1/cron/notifications", "schedule": "0 * * * *" }
+    { "path": "/api/v1/cron/notifications", "schedule": "0 * * * *" },
+    { "path": "/api/v1/cron/billing", "schedule": "0 4 * * *" }
   ]
 }

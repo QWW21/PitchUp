@@ -8,7 +8,6 @@ import {
   bucketsBetween,
   csvField,
   csvLine,
-  feesOn,
   percentChange,
   type RevenueBooking,
 } from './index'
@@ -103,10 +102,6 @@ describe('what a booking earned (decided 2026-10-17)', () => {
     expect(
       bookingEarned(b({ status: 'NO_SHOW', paymentMethod: 'VENUE_REFUND_DEPOSIT', deposit: 40 }))
     ).toEqual({ gross: 40, online: 40, atVenue: 0, counted: true })
-  })
-
-  it('PitchUp keeps 8%', () => {
-    expect(feesOn(200)).toEqual({ fees: 16, payout: 184 })
   })
 
   it('a change needs something to compare with', () => {

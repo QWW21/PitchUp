@@ -38,7 +38,25 @@ export default async function AdminOverviewPage() {
       ron(s.gmv),
       t('admin.overview.valueNote', { amount: ron(s.last30dGmv) }),
     ],
-    [t('admin.overview.fees'), ron(s.fees)],
+    [
+      t('admin.overview.revenue'),
+      ron(s.revenue),
+      t('admin.overview.valueNote', { amount: ron(s.last30dRevenue) }),
+    ],
+    [
+      t('admin.overview.subscribed'),
+      number.format(
+        s.subscriptions.TRIALING +
+          s.subscriptions.ACTIVE +
+          s.subscriptions.PAST_DUE +
+          s.subscriptions.CANCELLING
+      ),
+      t('admin.overview.subscribedNote', {
+        trialing: s.subscriptions.TRIALING,
+        pastDue: s.subscriptions.PAST_DUE,
+        off: s.subscriptions.NONE + s.subscriptions.PAUSED,
+      }),
+    ],
     [t('admin.overview.suspended'), number.format(s.suspendedUsers)],
   ]
   const queue = [

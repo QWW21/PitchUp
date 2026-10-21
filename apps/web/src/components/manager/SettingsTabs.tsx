@@ -1,12 +1,13 @@
 'use client'
 
-/** The Settings tabs — C-13. */
+/** The Settings tabs — C-13, with the subscription (C-15). */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useT } from '@/i18n/client'
 
 const TABS = [
   ['/manager/settings', 'bookings'],
+  ['/manager/settings/billing', 'billing'],
   ['/manager/settings/venue', 'venue'],
   ['/manager/settings/account', 'account'],
 ] as const

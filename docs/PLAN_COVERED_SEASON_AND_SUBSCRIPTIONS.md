@@ -1,9 +1,10 @@
 # Plan: covered-season pricing (dome, cold/hot air) and venue subscriptions
 
 Written 2026-10-21 for a separate implementation session. Two features, built
-in this order: **A. Covered season** (C-14) and **B. Subscription or
-pay-per-booking** (C-15). Both touch pricing, so A lands first and B builds
-on the price it produces.
+in this order: **A. Covered season** (C-14) and **B. Venue subscriptions,
+no commission** (C-15). A is built (commit 38545c6, branch
+`feat/covered-season`); B was reshaped by the owner on 2026-10-21, see the
+subscription decisions below.
 
 Read first: `docs/HANDOVER.md` (C-2 one hourly rate, C-8 pay at the venue,
 C-10 refund policy snapshot, E14 analytics, E15 platform config, "Romanian
@@ -26,14 +27,20 @@ and English"), `docs/ARCHITECTURE.md` §21, §26, §27, §30.
     and there is nothing to pick.
 - So during the covered period a pitch has 1 or 2 prices; outside it, 1.
 
-**Subscriptions**
+**Subscriptions** (updated 2026-10-21)
 
-- **Pay-per-booking** = today's model: PitchUp takes `platformFeePercent`
-  of each booking.
-- **Subscription** = a fixed monthly fee to PitchUp and **no commission**
-  on bookings.
-- **Cash-only venues** (`paymentMode = VENUE`) **must** subscribe. Venues
-  taking any online payments choose either.
+- **PitchUp no longer takes a commission at all.** Its only income is the
+  venues' subscription. There is no pay-per-booking plan, so the old rule
+  "cash-only venues must subscribe" is gone: every venue subscribes.
+- **Prices** (B0): 10 lei/month or 100 lei/year the first year, 30 or 300
+  after, +5 lei/month (+50/year) for each active pitch beyond 2. VAT
+  included. A **free trial month**, card on file first.
+- **When**: onboarding is unchanged. After the admin approves a venue, the
+  manager subscribes in Settings (adds a card); the free month starts then.
+- **A venue without a running subscription** (never subscribed, or unpaid
+  after the grace period) is **hidden from Discover and takes no new
+  bookings**, but keeps the bookings it has. Subscribing or paying brings
+  it back at once, without an admin.
 - The subscription is paid with **Stripe Billing, card on file**, with a
   test-mode path that works without Stripe keys (like bookings today).
 
@@ -52,20 +59,27 @@ and English"), `docs/ARCHITECTURE.md` §21, §26, §27, §30.
 4. **Price setting lives with the pitch**, on the Pricing tab
    (`/manager/pitches/[id]/edit/pricing`): base rate as today, plus a
    "Covered season" section.
-5. **The monthly fee is one platform-wide price** set by the admin in
-   Platform settings (`PlatformConfig`), like the commission today.
-   Per-venue negotiated prices are out of scope.
-6. **The commission choice is snapshotted per booking** too: a booking
-   made while the venue was subscribed has `platformFee = 0`, whatever
-   happens to the subscription later.
-7. **An unpaid subscription pauses new bookings** after a 7-day grace
-   period (the venue is hidden from Discover like a suspended one, but
-   keeps its existing bookings). It is not a suspension: paying lifts it at
-   once without an admin.
-8. **Switching plans takes effect at once for new bookings.** Leaving a
-   subscription ends it at the end of the paid month (Stripe
-   `cancel_at_period_end`); a cash-only venue cannot leave it without first
-   changing its payment mode.
+5. **The subscription prices are platform-wide**, set by the admin in
+   Platform settings (`PlatformConfig`) in place of the commission; the
+   owner's prices are the defaults (B0). Per-venue negotiated prices are
+   out of scope.
+6. **The commission goes completely, history included** (owner: the app
+   is in test mode only, old fees don't matter). `Booking.platformFee`,
+   `PlatformConfig.platformFeePercent`, `PLATFORM_FEE_PERCENT`, the fee
+   and payout figures in analytics, the CSV and the admin stats, and every
+   "commission" / "you receive" line are removed.
+7. **An unpaid subscription pauses the venue** after a 7-day grace period
+   (`PAUSED`: hidden and not bookable, like never subscribed). It is not a
+   suspension: paying lifts it at once without an admin.
+8. **Changing monthly/yearly takes effect at the next renewal.** Cancelling
+   ends the subscription at the end of the paid period (Stripe
+   `cancel_at_period_end`); the venue then stops taking new bookings.
+9. **Existing live venues** (the seed, and any made before C-15) get a
+   trial when the change is deployed: a one-off step in the seed and a
+   short script, documented in HANDOVER, sets them to `TRIALING` with a
+   30-day `trialEndsAt` and no card (they are asked to add one). E2E's
+   `createVenue` makes venues `ACTIVE` in test mode so existing tests keep
+   working.
 
 ---
 
@@ -217,140 +231,207 @@ export function rateFor(
 
 ---
 
-## B. Subscription or pay-per-booking (C-15)
+## B. Venue subscriptions, no commission (C-15)
+
+### B0. The price (owner's answers, 2026-10-21)
+
+All prices **include VAT**. The venue chooses to pay monthly or yearly;
+yearly is always 10 × monthly.
+
+|                            | Monthly | Yearly  |
+| -------------------------- | ------- | ------- |
+| First year (discount)      | 10 lei  | 100 lei |
+| From the second year       | 30 lei  | 300 lei |
+| Each active pitch beyond 2 | +5 lei  | +50 lei |
+
+- **Free trial month for new venues.** The manager adds a card when
+  subscribing; nothing is charged for 30 days. One trial per venue, ever.
+  The venue is live during the trial.
+- **The first year starts when the trial ends**: the first 12 months that
+  are paid for. A yearly plan bought in the first year costs 100 lei and
+  renews at 300; on a monthly plan the 13th paid month is the first at 30.
+- **Pitches counted are the active ones** (players can book them),
+  counted when each period is billed. Switching a pitch on or off mid-period
+  changes nothing until the next bill. Example: 4 active pitches in the
+  first year = 10 + 2 × 5 = 20 lei/month, or 100 + 2 × 50 = 200 lei/year.
+- All seven numbers (two discounted bases, two standard bases, two
+  extra-pitch fees, pitches included) and the trial length are admin
+  settings, with these as defaults.
 
 ### B1. Data model
 
 ```prisma
-enum BillingPlan {
-  PER_BOOKING
-  SUBSCRIPTION
+enum BillingInterval {
+  MONTHLY
+  YEARLY
 }
 
 enum SubscriptionStatus {
-  NONE          // never subscribed / on per-booking
+  NONE          // never subscribed: hidden, no new bookings
+  TRIALING      // the free month (card on file, nothing charged yet)
   ACTIVE
-  PAST_DUE      // payment failed, inside the grace period
-  PAUSED        // grace period over: no new bookings
-  CANCELLING    // ends at period end
+  PAST_DUE      // payment failed, inside the 7-day grace: still bookable
+  PAUSED        // grace over, or the subscription ended: hidden, no new bookings
+  CANCELLING    // runs to the end of the paid period, then PAUSED
 }
 
 model Company {
   // …
-  billingPlan              BillingPlan        @default(PER_BOOKING)
   subscriptionStatus       SubscriptionStatus @default(NONE)
+  billingInterval          BillingInterval?
   stripeCustomerId         String?            // the venue as a Stripe customer (not the manager's player customer)
   stripeSubscriptionId     String?            @unique
+  trialEndsAt              DateTime?          // set once: one trial per venue
+  /// When the first paid period began (the trial's end): year one runs 12 months from here.
+  firstPaidAt              DateTime?
   subscriptionPeriodEnd    DateTime?
   subscriptionPastDueSince DateTime?
 }
 
 model PlatformConfig {
-  // …
-  subscriptionMonthlyRon Int     @default(199)   // admin-set; the amount is a placeholder
-  stripeSubscriptionPriceId String?             // the Stripe Price the fee maps to
+  // platformFeePercent is removed (C-15: no commission).
+  // Prices in lei, VAT included.
+  subIntroMonthlyRon      Int @default(10)
+  subIntroYearlyRon       Int @default(100)
+  subMonthlyRon           Int @default(30)
+  subYearlyRon            Int @default(300)
+  subExtraPitchMonthlyRon Int @default(5)
+  subExtraPitchYearlyRon  Int @default(50)
+  subIncludedPitches      Int @default(2)
+  subTrialDays            Int @default(30)
+  stripeBillingProductId  String?   // one Stripe Product; prices are sent inline per bill
 }
 
-model Booking {
-  // platformFee already snapshots the commission; 0 for subscribed venues
+/// What a venue paid PitchUp: written by the webhook (or the test provider).
+model SubscriptionInvoice {
+  id              String   @id @default(cuid())
+  companyId       String
+  amountRon       Decimal  @db.Decimal(10, 2)
+  interval        BillingInterval
+  periodStart     DateTime
+  periodEnd       DateTime
+  stripeInvoiceId String?  @unique
+  paidAt          DateTime
 }
 ```
 
-- Rule enforced in the API and the settings UI: `paymentMode = VENUE`
-  requires `billingPlan = SUBSCRIPTION` with status ACTIVE/PAST_DUE/
-  CANCELLING. Changing to VENUE without a subscription is refused with
-  reason `SUBSCRIPTION_REQUIRED`, and the UI walks the manager to
-  subscribe first.
+- `Booking.platformFee` and `PlatformConfig.platformFeePercent` are
+  dropped: a `db push --accept-data-loss` on dev (test data only).
 
-### B2. Shared rules
+### B2. Shared rules (`packages/shared/src/billing.ts`)
 
-- `src/billing.ts`: `commissionFor(company, platformFeePercent)` → 0 when
-  `billingPlan = SUBSCRIPTION` and status is not PAUSED/NONE, else the
-  percent; `canTakeBookings(company)`; `requiresSubscription(paymentMode)`.
-- `bookingPrice` is unchanged: pass the result of `commissionFor` as
-  `feePercent`.
+- `isSubscribed(status)`: TRIALING, ACTIVE, PAST_DUE, CANCELLING. A venue
+  takes bookings and shows in Discover only when it is ACTIVE (approved)
+  **and** subscribed.
+- `subscriptionPrice({ interval, firstPaidAt, periodStart, activePitches }, prices)`
+  → `{ base, extraPitches, extraEach, total, discounted }`: the discounted
+  base while `periodStart` is before `firstPaidAt` + 12 months (or no
+  period has been paid yet), the standard one after, plus the extra-pitch
+  fee for each active pitch beyond the included ones. Unit-tested on the
+  B0 table and the year-one/year-two boundary for both intervals.
+- `bookingPrice(hourlyRate, minutes)` loses its commission: it returns the
+  total only (`platformFee` and `venuePayout` go, along with
+  `PLATFORM_FEE_PERCENT`). Every caller is updated; the compiler lists them.
+- `analytics.ts` loses `feeRate`, `feesOn` and the fee/payout figures: a
+  venue's earnings are what players paid.
 
 ### B3. Server
 
-- **Commission**: `lib/bookings/create.ts` takes the fee from
-  `commissionFor(...)` instead of `PlatformConfig.platformFeePercent`
-  directly. Analytics (`lib/manager/analytics.ts`), admin stats
-  (`lib/admin/stats.ts`) and the manager booking detail already read the
-  stored `platformFee`, so a 0 shows correctly; label it "Included in your
-  subscription" instead of "0 RON".
+- **No commission** (`lib/bookings/create.ts`): no fee is computed or
+  stored; the `platformConfig()` read for the fee goes. Booking create and Discover
+  refuse / hide a venue that is not subscribed: reason `VENUE_PAUSED`
+  (`api.notTakingBookings`), and the same check in the pitch detail's
+  `isBookable` and the company page.
+- **Admin config** (`lib/admin/config.ts`, `PUT /admin/config`): the
+  commission field is replaced by the eight subscription settings.
 - **Stripe Billing** (`lib/payments/billing.ts`, new):
-  - `startSubscription(companyId)`: create/reuse the venue's Stripe
-    customer, a SetupIntent or Checkout-free subscription with
-    `payment_behavior: 'default_incomplete'`, return the client secret
-    for the card form (the same `CardElement` the player's Payment methods
-    page uses).
+  - `startSubscription(companyId, interval)`: create/reuse the venue's
+    Stripe customer and a SetupIntent for the card (the same `CardElement`
+    the player's Payment methods page uses); once the card is saved,
+    create the subscription with `trial_period_days` (first time only)
+    and one item priced inline (`price_data` on the PitchUp product) at
+    `subscriptionPrice(...).total` for the interval → TRIALING (or ACTIVE
+    when the trial was used before).
+  - **Repricing each period**: the amount changes at the end of year one
+    and with the number of active pitches. A daily cron step updates the
+    subscription's item a day before `subscriptionPeriodEnd` to the next
+    period's `subscriptionPrice` (`proration_behavior: 'none'`), so the
+    next bill is right. Tested with an injected clock.
+  - `changeInterval(companyId, interval)`: at the next renewal.
   - `cancelSubscription(companyId)`: `cancel_at_period_end: true` →
-    CANCELLING.
+    CANCELLING; `resume` undoes it before the period ends.
   - Webhooks in the existing `app/api/v1/payments/webhook/route.ts`:
-    `invoice.paid` → ACTIVE, period end; `invoice.payment_failed` →
+    `invoice.paid` → ACTIVE, period end, `firstPaidAt` on the first paid
+    invoice, a `SubscriptionInvoice` row; `invoice.payment_failed` →
     PAST_DUE, `subscriptionPastDueSince`; `customer.subscription.deleted`
-    → NONE + PER_BOOKING (or PAUSED if the venue is cash-only).
+    → PAUSED.
   - **Test mode** (no Stripe keys, and in every E2E run): a `test` billing
-    provider that activates at once and exposes
+    provider that saves no card, starts the trial at once, and exposes
     `POST /api/v1/payments/test/subscription { outcome: 'paid'|'failed' }`
     behind `ALLOW_TEST_HOOKS`, mirroring `confirmTest` for bookings.
-- **Grace period**: a daily step in an existing cron route (e.g.
-  `app/api/v1/cron/auto-complete`, or a new `cron/billing` beside it)
-  moves PAST_DUE venues older than 7 days to PAUSED
-  and notifies the manager; Discover and booking create treat PAUSED like
-  "not taking bookings" (new reason `VENUE_PAUSED`, reusing the
-  `notTakingBookings` path). Paying moves it straight back to ACTIVE.
+- **Daily billing cron** (`app/api/v1/cron/billing`, new, beside the other
+  jobs, same bearer secret): PAST_DUE over 7 days → PAUSED; a trial that
+  ended without a card (the migrated venues of decision 9) → PAUSED;
+  repricing before renewals; the manager is told each time.
 - **API**:
-  - `GET /api/v1/manager/billing` → plan, status, period end, monthly
-    fee, commission percent, whether cash-only forces the subscription.
-  - `POST /api/v1/manager/billing/subscribe`, `POST …/cancel`,
-    `PUT …/plan { plan: 'PER_BOOKING' }` (refused for cash-only).
-  - Admin: `PUT /api/v1/admin/config` takes `subscriptionMonthlyRon`;
-    `GET /api/v1/admin/companies` and the venue page show plan and status.
-- **Notifications** (`lib/notifications`, both languages):
-  subscription started, payment failed (with the grace end date),
-  bookings paused, subscription ended. Email + push to the manager.
+  - `GET /api/v1/manager/billing` → status, interval, trial end, period
+    end, the next bill (amount, base, extra pitches) and what each
+    interval would cost this venue now.
+  - `POST /api/v1/manager/billing/subscribe { interval }`, `POST …/cancel`,
+    `POST …/resume`, `PUT …/interval { interval }`.
+  - Admin: `GET /api/v1/admin/companies` and the venue page show status,
+    interval and period end; `GET /admin/stats` reports subscription
+    revenue from `SubscriptionInvoice`.
+- **Notifications** (`lib/notifications`, both languages): trial started
+  (with its end), trial ending in 3 days, payment failed (with the grace
+  end), venue paused, subscription ended. Email + push to the manager.
 
 ### B4. Web UI
 
-- **Manager settings**: a new tab "Plan and billing"
+- **Manager settings**: a new tab "Subscription"
   (`components/manager/SettingsTabs.tsx`, page
-  `app/manager/(app)/settings/billing/page.tsx`):
-  - two cards side by side: "Pay per booking — {n}% of each booking" and
-    "Subscription — {fee} RON/month, no commission", with the current one
-    marked;
-  - subscribing opens the card form; status line (active until, payment
-    failed: update your card by {date}, paused);
-  - cash-only venues see the per-booking card disabled with the reason.
-- **Payment settings form** (`PaymentSettingsForm.tsx`): choosing "At
-  the venue only" without a subscription shows the requirement and a link
-  to the billing tab instead of saving.
-- **Manager shell**: a banner on every manager page while PAST_DUE or
-  PAUSED.
-- **Admin**: Platform settings gets the monthly fee; the venue list gets
-  a "Plan" column and filter; the venue page shows plan, status and
-  period end. The overview's "PitchUp fees" adds subscription revenue
-  (sum of paid invoices, read from a new `SubscriptionInvoice` table
-  written by the webhook, or from Stripe — the table is simpler to test).
-- **Onboarding step 4**: mention the two plans and that the choice is
-  made in Settings after approval; no billing during onboarding.
+  `app/manager/(app)/settings/billing/page.tsx`): monthly / yearly choice
+  with this venue's price and its breakdown ("10 lei + 2 extra pitches ×
+  5 lei"), the discount note for year one, the card form, then the status
+  (trial until, renews on, payment failed: update your card by {date},
+  paused), Cancel / Resume, and the paid invoices.
+- **Manager shell**: a banner on every manager page while NONE ("Your
+  venue isn't live yet: start your free month"), PAST_DUE or PAUSED.
+- **Remove the commission everywhere**: the pricing preview ("after
+  PitchUp's 8% commission"), the manager booking detail's commission and
+  "you receive" rows, the analytics fee/payout figures and CSV columns,
+  the admin config field. Wording like "the price is all
+  yours" where it helps.
+- **Admin**: Platform settings gets the subscription prices and trial
+  length; the venue list gets a "Subscription" column and filter; the
+  venue page shows status, interval and period end; the overview's
+  "PitchUp fees" becomes "PitchUp revenue" from paid subscriptions.
+- **Onboarding step 4 / approval email**: say the venue goes live after
+  starting its free month in Settings; no billing during onboarding.
 
 ### B5. Mobile
 
-- Nothing for players: prices don't change with the plan.
-- Manager screens in the app: show the plan and any PAST_DUE/PAUSED
-  banner on Venue bookings and Analytics; managing billing stays web-only.
+- Nothing changes for players.
+- Manager screens: the commission line goes from the booking detail; a
+  NONE/PAST_DUE/PAUSED banner on Venue bookings and Analytics; managing
+  the subscription stays web-only (the banner says so).
 
 ### B6. Tests
 
-- Shared: `commissionFor` for each plan/status, `requiresSubscription`.
-- API E2E: a subscribed venue's booking has `platformFee = 0`; a
-  per-booking one keeps the percent; switching to VENUE without a
-  subscription is refused; test-provider `failed` → PAST_DUE, 7 days later
-  (the cron with an injected clock, as the reminders tests do) → PAUSED and
-  booking refused; `paid` → ACTIVE again; old bookings keep their fee.
-- Web E2E: manager subscribes in test mode, sees the status; cash-only
-  flow; admin changes the fee; axe clean on the new pages.
+- Shared: `isSubscribed` per status; `subscriptionPrice` on the B0 table,
+  the year boundary, extra pitches, both intervals; `bookingPrice` without
+  a fee.
+- API E2E: no fee anywhere in booking, analytics or admin responses; an
+  approved venue without
+  a subscription is hidden from Discover and refuses bookings
+  (`VENUE_PAUSED`); subscribing in test mode → TRIALING and bookable;
+  `paid` → ACTIVE with a `SubscriptionInvoice`; `failed` → PAST_DUE, still
+  bookable; 7 days later (the cron with an injected clock, as the
+  reminders tests do) → PAUSED and refused; `paid` → ACTIVE again;
+  repricing after 12 paid months and with a third active pitch.
+- Web E2E: the manager starts the free month in test mode and sees the
+  status; the NONE banner; the admin changes a price; axe clean on the new
+  pages; no "commission" text left on the pricing tab or booking detail.
 - Webhook unit tests with a fake Stripe client (`setStripeClientForTests`).
 
 ---
@@ -362,16 +443,16 @@ model Booking {
   `packages/shared/src/i18n`). The Romanian file is typed against the
   English one, so `tsc` lists anything missing. API errors are thrown as
   `api.*` keys with params.
-- **Snapshot, don't recompute**: price, air type and commission are stored
-  on the booking at creation; nothing reprices an existing booking.
+- **Snapshot, don't recompute**: price and air type are stored on the
+  booking at creation; nothing reprices an existing booking.
 - **Clients branch on `code` / `details.reason`**, never on the message.
 - Tests: E2E runs with `DEFAULT_LOCALE=en` and blank Stripe keys; keep it
   that way. `pnpm` checks before committing: `tsc` (shared, web, mobile),
   `eslint`, shared+web `vitest`, mobile `jest`, full Playwright run.
 - Mobile is checked with Jest only; it is not built or run in that session.
 - Docs: HANDOVER (C-14, C-15 sections, the decisions above), ARCHITECTURE
-  (a section on seasonal pricing as data, and on subscriptions vs
-  commission and snapshotting the fee), TESTING (the billing test hooks).
+  (a section on seasonal pricing as data, and one on moving from a
+  commission to subscriptions), TESTING (the billing test hooks).
 - Never commit: `README.md`, the root `package.json`, `.claude/`,
   `docs/PRODUCT_GAPS_AND_ROADMAP.md`, `.env`, the Firebase config files.
   Scan staged files for `AIzaSy`, private keys and `GOCSPX` before each
@@ -382,16 +463,16 @@ model Booking {
 1. A1–A2: schema, shared rules and their tests.
 2. A3: server (pricing API, seasons API, availability, create, displays).
 3. A4–A5: web pricing tab and booking flow, then mobile; E2E and Jest.
-4. B1–B2: schema, shared billing rules, commission snapshot in create.
-5. B3: test billing provider, Stripe Billing, webhooks, grace period.
-6. B4–B5: manager billing tab, payment-mode rule, banners, admin; tests.
+4. B1–B2: schema, shared billing rules, the commission removed everywhere.
+5. B3: test billing provider, Stripe Billing, webhooks, billing cron,
+   hiding unsubscribed venues.
+6. B4–B5: subscription tab, banners, admin; tests.
 7. Docs and a full run of every check.
 
-## Open questions to confirm with the owner before step 4
+## Questions answered by the owner (2026-10-21)
 
-- The monthly fee amount (the plan uses 199 RON as a placeholder) and
-  whether VAT is included.
-- Whether the fee should depend on the number of pitches later (the model
-  allows adding tiers without migration pain if `subscriptionMonthlyRon`
-  becomes a small table).
-- Whether a trial month is offered to new venues.
+See B0: 10/100 lei the first year, 30/300 after, +5/+50 lei per active
+pitch beyond 2, VAT included, a free month with a card on file, and the
+discounted year starting when the trial ends. Then: no commission at all;
+venues without a running subscription are hidden and take no new
+bookings; venues subscribe after approval, in Settings.

@@ -43,7 +43,7 @@ describe('generateSlots (E11-10)', () => {
 })
 
 it('calcPrice is rate × slots ÷ 2 (C-2)', () => {
-  expect(calcPrice(120, 3)).toMatchObject({ minutes: 90, total: 180, platformFee: 14.4 })
+  expect(calcPrice(120, 3)).toMatchObject({ minutes: 90, total: 180 })
 })
 
 it('pitch colours are stable by position and repeat after eight', () => {

@@ -1,6 +1,6 @@
 /**
- * GET/PUT /api/v1/admin/config — E15-05. The commission on new bookings
- * (0–20%) and maintenance mode with its message. Admins only.
+ * GET/PUT /api/v1/admin/config — E15-05. The subscription prices and the
+ * trial length (C-15), and maintenance mode with its message. Admins only.
  */
 import type { NextRequest } from 'next/server'
 import { PlatformConfigSchema } from '@pitchup/shared'

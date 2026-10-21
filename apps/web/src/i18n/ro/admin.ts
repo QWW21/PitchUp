@@ -31,7 +31,9 @@ export const adminRo: CatalogShape<typeof adminEn> = {
     played: 'Rezervări jucate',
     value: 'Valoarea rezervărilor',
     valueNote: '{amount} în ultimele 30 de zile',
-    fees: 'Comisioane PitchUp',
+    revenue: 'Încasări PitchUp',
+    subscribed: 'Baze cu abonament',
+    subscribedNote: '{trialing} în luna gratuită · {pastDue} cu plata eșuată · {off} nepublicate',
     suspended: 'Conturi suspendate',
     queue: {
       pending: 'baze sportive așteaptă aprobarea',
@@ -53,10 +55,20 @@ export const adminRo: CatalogShape<typeof adminEn> = {
     heading: 'Setările platformei',
     confirmMaintenance:
       'Pornești modul de întreținere? Toți în afară de administratori vor vedea mesajul de întreținere.',
-    fee: 'Comision PitchUp (%)',
-    feeHint:
-      '0–20%, scăzut din ce primesc bazele sportive. Se aplică rezervărilor noi; cele vechi îl păstrează pe al lor. Acum: {n}%.',
-    feeInvalid: 'Un număr întreg de la 0 la 20.',
+    prices: 'Prețurile abonamentului (lei, cu TVA)',
+    pricesHint:
+      'Bazele plătesc prețurile noi de la următoarea factură. Prețul anual e de obicei 10 × cel lunar.',
+    sub: {
+      subIntroMonthlyRon: 'Primul an, lunar',
+      subIntroYearlyRon: 'Primul an, anual',
+      subMonthlyRon: 'Din al doilea an, lunar',
+      subYearlyRon: 'Din al doilea an, anual',
+      subExtraPitchMonthlyRon: 'Fiecare teren în plus, lunar',
+      subExtraPitchYearlyRon: 'Fiecare teren în plus, anual',
+      subIncludedPitches: 'Terenuri incluse',
+      subTrialDays: 'Perioadă gratuită (zile)',
+    },
+    priceInvalid: 'Doar numere întregi.',
     maintenance: 'Mod de întreținere',
     on: 'Pornit: toți în afară de administratori văd mesajul',
     off: 'Oprit',
@@ -67,6 +79,7 @@ export const adminRo: CatalogShape<typeof adminEn> = {
     save: 'Salvează setările',
   },
   companies: {
+    subscription: 'Abonament',
     title: 'Aprobări baze sportive | PitchUp',
     heading: 'Baze sportive',
     waitingHeading: 'Așteaptă aprobarea',
@@ -149,6 +162,7 @@ export const adminRo: CatalogShape<typeof adminEn> = {
     suspend: 'Suspendă',
   },
   company: {
+    periodEnd: 'până pe {date}',
     title: 'Bază sportivă | PitchUp admin',
     back: '← Baze sportive',
     suspended: 'Suspendată: {reason}',
