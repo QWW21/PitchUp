@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { RegisterManagerSchema } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 import { created, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
@@ -37,5 +38,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   // Identical for CREATED and EMAIL_TAKEN, as on the player route: a
   // distinct response would let anyone test whether an address has an
   // account. The real owner is told by email.
-  return created({ message: 'Check your email for a verification code.' })
+  return created({ message: (await getT())('api.ok.checkEmail') })
 })

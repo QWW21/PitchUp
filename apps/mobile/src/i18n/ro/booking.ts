@@ -34,9 +34,8 @@ export const bookingRo: CatalogShape<typeof bookingEn> = {
     changeDate: '← Schimbă data',
     heading: 'Alege ora de început',
     howLong: 'Cât timp?',
-    startFirst: 'Alege mai întâi ora de început.',
     noFit: ', nu încape',
-    choose: 'Alege ora de început și durata',
+    choose: 'Alege cât joci, apoi ora de început',
   },
   teams: {
     names: { 0: 'Echipa A', 1: 'Echipa B', 2: 'Echipa C' },

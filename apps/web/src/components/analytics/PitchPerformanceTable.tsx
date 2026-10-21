@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { ArrowDown, ArrowUp, Download } from 'lucide-react'
 import type { PitchPerformanceRow } from '@pitchup/shared'
 import { Alert } from '@/components/ui/Alert'
-import { useT } from '@/i18n/client'
+import { useLocale, useT } from '@/i18n/client'
 import { ron } from './format'
 
 type Key =
@@ -46,6 +46,7 @@ export function PitchPerformanceTable({
   pitchId: string
 }) {
   const t = useT()
+  const locale = useLocale()
   const [sort, setSort] = useState<{ key: Key; dir: 'asc' | 'desc' }>({
     key: 'revenue',
     dir: 'desc',
@@ -171,7 +172,7 @@ export function PitchPerformanceTable({
                       </span>
                     )}
                   </th>
-                  <td className="text-right">{ron(r.revenue)}</td>
+                  <td className="text-right">{ron(r.revenue, locale)}</td>
                   <td className="text-right">
                     {r.totalBookings}
                     {r.completedBookings !== r.totalBookings && (

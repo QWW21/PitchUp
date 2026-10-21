@@ -6,7 +6,7 @@
  */
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import type { AnalyticsSummary, Kpi } from '@pitchup/shared'
-import { useT } from '@/i18n/client'
+import { useLocale, useT } from '@/i18n/client'
 import { ron } from './format'
 
 function KpiCard({
@@ -58,6 +58,7 @@ function KpiCard({
 
 export function KpiCards({ summary: s }: { summary: AnalyticsSummary }) {
   const t = useT()
+  const locale = useLocale()
   return (
     <section
       aria-label={t('analytics.kpi.label')}
@@ -65,11 +66,11 @@ export function KpiCards({ summary: s }: { summary: AnalyticsSummary }) {
     >
       <KpiCard
         label={t('analytics.kpi.revenue')}
-        value={ron(s.revenue.value ?? 0)}
+        value={ron(s.revenue.value ?? 0, locale)}
         kpi={s.revenue}
         note={t('analytics.kpi.split', {
-          online: ron(s.revenue.online),
-          venue: ron(s.revenue.atVenue),
+          online: ron(s.revenue.online, locale),
+          venue: ron(s.revenue.atVenue, locale),
         })}
       />
       <KpiCard

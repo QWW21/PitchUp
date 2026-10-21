@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { getT } from '@/i18n/server'
 import { ok, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
@@ -60,5 +61,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
   // Same answer whether or not the address exists, and whether or not it was
   // already verified.
-  return ok({ message: 'If that account needs verifying, a new code is on its way.' })
+  return ok({ message: (await getT())('api.ok.codeResent') })
 })

@@ -7,9 +7,8 @@ import {
   describeRefundPolicy,
   refundPolicyOf,
   dayPeriod,
-  durationOptions,
+  durationChoices,
   formatShortDuration,
-  keepDuration,
   rangeFrom,
   rangeTimes,
   refundPercentFor,
@@ -120,8 +119,8 @@ describe('start and duration (C-6)', () => {
     startOptions(slots, min)
       .map(o => o.state[0])
       .join('')
-  const fits = (slots: ReturnType<typeof day>, i: number, min = 60, max = 180) =>
-    durationOptions(slots, i, min, max)
+  const lengths = (slots: ReturnType<typeof day>, min = 60, max = 180) =>
+    durationChoices(slots, min, max)
       .filter(o => o.fits)
       .map(o => o.minutes)
 
@@ -145,33 +144,33 @@ describe('start and duration (C-6)', () => {
     ])
   })
 
-  it('durations run from the minimum to the maximum, enabled while they fit', () => {
+  it('lengths run from the minimum to the maximum, enabled while some start has room', () => {
     const slots = day('.....x')
-    expect(durationOptions(slots, 0, 60, 180).map(o => o.minutes)).toEqual([60, 90, 120, 150, 180])
-    expect(fits(slots, 0)).toEqual([60, 90, 120, 150])
-    expect(fits(day('..........'), 0, 60, 120)).toEqual([60, 90, 120])
+    expect(durationChoices(slots, 60, 180).map(o => o.minutes)).toEqual([60, 90, 120, 150, 180])
+    expect(lengths(slots)).toEqual([60, 90, 120, 150])
+    expect(lengths(day('..........'), 60, 120)).toEqual([60, 90, 120])
+    // The longest free run decides, wherever it is in the day.
+    expect(lengths(day('..x....x'))).toEqual([60, 90, 120])
+  })
+
+  it('a chosen length decides which starts can take it, never shortened', () => {
+    // A booking at 20:00: with 2h, 18:30 has no room (only 1h 30 before it).
+    const slots = day('....x....')
+    expect(startOptions(slots, 120)[1]!.state).toBe('short')
+    expect(startOptions(slots, 90)[1]!.state).toBe('available')
   })
 
   it('an overnight venue: the early hours and the evening are separate runs', () => {
     // 00:00–02:00 (last night's hours), closed, then 22:00–24:00.
     const slots = [...day('....', '00:00'), ...day('....', '22:00')]
-    expect(fits(slots, 2)).toEqual([60])
-    expect(fits(slots, 4)).toEqual([60, 90, 120])
+    expect(lengths(slots)).toEqual([60, 90, 120])
+    expect(states(slots, 120)).toBe('asssasss')
     expect(states(slots, 90)).toBe('aassaass')
     expect(rangeTimes(slots, rangeFrom(4, 120))).toEqual({
       startTime: '22:00',
       endTime: '24:00',
       minutes: 120,
     })
-  })
-
-  it('keeps the chosen duration if it fits, else the longest that fits up to it', () => {
-    const opts = (free: number) =>
-      [60, 90, 120].map(minutes => ({ minutes, fits: minutes <= free }))
-    expect(keepDuration(opts(120), 90)).toBe(90)
-    expect(keepDuration(opts(90), 120)).toBe(90)
-    expect(keepDuration(opts(120), null)).toBe(60)
-    expect(keepDuration(opts(30), 90)).toBeNull()
   })
 
   it('formats the chips and the range', () => {

@@ -60,15 +60,15 @@ beforeEach(() => {
 describe('Venue analytics (E14-10)', () => {
   it('shows the five figures, each against the previous period', async () => {
     show(ManagerAnalyticsScreen)
-    expect(await screen.findByText('4275 RON')).toBeOnTheScreen()
-    expect(screen.getByLabelText('Revenue: 4275 RON. ↑ 12% vs before')).toBeOnTheScreen()
+    expect(await screen.findByText('4,275 RON')).toBeOnTheScreen()
+    expect(screen.getByLabelText('Revenue: 4,275 RON. ↑ 12% vs before')).toBeOnTheScreen()
     expect(screen.getByLabelText('Average rating: ★ 4.3. No earlier data')).toBeOnTheScreen()
-    expect(screen.getByText('3000 RON online · 1275 RON at the venue')).toBeOnTheScreen()
+    expect(screen.getByText('3,000 RON online · 1,275 RON at the venue')).toBeOnTheScreen()
   })
 
   it('a period chip asks again for that period', async () => {
     show(ManagerAnalyticsScreen)
-    await screen.findByText('4275 RON')
+    await screen.findByText('4,275 RON')
     fireEvent.press(screen.getByText('7 days'))
     await waitFor(() => expect(api.analyticsSummary).toHaveBeenCalledWith('7d'))
     expect(api.analyticsRevenue).toHaveBeenCalledWith('7d')

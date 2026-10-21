@@ -122,7 +122,7 @@ export const PLAYERS_FOR_SIZE: Record<PitchSize, number> = {
   CUSTOM: 6,
 }
 
-// ── Choosing a time: a start, then a duration (C-6) ─────────────────────────
+// ── Choosing a time: how long, then a start (C-6) ────────────────────────────
 
 export interface SlotRange {
   /** Indexes into the day's slots, inclusive. */
@@ -189,30 +189,24 @@ export interface DurationOption {
   fits: boolean
 }
 
-/** The pitch's minimum to maximum length in half hours, from the start at `index`. */
-export function durationOptions(
+/**
+ * The lengths a player can choose first (C-6, length before start): the
+ * pitch's minimum to maximum in half hours, each marked whether any start
+ * that day still has room for all of it.
+ */
+export function durationChoices(
   slots: Slot[],
-  index: number,
   minMinutes: number,
   maxMinutes: number
 ): DurationOption[] {
-  const free = freeMinutesFrom(slots, index, maxMinutes)
+  const longest = slots.reduce(
+    (most, _, i) => Math.max(most, freeMinutesFrom(slots, i, maxMinutes)),
+    0
+  )
   const options: DurationOption[] = []
-  for (let m = minMinutes; m <= maxMinutes; m += SLOT) options.push({ minutes: m, fits: m <= free })
+  for (let m = minMinutes; m <= maxMinutes; m += SLOT)
+    options.push({ minutes: m, fits: m <= longest })
   return options
-}
-
-/**
- * The duration to keep after picking a start: the previous one if it still
- * fits, otherwise the longest that fits up to it; with none before, the
- * shortest.
- */
-export function keepDuration(options: DurationOption[], previous: number | null): number | null {
-  const fitting = options.filter(o => o.fits).map(o => o.minutes)
-  if (!fitting.length) return null
-  if (previous === null) return fitting[0]!
-  const upTo = fitting.filter(m => m <= previous)
-  return upTo.length ? upTo[upTo.length - 1]! : fitting[0]!
 }
 
 /** "1h", "1h 30", "30 min": the duration chips. */

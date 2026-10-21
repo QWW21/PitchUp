@@ -26,8 +26,9 @@ export const bookingRo: CatalogShape<typeof bookingEn> = {
     next: 'Mai departe',
   },
   time: {
-    heading: 'Alege ora de început',
-    howLongRange: 'Apoi cât joci: între {min} și {max}.',
+    heading: 'Alege ora',
+    howLongRange: 'Întâi cât joci (între {min} și {max}), apoi când începi.',
+    startHeading: 'Ora de început',
     loadError: 'Orele nu s-au putut încărca. Încearcă din nou.',
     noSlots: 'Nu sunt ore libere la această dată',
     changeDate: '← Schimbă data',
@@ -39,9 +40,8 @@ export const bookingRo: CatalogShape<typeof bookingEn> = {
       selected: 'selectat',
     },
     howLong: 'Cât timp?',
-    startFirst: 'Alege mai întâi ora de început.',
     doesntFit: ', nu încape',
-    choosePrompt: 'Alege ora de început și durata',
+    choosePrompt: 'Alege cât joci, apoi ora de început',
   },
   teams: {
     headingShirts: 'Echipe și tricouri',

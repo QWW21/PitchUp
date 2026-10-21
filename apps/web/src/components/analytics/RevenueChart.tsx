@@ -8,7 +8,7 @@
  */
 import { useState } from 'react'
 import type { AnalyticsGroupBy, RevenuePoint } from '@pitchup/shared'
-import { useT } from '@/i18n/client'
+import { useLocale, useT } from '@/i18n/client'
 import { compact, ron } from './format'
 
 type Point = RevenuePoint & { label: string }
@@ -33,6 +33,7 @@ function niceMax(n: number) {
 
 export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: AnalyticsGroupBy }) {
   const t = useT()
+  const locale = useLocale()
   const [hidden, setHidden] = useState<Record<Series, boolean>>({
     gross: false,
     payout: false,
@@ -113,7 +114,7 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                 fontSize="11"
                 fill="#4B5563"
               >
-                {compact(max * f)}
+                {compact(max * f, locale)}
               </text>
             </g>
           ))}
@@ -180,9 +181,9 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
             <p className="font-semibold">
               {unit} {shown.label}
             </p>
-            <p>{t('analytics.chart.tipRevenue', { amount: ron(shown.gross) })}</p>
-            <p>{t('analytics.chart.tipPayout', { amount: ron(shown.payout) })}</p>
-            <p>{t('analytics.chart.tipFee', { amount: ron(shown.fees) })}</p>
+            <p>{t('analytics.chart.tipRevenue', { amount: ron(shown.gross, locale) })}</p>
+            <p>{t('analytics.chart.tipPayout', { amount: ron(shown.payout, locale) })}</p>
+            <p>{t('analytics.chart.tipFee', { amount: ron(shown.fees, locale) })}</p>
             <p>{t('analytics.chart.bookings', { count: shown.bookings })}</p>
           </div>
         )}
@@ -222,10 +223,10 @@ export function RevenueChart({ points, groupBy }: { points: Point[]; groupBy: An
                   <th scope="row" className="py-1 pr-3 font-normal text-neutral-900">
                     {p.label}
                   </th>
-                  <td className="py-1 pr-3 text-right">{ron(p.gross)}</td>
-                  <td className="py-1 pr-3 text-right">{ron(p.online)}</td>
-                  <td className="py-1 pr-3 text-right">{ron(p.atVenue)}</td>
-                  <td className="py-1 pr-3 text-right">{ron(p.payout)}</td>
+                  <td className="py-1 pr-3 text-right">{ron(p.gross, locale)}</td>
+                  <td className="py-1 pr-3 text-right">{ron(p.online, locale)}</td>
+                  <td className="py-1 pr-3 text-right">{ron(p.atVenue, locale)}</td>
+                  <td className="py-1 pr-3 text-right">{ron(p.payout, locale)}</td>
                   <td className="py-1 text-right">{p.bookings}</td>
                 </tr>
               ))}

@@ -4,6 +4,19 @@
  */
 export const apiEn = {
   internal: 'Something went wrong',
+  payMethodUnavailable: 'That way of paying is not available here',
+  venuePayTrust:
+    'This venue takes payment at the venue, for players with a trust score of 70 or more',
+  ok: {
+    loggedOut: 'Logged out',
+    checkEmail: 'Check your email for a verification code.',
+    codeResent: 'If that account needs verifying, a new code is on its way.',
+    passwordReset: 'Your password has been changed. Please sign in again.',
+    disputeSent: 'Dispute submitted. An admin will review it.',
+    passwordChanged: 'Password changed. Please sign in again.',
+    accountDeleted: 'Your account has been deleted.',
+    reportSent: 'Report submitted',
+  },
   company: {
     invalidTransition: "A venue that is {from} can't become {to}",
   },

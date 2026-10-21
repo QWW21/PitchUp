@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { passwordSchema } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 import { ok, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
@@ -40,5 +41,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     return err('VALIDATION_ERROR', message, 400, { reason: result.failure })
   }
 
-  return ok({ message: 'Your password has been changed. Please sign in again.' })
+  return ok({ message: (await getT())('api.ok.passwordReset') })
 })

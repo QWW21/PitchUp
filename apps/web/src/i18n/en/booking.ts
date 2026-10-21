@@ -23,8 +23,9 @@ export const bookingEn = {
     next: 'Next',
   },
   time: {
-    heading: 'Choose a start time',
-    howLongRange: 'Then how long you play: {min} to {max}.',
+    heading: 'Choose your time',
+    howLongRange: 'First how long you play ({min} to {max}), then when you start.',
+    startHeading: 'Start time',
     loadError: 'Couldn’t load the times. Try again.',
     noSlots: 'No slots available for this date',
     changeDate: '← Change date',
@@ -36,9 +37,8 @@ export const bookingEn = {
       selected: 'selected',
     },
     howLong: 'How long?',
-    startFirst: 'Choose a start time first.',
     doesntFit: ', doesn’t fit',
-    choosePrompt: 'Choose a start time and how long',
+    choosePrompt: 'Choose how long you play, then a start time',
   },
   teams: {
     headingShirts: 'Teams and shirts',

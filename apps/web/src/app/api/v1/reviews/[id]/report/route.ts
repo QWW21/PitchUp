@@ -5,6 +5,7 @@
  */
 import type { NextRequest } from 'next/server'
 import { ReportReviewSchema } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 import { ok, withErrorHandling } from '@/lib/api/response'
 import { requireAuth } from '@/lib/api/middleware'
 import { validateBody } from '@/lib/api/validate'
@@ -18,6 +19,6 @@ export const POST = withErrorHandling(
     if (parsed.error) return parsed.error
     const id = request.nextUrl.pathname.split('/').at(-2) ?? ''
     await reportReview(id, session.user.id, parsed.data)
-    return ok({ message: 'Report submitted' })
+    return ok({ message: (await getT())('api.ok.reportSent') })
   })
 )

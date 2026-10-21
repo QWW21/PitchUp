@@ -1,10 +1,11 @@
 'use client'
 
 /**
- * Step 2: the time — C-6 (replacing E05-10's grid). Choose a start time,
- * grouped into morning, afternoon and evening, then how long. Which starts
- * and durations are possible comes from @pitchup/shared (startOptions,
- * durationOptions), the same rules as the app.
+ * Step 2: the time — C-6 (replacing E05-10's grid). First how long, then a
+ * start time, grouped into morning, afternoon and evening. Only starts with
+ * room for the whole length can be picked, so the length chosen is the
+ * length booked. Which lengths and starts are possible comes from
+ * @pitchup/shared (durationChoices, startOptions), the same rules as the app.
  */
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,9 +13,8 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   bookingPrice,
-  durationOptions,
+  durationChoices,
   formatShortDuration,
-  keepDuration,
   rangeFrom,
   rangeTimes,
   startOptions,
@@ -48,8 +48,8 @@ export function TimeStep() {
   const t = useT()
   const { pitch, draft, ready, update } = useBooking()
   const router = useRouter()
-  const [start, setStart] = useState<number | null>(null)
   const [minutes, setMinutes] = useState<number | null>(null)
+  const [startTime, setStartTime] = useState<string | null>(null)
 
   useEffect(() => {
     if (ready && !draft.date) router.replace(stepPath(pitch.id, 'date'))
@@ -64,30 +64,39 @@ export function TimeStep() {
   const slots = day.data?.slots ?? []
   const minMinutes = pitch.minBookingHours * 60
   const maxMinutes = pitch.maxBookingHours * 60
-  const starts = startOptions(slots, minMinutes)
-  const durations = start === null ? [] : durationOptions(slots, start, minMinutes, maxMinutes)
+  const durations = durationChoices(slots, minMinutes, maxMinutes)
+  // Starts are judged against the chosen length: a start without room for all
+  // of it can't be picked. Kept as a time, not a position in the list, so a
+  // refreshed list can never move it.
+  const starts = startOptions(slots, minutes ?? minMinutes)
+  const startIndex = starts.findIndex(s => s.time === startTime && s.state === 'available')
 
-  // Restores a time chosen earlier, if it is still free.
+  // The length starts at the one chosen before, if it still fits somewhere,
+  // else the shortest that does; a start chosen before comes back if free.
   useEffect(() => {
-    if (!slots.length || !draft.startTime || !draft.minutes || start !== null) return
-    const i = slots.findIndex(s => s.time === draft.startTime)
-    if (i < 0) return
-    const fits = durationOptions(slots, i, minMinutes, maxMinutes).some(
-      d => d.minutes === draft.minutes && d.fits
-    )
-    if (fits) {
-      setStart(i)
-      setMinutes(draft.minutes)
+    if (!slots.length || minutes !== null) return
+    const fitting = durationChoices(slots, minMinutes, maxMinutes).filter(d => d.fits)
+    const previous = fitting.find(d => d.minutes === draft.minutes)
+    const length = previous?.minutes ?? fitting[0]?.minutes ?? null
+    setMinutes(length)
+    if (length !== null && draft.startTime) {
+      const free = startOptions(slots, length).some(
+        s => s.time === draft.startTime && s.state === 'available'
+      )
+      if (free) setStartTime(draft.startTime)
     }
-  }, [slots, draft.startTime, draft.minutes, start, minMinutes, maxMinutes])
+  }, [slots, minutes, draft.minutes, draft.startTime, minMinutes, maxMinutes])
 
-  const pickStart = (i: number) => {
-    setStart(i)
-    setMinutes(m => keepDuration(durationOptions(slots, i, minMinutes, maxMinutes), m))
+  const pickLength = (m: number) => {
+    setMinutes(m)
+    // A start without room for the new length is let go, never shortened.
+    if (!startOptions(slots, m).some(s => s.time === startTime && s.state === 'available')) {
+      setStartTime(null)
+    }
   }
 
   const chosen =
-    start !== null && minutes !== null ? rangeTimes(slots, rangeFrom(start, minutes)) : null
+    startIndex >= 0 && minutes !== null ? rangeTimes(slots, rangeFrom(startIndex, minutes)) : null
   const price = chosen ? bookingPrice(pitch.hourlyRate, chosen.minutes) : null
 
   const next = () => {
@@ -97,7 +106,8 @@ export function TimeStep() {
   }
 
   if (!draft.date) return null
-  const noneFree = day.isSuccess && !starts.some(s => s.state === 'available')
+  const noneFree =
+    day.isSuccess && !startOptions(slots, minMinutes).some(s => s.state === 'available')
 
   return (
     <section aria-labelledby="time-heading">
@@ -131,11 +141,35 @@ export function TimeStep() {
 
       {day.isSuccess && !noneFree && (
         <>
+          <section aria-labelledby="duration-heading" className="mt-5">
+            <h2 id="duration-heading" className="text-base font-semibold text-neutral-900">
+              {t('booking.time.howLong')}
+            </h2>
+            <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
+              {durations.map(d => (
+                <button
+                  key={d.minutes}
+                  type="button"
+                  disabled={!d.fits}
+                  aria-pressed={minutes === d.minutes}
+                  aria-label={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.doesntFit')}`}
+                  onClick={() => pickLength(d.minutes)}
+                  className={chip(minutes === d.minutes)}
+                >
+                  {formatShortDuration(d.minutes)}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <h2 className="mt-6 text-base font-semibold text-neutral-900">
+            {t('booking.time.startHeading')}
+          </h2>
           {PERIODS.map(period => {
             const group = starts.filter(s => s.period === period)
             if (!group.length) return null
             return (
-              <section key={period} aria-labelledby={`period-${period}`} className="mt-5">
+              <section key={period} aria-labelledby={`period-${period}`} className="mt-3">
                 <h2
                   id={`period-${period}`}
                   className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500"
@@ -148,10 +182,10 @@ export function TimeStep() {
                       key={o.time}
                       type="button"
                       disabled={o.state !== 'available'}
-                      aria-pressed={start === o.index}
-                      aria-label={`${o.time}, ${t(`booking.time.state.${start === o.index ? 'selected' : o.state}`)}`}
-                      onClick={() => pickStart(o.index)}
-                      className={chip(start === o.index)}
+                      aria-pressed={startIndex === o.index}
+                      aria-label={`${o.time}, ${t(`booking.time.state.${startIndex === o.index ? 'selected' : o.state}`)}`}
+                      onClick={() => setStartTime(o.time)}
+                      className={chip(startIndex === o.index)}
                     >
                       {o.time}
                     </button>
@@ -160,31 +194,6 @@ export function TimeStep() {
               </section>
             )
           })}
-
-          <section aria-labelledby="duration-heading" className="mt-6">
-            <h2 id="duration-heading" className="text-base font-semibold text-neutral-900">
-              {t('booking.time.howLong')}
-            </h2>
-            {start === null ? (
-              <p className="mt-2 text-sm text-neutral-500">{t('booking.time.startFirst')}</p>
-            ) : (
-              <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {durations.map(d => (
-                  <button
-                    key={d.minutes}
-                    type="button"
-                    disabled={!d.fits}
-                    aria-pressed={minutes === d.minutes}
-                    aria-label={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.doesntFit')}`}
-                    onClick={() => setMinutes(d.minutes)}
-                    className={chip(minutes === d.minutes)}
-                  >
-                    {formatShortDuration(d.minutes)}
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
         </>
       )}
 

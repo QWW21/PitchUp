@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { RegisterPlayerSchema } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 import { created, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
@@ -48,5 +49,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
   // userId (null when the address was taken), which leaked exactly the fact
   // this endpoint is trying not to leak. The client verifies with the email
   // address it already knows, so it never needed the id.
-  return created({ message: 'Check your email for a verification code.' })
+  return created({ message: (await getT())('api.ok.checkEmail') })
 })

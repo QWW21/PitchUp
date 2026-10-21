@@ -2,7 +2,7 @@
  * Translations shared by web, mobile and the server. Each app merges this
  * catalog with its own screen text (see the app's src/i18n).
  */
-import { createTranslator, type Locale } from './core'
+import { createTranslator, INTL_LOCALE, type Locale } from './core'
 import { en } from './en'
 import { ro } from './ro'
 
@@ -66,3 +66,18 @@ export const monthShort = (month: number, locale: Locale) =>
 /** "1 hour", "3 ore", "20 de ore". */
 export const hoursText = (hours: number, locale: Locale) =>
   sharedT(locale)('duration.hours', { count: hours })
+
+const numberFormats = new Map<Locale, Intl.NumberFormat>()
+
+/** A number the way the language writes it: "1.234,5" in Romanian, "1,234.5" in English. */
+export function formatNumber(n: number, locale: Locale): string {
+  let f = numberFormats.get(locale)
+  if (!f) {
+    f = new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 2 })
+    numberFormats.set(locale, f)
+  }
+  return f.format(n)
+}
+
+/** An amount in lei: "1.234,5 RON". */
+export const formatRon = (n: number, locale: Locale): string => `${formatNumber(n, locale)} RON`

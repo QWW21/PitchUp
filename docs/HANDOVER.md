@@ -598,9 +598,10 @@ translated; the English text is word for word what it was before.
 - **Adding text:** add the English key, then the Romanian one (`tsc` says
   which are missing), and use `t('area.key')` (`useT()` in client
   components and the app, `await getT()` in server components).
-- **Not translated:** venue-written content (names, descriptions, replies),
-  numbers' formatting on the analytics page (still `en-GB`), and internal
-  log messages.
+- **Numbers and amounts** follow the language too (`formatNumber`,
+  `formatRon`: "1.234,5 RON" in Romanian, "1,234.5 RON" in English).
+- **Not translated:** venue-written content (names, descriptions, replies)
+  and internal log messages.
 
 ## Error monitoring (Sentry)
 
@@ -853,14 +854,18 @@ those tickets carries a comment pointing here.
 - **C-7 A pitch that lends no shirts says so** on the teams step ("This
   pitch doesn't lend shirts. Bring your own bibs or colours.") and the step
   is titled "Teams" there. Web and mobile.
-- **C-6 Start time, then a duration.** The time step lists start times in
-  Morning / Afternoon / Evening groups, then "How long?" from the pitch's
-  minimum to maximum in half hours. A start without room for the shortest
-  booking (before the next booking or closing) is disabled and read as "not
-  enough time"; so are lengths that don't fit. A new start keeps the length
-  if it fits, otherwise the longest that does. One shared set of rules
-  (`startOptions`, `durationOptions`, `keepDuration` in `booking.ts`)
-  replaced `tapSlot`.
+- **C-6 How long, then a start time** (reversed 2026-10-21 after testing).
+  The time step asks "How long?" first, from the pitch's minimum to maximum
+  in half hours (the shortest is chosen to begin with), then lists start
+  times in Morning / Afternoon / Evening groups. A start without room for
+  the whole chosen length (before the next booking or closing) is disabled
+  and read as "not enough time"; a length no start has room for is
+  disabled. Choosing a longer length that the picked start can't take lets
+  the start go; it is never shortened. (The old order kept a start and
+  silently shortened the length to what fitted, which players read as a
+  booking "half an hour off".) The start is kept as a time, not a position
+  in the list. Shared rules: `durationChoices` and `startOptions` in
+  `booking.ts`.
 - **C-8 Pay at the venue.** `Company.paymentMode` (`ONLINE`, the default;
   `ONLINE_OR_VENUE`; `VENUE`) and `Company.depositPercent` (0–50, default
   20), set on `/manager/settings`. Players with trust 70+ may pay at the

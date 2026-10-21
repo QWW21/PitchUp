@@ -1064,15 +1064,18 @@ part of the interface.
 
 The old time grid asked for two clicks (start, then end) and the user had
 to work out what a second click would do. The new step asks two questions a
-person already has in mind: when do we start, and for how long? Every
+person already has in mind: for how long, and when do we start? (The first
+version asked "when" first and quietly shortened the length when a new
+start had less room; testing showed players read that as a booking half an
+hour off. Asking for the length first means it is never changed behind the
+player's back: a start that can't take it is simply not offered.) Every
 choice that cannot work is shown but disabled, with the reason read out to
 screen readers ("19:30, not enough time"). This is the general idea of
 **constraining input instead of validating it**: rather than letting the
 player pick 19:30–21:30 and then saying "that overlaps a booking", the
 option is not offered.
 
-The rules (which starts fit, which lengths fit, what to keep when the start
-changes) are one set of pure functions in `@pitchup/shared`, used by web
+The rules (which lengths any start can take, which starts fit a length) are one set of pure functions in `@pitchup/shared`, used by web
 and mobile alike and unit-tested for the awkward cases: overnight venues, a
 booking in the middle, closing time, past slots. Pure functions are where
 such rules are cheapest to test.

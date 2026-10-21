@@ -117,9 +117,7 @@ export async function createBooking(
   )
   if (!methods.includes(input.paymentMethod)) {
     throw forbidden(
-      methods.length
-        ? 'That way of paying is not available here'
-        : 'This venue takes payment at the venue, for players with a trust score of 70 or more',
+      methods.length ? 'api.payMethodUnavailable' : 'api.venuePayTrust',
       'PAYMENT_METHOD_UNAVAILABLE'
     )
   }

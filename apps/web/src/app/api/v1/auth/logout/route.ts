@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { z } from 'zod'
+import { getT } from '@/i18n/server'
 import { ok, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
 import { revokeRefreshToken } from '@/lib/auth/service'
@@ -21,5 +22,5 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
   // Always the same answer, whether or not the token existed, so logout
   // cannot be used to test tokens.
-  return ok({ message: 'Logged out' })
+  return ok({ message: (await getT())('api.ok.loggedOut') })
 })

@@ -154,16 +154,15 @@ describe('Step 2: start and duration (C-6)', () => {
 
   beforeEach(() => useBookingStore.getState().setDate(date))
 
-  it('a start, then a duration; priced at the hourly rate and carried on', async () => {
+  it('a length, then a start; priced at the hourly rate and carried on', async () => {
     api.day.mockResolvedValue(day('........'))
     const nav = makeNav()
     show(Step2TimeScreen, nav)
     expect(await screen.findByText('EVENING')).toBeOnTheScreen()
     expect(screen.getByLabelText('Next')).toBeDisabled()
-    press('18:00, available')
-    // The shortest length is picked first; then two hours.
-    expect(screen.getByText('18:00–19:00 · 1h · 120 RON')).toBeOnTheScreen()
+    // The shortest length is chosen to begin with; then two hours, then 18:00.
     press('2h')
+    press('18:00, available')
     expect(screen.getByText('18:00–20:00 · 2h · 240 RON')).toBeOnTheScreen()
     expect(screen.getByLabelText('18:00, selected')).toBeOnTheScreen()
     press('Next')
@@ -175,19 +174,24 @@ describe('Step 2: start and duration (C-6)', () => {
     expect(nav.navigate).toHaveBeenCalledWith('BookingTeams')
   })
 
-  it('disables starts and durations that do not fit, and keeps what still fits', async () => {
+  it('offers only starts with room for the whole length, and never shortens it', async () => {
     // 18:30 booked; free from 19:00 to 22:00.
     api.day.mockResolvedValue(day('.x......'))
     show(Step2TimeScreen, makeNav())
     expect(await screen.findByLabelText('18:00, not enough time')).toBeDisabled()
     expect(screen.getByLabelText('18:30, booked')).toBeDisabled()
     expect(screen.getByLabelText('21:30, not enough time')).toBeDisabled()
-    press('19:00, available')
-    press('3h')
+    // Three free hours at most: longer lengths can't be chosen.
+    expect(screen.getByLabelText('3h 30, doesn’t fit')).toBeDisabled()
+    press('2h')
+    expect(screen.getByLabelText('20:30, not enough time')).toBeDisabled()
     press('20:00, available')
-    // Only two hours are left before closing: the longest that fits.
     expect(screen.getByText('20:00–22:00 · 2h · 240 RON')).toBeOnTheScreen()
-    expect(screen.getByLabelText('2h 30, doesn’t fit')).toBeDisabled()
+    // 20:00 has no room for 3h: the start is let go rather than the booking cut short.
+    press('3h')
+    expect(screen.getByText('Choose how long you play, then a start time')).toBeOnTheScreen()
+    press('19:00, available')
+    expect(screen.getByText('19:00–22:00 · 3h · 360 RON')).toBeOnTheScreen()
   })
 
   it('opens on the time chosen before', async () => {

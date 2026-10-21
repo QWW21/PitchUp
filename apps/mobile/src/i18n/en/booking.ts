@@ -31,9 +31,8 @@ export const bookingEn = {
     changeDate: '← Change date',
     heading: 'Choose a start time',
     howLong: 'How long?',
-    startFirst: 'Choose a start time first.',
     noFit: ', doesn’t fit',
-    choose: 'Choose a start time and how long',
+    choose: 'Choose how long you play, then a start time',
   },
   teams: {
     names: { 0: 'Team A', 1: 'Team B', 2: 'Team C' },

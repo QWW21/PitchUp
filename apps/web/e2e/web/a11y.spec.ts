@@ -232,8 +232,8 @@ test.describe('booking flow', () => {
     await audit(page)
 
     await page.getByRole('button', { name: /^Next: times on/ }).click()
-    await page.getByRole('button', { name: '18:00, available' }).click()
     await page.getByRole('button', { name: '1h 30', exact: true }).click()
+    await page.getByRole('button', { name: '18:00, available' }).click()
     await audit(page)
 
     await page.getByRole('button', { name: 'Cancel' }).click()

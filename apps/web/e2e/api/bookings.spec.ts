@@ -100,7 +100,9 @@ test.describe('creating and paying', () => {
     expect(r.data!.reference).toMatch(/^#[A-Z0-9]{6}$/)
     const holdMinutes = (new Date(r.data!.holdExpiresAt).getTime() - Date.now()) / 60_000
     expect(holdMinutes).toBeGreaterThan(14)
-    expect(holdMinutes).toBeLessThanOrEqual(15)
+    // Fifteen minutes from the server's clock; a few ms of skew from this
+    // process's clock is not a failure.
+    expect(holdMinutes).toBeLessThanOrEqual(15.05)
 
     const row = await db.booking.findUniqueOrThrow({ where: { id: r.data!.bookingId } })
     expect(row).toMatchObject({ status: 'PENDING', paymentProvider: 'test', shirtSets: 0 })

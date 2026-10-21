@@ -1,8 +1,9 @@
 /**
- * Step 2: the time — C-6 (replacing E05-03's grid). Choose a start time,
- * grouped into morning, afternoon and evening, then how long. Which starts
- * and durations are possible comes from @pitchup/shared (startOptions,
- * durationOptions), the same rules as the web.
+ * Step 2: the time — C-6 (replacing E05-03's grid). First how long, then a
+ * start time, grouped into morning, afternoon and evening. Only starts with
+ * room for the whole length can be picked, so the length chosen is the
+ * length booked. Which lengths and starts are possible comes from
+ * @pitchup/shared (durationChoices, startOptions), the same rules as the web.
  */
 import React, { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
@@ -11,9 +12,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
 import {
   bookingPrice,
-  durationOptions,
+  durationChoices,
   formatShortDuration,
-  keepDuration,
   rangeFrom,
   rangeTimes,
   startOptions,
@@ -70,8 +70,8 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
   const savedStart = useBookingStore(s => s.startTime)
   const savedMinutes = useBookingStore(s => s.minutes)
   const setTime = useBookingStore(s => s.setTime)
-  const [start, setStart] = useState<number | null>(null)
   const [minutes, setMinutes] = useState<number | null>(null)
+  const [startTime, setStartTime] = useState<string | null>(null)
 
   const day = useQuery({
     queryKey: ['booking-slots', pitch.id, date],
@@ -81,32 +81,41 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
   const slots = day.data?.slots ?? []
   const minMinutes = pitch.minBookingHours * 60
   const maxMinutes = pitch.maxBookingHours * 60
-  const starts = startOptions(slots, minMinutes)
-  const durations = start === null ? [] : durationOptions(slots, start, minMinutes, maxMinutes)
+  const durations = durationChoices(slots, minMinutes, maxMinutes)
+  // Starts are judged against the chosen length. Kept as a time, not a
+  // position in the list, so a refreshed list can never move it.
+  const starts = startOptions(slots, minutes ?? minMinutes)
+  const startIndex = starts.findIndex(s => s.time === startTime && s.state === 'available')
 
-  // Restores a time chosen earlier, if it is still free.
+  // The length starts at the one chosen before, if it still fits somewhere,
+  // else the shortest that does; a start chosen before comes back if free.
   useEffect(() => {
-    if (!slots.length || !savedStart || !savedMinutes || start !== null) return
-    const i = slots.findIndex(s => s.time === savedStart)
-    if (i < 0) return
-    const fits = durationOptions(slots, i, minMinutes, maxMinutes).some(
-      d => d.minutes === savedMinutes && d.fits
-    )
-    if (fits) {
-      setStart(i)
-      setMinutes(savedMinutes)
+    if (!slots.length || minutes !== null) return
+    const fitting = durationChoices(slots, minMinutes, maxMinutes).filter(d => d.fits)
+    const length = fitting.find(d => d.minutes === savedMinutes)?.minutes ?? fitting[0]?.minutes
+    if (length === undefined) return
+    setMinutes(length)
+    if (
+      savedStart &&
+      startOptions(slots, length).some(s => s.time === savedStart && s.state === 'available')
+    ) {
+      setStartTime(savedStart)
     }
-  }, [slots, savedStart, savedMinutes, start, minMinutes, maxMinutes])
+  }, [slots, minutes, savedStart, savedMinutes, minMinutes, maxMinutes])
 
-  const pickStart = (i: number) => {
-    setStart(i)
-    setMinutes(m => keepDuration(durationOptions(slots, i, minMinutes, maxMinutes), m))
+  const pickLength = (m: number) => {
+    setMinutes(m)
+    // A start without room for the new length is let go, never shortened.
+    if (!startOptions(slots, m).some(s => s.time === startTime && s.state === 'available')) {
+      setStartTime(null)
+    }
   }
 
   const chosen =
-    start !== null && minutes !== null ? rangeTimes(slots, rangeFrom(start, minutes)) : null
+    startIndex >= 0 && minutes !== null ? rangeTimes(slots, rangeFrom(startIndex, minutes)) : null
   const price = chosen ? bookingPrice(pitch.hourlyRate, chosen.minutes) : null
-  const noneFree = day.isSuccess && !starts.some(s => s.state === 'available')
+  const noneFree =
+    day.isSuccess && !startOptions(slots, minMinutes).some(s => s.state === 'available')
 
   return (
     <View style={styles.root}>
@@ -128,6 +137,19 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
         />
       ) : (
         <ScrollView contentContainerStyle={styles.body}>
+          <Text style={styles.heading}>{t('booking.time.howLong')}</Text>
+          <View style={styles.chips}>
+            {durations.map(d => (
+              <Chip
+                key={d.minutes}
+                label={formatShortDuration(d.minutes)}
+                accessibilityLabel={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.noFit')}`}
+                on={minutes === d.minutes}
+                disabled={!d.fits}
+                onPress={() => pickLength(d.minutes)}
+              />
+            ))}
+          </View>
           <Text style={styles.heading}>{t('booking.time.heading')}</Text>
           {PERIODS.map(period => {
             const group = starts.filter(s => s.period === period)
@@ -143,34 +165,16 @@ export function Step2TimeScreen({ navigation }: BookingScreenProps<'BookingTime'
                       key={o.time}
                       testID={`start-${o.time}`}
                       label={o.time}
-                      accessibilityLabel={`${o.time}, ${start === o.index ? t('booking.time.selected') : t(`booking.time.state.${o.state}`)}`}
-                      on={start === o.index}
+                      accessibilityLabel={`${o.time}, ${startIndex === o.index ? t('booking.time.selected') : t(`booking.time.state.${o.state}`)}`}
+                      on={startIndex === o.index}
                       disabled={o.state !== 'available'}
-                      onPress={() => pickStart(o.index)}
+                      onPress={() => setStartTime(o.time)}
                     />
                   ))}
                 </View>
               </View>
             )
           })}
-
-          <Text style={styles.heading}>{t('booking.time.howLong')}</Text>
-          {start === null ? (
-            <Text style={styles.hint}>{t('booking.time.startFirst')}</Text>
-          ) : (
-            <View style={styles.chips}>
-              {durations.map(d => (
-                <Chip
-                  key={d.minutes}
-                  label={formatShortDuration(d.minutes)}
-                  accessibilityLabel={`${formatShortDuration(d.minutes)}${d.fits ? '' : t('booking.time.noFit')}`}
-                  on={minutes === d.minutes}
-                  disabled={!d.fits}
-                  onPress={() => setMinutes(d.minutes)}
-                />
-              ))}
-            </View>
-          )}
         </ScrollView>
       )}
 

@@ -9,6 +9,7 @@
  */
 import type { NextRequest } from 'next/server'
 import { DeleteAccountSchema, UpdateProfileSchema } from '@pitchup/shared'
+import { getT } from '@/i18n/server'
 import { ok, withErrorHandling } from '@/lib/api/response'
 import { requireAuth } from '@/lib/api/middleware'
 import { validateBody } from '@/lib/api/validate'
@@ -36,6 +37,6 @@ export const DELETE = withErrorHandling(
     const limited = passwordAttemptLimit(session.user.id)
     if (limited) return limited
     await deleteAccount(session.user, parsed.data)
-    return ok({ message: 'Your account has been deleted.' })
+    return ok({ message: (await getT())('api.ok.accountDeleted') })
   })
 )

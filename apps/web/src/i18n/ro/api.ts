@@ -4,6 +4,19 @@ import type { apiEn } from '../en/api'
 
 export const apiRo: CatalogShape<typeof apiEn> = {
   internal: 'Ceva nu a mers bine',
+  payMethodUnavailable: 'Această metodă de plată nu este disponibilă aici',
+  venuePayTrust:
+    'Această bază acceptă plata la fața locului, pentru jucătorii cu scor de încredere de cel puțin 70',
+  ok: {
+    loggedOut: 'Te-ai deconectat',
+    checkEmail: 'Verifică-ți emailul pentru codul de confirmare.',
+    codeResent: 'Dacă acel cont trebuie confirmat, un cod nou este pe drum.',
+    passwordReset: 'Parola a fost schimbată. Conectează-te din nou.',
+    disputeSent: 'Contestația a fost trimisă. Un administrator o va analiza.',
+    passwordChanged: 'Parola a fost schimbată. Conectează-te din nou.',
+    accountDeleted: 'Contul tău a fost șters.',
+    reportSent: 'Raportare trimisă',
+  },
   company: {
     invalidTransition: 'O bază sportivă în starea „{from}” nu poate trece în „{to}”',
   },

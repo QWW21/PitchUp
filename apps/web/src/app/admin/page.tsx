@@ -3,19 +3,20 @@ import Link from 'next/link'
 import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { platformStats } from '@/lib/admin/stats'
 import { AutoRefresh } from '@/components/admin/AutoRefresh'
-import { getT } from '@/i18n/server'
+import { getLocale, getT } from '@/i18n/server'
+import { formatNumber, formatRon } from '@pitchup/shared'
 
 export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getT())('admin.overview.title') }
 }
 
-const number = new Intl.NumberFormat('en-GB', { maximumFractionDigits: 2 })
-const ron = (n: number) => `${number.format(n)} RON`
-
 /** The platform at a glance — E15-09. Refreshed every minute. */
 export default async function AdminOverviewPage() {
   const s = await platformStats()
   const t = await getT()
+  const locale = await getLocale()
+  const number = { format: (n: number) => formatNumber(n, locale) }
+  const ron = (n: number) => formatRon(n, locale)
   const cards: [string, string, string?][] = [
     [
       t('admin.overview.users'),

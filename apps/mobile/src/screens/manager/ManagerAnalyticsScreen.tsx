@@ -18,7 +18,13 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import type { NativeStackScreenProps } from '@react-navigation/native-stack'
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons'
 import { useQuery } from '@tanstack/react-query'
-import { ANALYTICS_PERIODS, bucketLabel, type AnalyticsPeriod, type Kpi } from '@pitchup/shared'
+import {
+  ANALYTICS_PERIODS,
+  bucketLabel,
+  formatRon,
+  type AnalyticsPeriod,
+  type Kpi,
+} from '@pitchup/shared'
 import type { AppStackParamList } from '../../../App'
 import { managerApi } from '../../lib/managerApi'
 import { ErrorState } from '../../components/common/ErrorState'
@@ -36,8 +42,6 @@ const PERIOD_CHIPS: Record<AnalyticsPeriod, string> = {
 /** Analytics needn't be live: five minutes is fresh enough. */
 const STALE = 5 * 60_000
 const BAR_AREA = 120
-
-const ron = (n: number) => `${Math.round(n * 100) / 100} RON`
 
 export function ManagerAnalyticsScreen({ navigation }: Props) {
   const t = useT()
@@ -117,7 +121,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
           <View style={styles.grid}>
             <Card
               label={t('manager.analytics.revenue')}
-              value={ron(s.revenue.value ?? 0)}
+              value={formatRon(s.revenue.value ?? 0, locale)}
               kpi={s.revenue}
             />
             <Card
@@ -145,8 +149,8 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
           </View>
           <Text style={styles.muted}>
             {t('manager.analytics.split', {
-              online: ron(s.revenue.online),
-              venue: ron(s.revenue.atVenue),
+              online: formatRon(s.revenue.online, locale),
+              venue: formatRon(s.revenue.atVenue, locale),
             })}
           </Text>
 
@@ -165,7 +169,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
                       onPress={() => setBar(bar === i ? null : i)}
                       style={styles.barSlot}
                       accessibilityRole="button"
-                      accessibilityLabel={`${bucketLabel(p.period, revenue.data.groupBy, locale)}: ${ron(p.gross)}`}
+                      accessibilityLabel={`${bucketLabel(p.period, revenue.data.groupBy, locale)}: ${formatRon(p.gross, locale)}`}
                     >
                       <View
                         style={[
@@ -182,7 +186,7 @@ export function ManagerAnalyticsScreen({ navigation }: Props) {
                 {chosen
                   ? t('manager.analytics.bar', {
                       period: bucketLabel(chosen.period, revenue.data.groupBy, locale),
-                      amount: ron(chosen.gross),
+                      amount: formatRon(chosen.gross, locale),
                       bookings: t('manager.analytics.bookings', { count: chosen.bookings }),
                     })
                   : t('manager.analytics.range', {
