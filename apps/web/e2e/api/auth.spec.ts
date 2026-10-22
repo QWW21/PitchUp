@@ -5,7 +5,14 @@
  */
 import { expect, test } from '@playwright/test'
 import { get, post } from '../support/api'
-import { createResetToken, db, setVerificationCode, uniqueEmail, uniquePhone } from '../support/db'
+import {
+  createPlayer,
+  createResetToken,
+  db,
+  setVerificationCode,
+  uniqueEmail,
+  uniquePhone,
+} from '../support/db'
 import { resetRateLimits } from '../support/helpers'
 
 const PASSWORD = 'Testing123'
@@ -406,5 +413,125 @@ test.describe('Google sign-in (E02-07)', () => {
     })
     expect(r.status).toBe(400)
     expect(r.error?.code).toBe('VALIDATION_ERROR')
+  })
+})
+
+/**
+ * #188: the client IP is the X-Forwarded-For entry TRUSTED_PROXY_HOPS (1 on
+ * this server) from the right, and failed sign-ins are also limited per
+ * address: 10 per 15 minutes, web and mobile together.
+ */
+test.describe('client IP and the per-account login limit (#188)', () => {
+  const WRONG = 'WrongPass1'
+  let ipSeq = 0
+  /** A fresh rightmost entry, so no per-IP limit ever applies. */
+  const nextIp = () => {
+    ipSeq += 1
+    return `10.188.${Math.floor(ipSeq / 250)}.${(ipSeq % 250) + 1}`
+  }
+  const login = (request: Parameters<typeof post>[0], email: string, password: string) =>
+    post<Tokens>(
+      request,
+      '/auth/mobile/login',
+      { email, password },
+      { 'X-Forwarded-For': nextIp() }
+    )
+  const failTen = async (request: Parameters<typeof post>[0], email: string) => {
+    for (let i = 0; i < 10; i++) await login(request, email, WRONG)
+  }
+
+  test('AC5: register is limited on the rightmost entry, whatever the client puts left', async ({
+    request,
+  }) => {
+    const statuses = []
+    let last
+    for (let i = 1; i <= 4; i++) {
+      last = await post(request, '/auth/register', player(uniqueEmail('xff-reg')), {
+        'X-Forwarded-For': `203.0.113.${i}, 198.51.100.7`,
+      })
+      statuses.push(last.status)
+    }
+    expect(statuses).toEqual([201, 201, 201, 429])
+    expect(last?.error?.code).toBe('RATE_LIMITED')
+  })
+
+  test('AC6: mobile login is limited per IP on the rightmost entry', async ({ request }) => {
+    const statuses = []
+    let last
+    for (let i = 1; i <= 6; i++) {
+      last = await post(
+        request,
+        '/auth/mobile/login',
+        { email: uniqueEmail('xff-login'), password: WRONG },
+        { 'X-Forwarded-For': `203.0.113.${i}, 198.51.100.8` }
+      )
+      statuses.push(last.status)
+    }
+    expect(statuses).toEqual([401, 401, 401, 401, 401, 429])
+    expect(last?.error?.code).toBe('RATE_LIMITED')
+  })
+
+  test('AC8: after 10 wrong passwords even the right one is refused with 429', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('acct-lock')
+    await createPlayer(email, PASSWORD)
+    for (let i = 0; i < 10; i++) expect((await login(request, email, WRONG)).status).toBe(401)
+
+    const r = await login(request, email, PASSWORD)
+    expect(r.status).toBe(429)
+    expect(r.error?.code).toBe('RATE_LIMITED')
+    const details = r.error?.details as { retryAfterSeconds?: number } | undefined
+    expect(details?.retryAfterSeconds).toBeGreaterThan(0)
+  })
+
+  test('AC9: the count ignores case and surrounding spaces', async ({ request }) => {
+    const email = uniqueEmail('acct-case')
+    await createPlayer(email, PASSWORD)
+    const upper = email[0]!.toUpperCase() + email.slice(1)
+    const variants = [upper, ` ${email}`, email]
+    for (let i = 0; i < 10; i++) await login(request, variants[i % 3]!, WRONG)
+
+    const r = await login(request, email, PASSWORD)
+    expect(r.status).toBe(429)
+    expect(r.error?.code).toBe('RATE_LIMITED')
+  })
+
+  test('AC10: an address with no account is throttled exactly like a real one', async ({
+    request,
+  }) => {
+    const real = uniqueEmail('acct-real')
+    await createPlayer(real, PASSWORD)
+    const nobody = uniqueEmail('acct-nobody')
+    await failTen(request, real)
+    await failTen(request, nobody)
+
+    const a = await login(request, real, WRONG)
+    const b = await login(request, nobody, WRONG)
+    expect(a.status).toBe(429)
+    expect(b.status).toBe(a.status)
+    expect(b.error?.code).toBe(a.error?.code)
+    expect(Object.keys((b.error?.details ?? {}) as object).sort()).toEqual(
+      Object.keys((a.error?.details ?? {}) as object).sort()
+    )
+  })
+
+  test("AC11: one address's failures do not throttle another", async ({ request }) => {
+    const a = uniqueEmail('acct-a')
+    const b = uniqueEmail('acct-b')
+    await createPlayer(a, PASSWORD)
+    await createPlayer(b, PASSWORD)
+    await failTen(request, a)
+
+    expect((await login(request, a, PASSWORD)).status).toBe(429)
+    expect((await login(request, b, PASSWORD)).status).toBe(200)
+  })
+
+  test('AC12: successful logins are not counted', async ({ request }) => {
+    const email = uniqueEmail('acct-ok')
+    await createPlayer(email, PASSWORD)
+    const statuses = []
+    for (let i = 0; i < 11; i++) statuses.push((await login(request, email, PASSWORD)).status)
+    expect(statuses).toEqual(Array(11).fill(200))
   })
 })

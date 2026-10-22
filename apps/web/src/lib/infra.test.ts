@@ -24,6 +24,7 @@ async function loadEnv(vars: Record<string, string | undefined>) {
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET',
     'NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME',
+    'TRUSTED_PROXY_HOPS',
   ]) {
     vi.stubEnv(key, vars[key] ?? '')
   }
@@ -54,6 +55,13 @@ describe('environment validation (E01-05)', () => {
     ['a Twilio number that is not E.164', { TWILIO_PHONE_NUMBER: '07123' }],
   ])('rejects %s', async (_label, patch) => {
     await expect(loadEnv({ ...VALID, ...patch })).rejects.toThrow(/Invalid environment variables/)
+  })
+
+  // #188: the client IP is read this many X-Forwarded-For entries from the right.
+  it.each(['0', '-1', 'abc'])('AC4: rejects TRUSTED_PROXY_HOPS=%s', async hops => {
+    await expect(loadEnv({ ...VALID, TRUSTED_PROXY_HOPS: hops })).rejects.toThrow(
+      /Invalid environment variables/
+    )
   })
 })
 

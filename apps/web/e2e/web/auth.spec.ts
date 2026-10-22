@@ -3,7 +3,14 @@
  * with snap() as evidence (docs/test-evidence/web/auth with EVIDENCE=1).
  */
 import { expect, test, type Page } from '@playwright/test'
-import { createResetToken, db, setVerificationCode, uniqueEmail, uniquePhone } from '../support/db'
+import {
+  createPlayer,
+  createResetToken,
+  db,
+  setVerificationCode,
+  uniqueEmail,
+  uniquePhone,
+} from '../support/db'
 import { PHONE, fill, formAlert, resetRateLimits, signIn, snap } from '../support/helpers'
 
 const AREA = 'auth'
@@ -304,5 +311,56 @@ test.describe('Google sign-in (E02-07)', () => {
   test('explains a Google address with no account', async ({ page }) => {
     await page.goto('/login?error=GoogleNoAccount')
     await expect(page.getByText('No PitchUp account uses that Google address.')).toBeVisible()
+  })
+})
+
+/** #188: failed sign-ins are limited per address, and web and mobile share the count. */
+test.describe('per-account sign-in limit (#188)', () => {
+  const PASSWORD = 'Testing123'
+  let ipSeq = 0
+  /** A fresh rightmost X-Forwarded-For entry, so the mobile per-IP limit never applies. */
+  const nextIp = () => `10.189.0.${++ipSeq}`
+
+  test('AC13: ten failed web sign-ins lock the mobile login too', async ({ page, request }) => {
+    test.slow()
+    const email = uniqueEmail('web-lock')
+    await createPlayer(email, PASSWORD)
+    await page.goto('/login')
+    for (let i = 0; i < 10; i++) {
+      const answered = page.waitForResponse(r => r.url().includes('/api/auth/callback/credentials'))
+      await loginWithForm(page, email, 'WrongPass123')
+      await answered
+      await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    }
+
+    const r = await request.post('/api/v1/auth/mobile/login', {
+      data: { email, password: PASSWORD },
+      headers: { 'X-Forwarded-For': nextIp() },
+    })
+    expect(r.status()).toBe(429)
+    expect((await r.json()).error?.code).toBe('RATE_LIMITED')
+  })
+
+  test('AC14: after ten failed mobile logins the web form says too many attempts', async ({
+    page,
+    request,
+  }, info) => {
+    const email = uniqueEmail('web-toomany')
+    await createPlayer(email, PASSWORD)
+    for (let i = 0; i < 10; i++) {
+      const r = await request.post('/api/v1/auth/mobile/login', {
+        data: { email, password: 'WrongPass123' },
+        headers: { 'X-Forwarded-For': nextIp() },
+      })
+      expect(r.status()).toBe(401)
+    }
+
+    await page.goto('/login')
+    await loginWithForm(page, email, PASSWORD)
+    await expect(formAlert(page)).toContainText(/too many/i)
+    await expect(formAlert(page)).not.toHaveText('Incorrect email or password.')
+    await expect(page).toHaveURL(/\/login$/)
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    await snap(page, info, AREA, '18-login-too-many')
   })
 })
