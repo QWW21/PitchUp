@@ -16,7 +16,7 @@ import {
   PASSWORD_RESET_RATE_LIMIT,
   SMS_PER_PHONE_RATE_LIMIT,
   checkRateLimit,
-  peekRateLimit,
+  refundRateLimit,
 } from '@/lib/api/rate-limit'
 import {
   getEmailProvider,
@@ -57,30 +57,35 @@ export type LoginFailure = 'INVALID_CREDENTIALS' | 'EMAIL_NOT_VERIFIED' | 'ACCOU
 export type PasswordCheck =
   { throttled: true; retryAfterSeconds: number } | { throttled: false; user: User | null }
 
+const loginKey = (email: string) => `login-account:${email.toLowerCase().trim()}`
+
 /**
  * The email and password check shared by the mobile login and the web
  * sign-in, with the per-address limit on failures (#188).
  *
- * The limit is read before the password is compared: while throttled even
- * the right password is refused, or the limit would not stop a guesser. Any
- * address is counted, registered or not, so the 429 tells nobody which
- * addresses have an account. Only failures count, so frequent sign-ins
- * are never throttled. `user` is null for a wrong password or unknown address.
+ * The attempt is counted before the password is compared, so a burst of
+ * concurrent guesses cannot all pass the check before any is recorded, and
+ * while throttled even the right password is refused. Any address is counted,
+ * registered or not, so the 429 tells nobody which addresses have an account.
+ * Only an attempt that opens a session is given back (loginSucceeded), so
+ * frequent sign-ins are never throttled, and a right password on an
+ * unverified or suspended account counts like a wrong one. `user` is null for
+ * a wrong password or unknown address.
  */
 export async function checkPassword(email: string, password: string): Promise<PasswordCheck> {
-  const address = email.toLowerCase().trim()
-  const key = `login-account:${address}`
-  const limit = peekRateLimit(key, ACCOUNT_LOGIN_RATE_LIMIT)
+  const limit = checkRateLimit(loginKey(email), ACCOUNT_LOGIN_RATE_LIMIT)
   if (!limit.allowed) return { throttled: true, retryAfterSeconds: limit.retryAfterSeconds }
 
-  const user = await prisma.user.findUnique({ where: { email: address } })
+  const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } })
   // Always run a comparison so the response time does not reveal whether
   // the email exists.
   const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
-  if (user && passwordMatches) return { throttled: false, user }
+  return { throttled: false, user: user && passwordMatches ? user : null }
+}
 
-  checkRateLimit(key, ACCOUNT_LOGIN_RATE_LIMIT)
-  return { throttled: false, user: null }
+/** Gives back the attempt checkPassword counted, once it has opened a session. */
+export function loginSucceeded(email: string): void {
+  refundRateLimit(loginKey(email))
 }
 
 export interface LoginSuccess {
@@ -342,6 +347,7 @@ export async function loginWithPassword(
   }
 
   const tokens = await issueTokens(user.id, user.role, userAgent)
+  loginSucceeded(email)
 
   return {
     user: { id: user.id, name: user.name, email: user.email, role: user.role },

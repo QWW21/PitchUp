@@ -289,15 +289,17 @@ What it does **not** do, and the code says so:
   budgets.
 - They reset on restart or deploy.
 - `x-forwarded-for` is a client-supplied header; only what our own proxies
-  appended can be trusted. So the IP is read `TRUSTED_PROXY_HOPS` (default
-  1. entries from the **right**, never the left (#188). A directly exposed
-     `next start` keeps whatever the client sent, so there the per-IP limits
-     are still spoofable.
+  appended can be trusted. So the IP is read `TRUSTED_PROXY_HOPS` entries
+  from the **right** (one by default), never the left (#188). A directly
+  exposed `next start` keeps whatever the client sent, so there the per-IP
+  limits are still spoofable.
 - That is why sign-ins are also limited **per address** (10 failures per 15
   minutes, web and mobile together): a key the attacker cannot rotate.
-  It counts failures only and is checked before the password, so the right
-  password is refused too while throttled, and it counts unknown addresses
-  as well, so the 429 reveals nobody.
+  Each attempt reserves its slot before the password is compared, so a
+  burst sent at once cannot all slip under the limit, and only one that
+  opens a session gives it back. The right password is refused too while
+  throttled, and unknown addresses and unverified accounts count like any
+  other, so the 429 reveals nobody.
 
 So it is a throttle, not a security control. A distributed attempt walks past
 it. The production answer is a shared store (Redis), which v1.1 is noted for.

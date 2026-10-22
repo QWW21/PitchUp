@@ -54,3 +54,22 @@ describe('getClientIp (#188)', () => {
     expect(getClientIp(req({}))).toBe('unknown')
   })
 })
+
+describe('refundRateLimit (#188)', () => {
+  const RULE = { limit: 2, windowMs: 60_000 }
+
+  it('gives back one counted request, so the next one fits again', async () => {
+    const { checkRateLimit, refundRateLimit } = await load('')
+    checkRateLimit('k', RULE)
+    checkRateLimit('k', RULE)
+    refundRateLimit('k')
+    expect(checkRateLimit('k', RULE).allowed).toBe(true)
+    expect(checkRateLimit('k', RULE).allowed).toBe(false)
+  })
+
+  it('does nothing for a key never counted', async () => {
+    const { checkRateLimit, refundRateLimit } = await load('')
+    refundRateLimit('fresh')
+    expect(checkRateLimit('fresh', RULE).remaining).toBe(1)
+  })
+})

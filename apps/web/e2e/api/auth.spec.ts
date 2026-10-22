@@ -534,4 +534,16 @@ test.describe('client IP and the per-account login limit (#188)', () => {
     for (let i = 0; i < 11; i++) statuses.push((await login(request, email, PASSWORD)).status)
     expect(statuses).toEqual(Array(11).fill(200))
   })
+
+  test('wrong passwords sent all at once cannot get past the limit', async ({ request }) => {
+    const email = uniqueEmail('acct-burst')
+    await createPlayer(email, PASSWORD)
+    const results = await Promise.all(
+      Array.from({ length: 15 }, () => login(request, email, WRONG))
+    )
+    const statuses = results.map(r => r.status)
+    expect(statuses.filter(s => s === 401).length).toBeLessThanOrEqual(10)
+    expect(statuses.filter(s => s === 429).length).toBeGreaterThanOrEqual(5)
+    expect(statuses.every(s => s === 401 || s === 429)).toBe(true)
+  })
 })

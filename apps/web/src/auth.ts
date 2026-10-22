@@ -11,7 +11,12 @@ import Google from 'next-auth/providers/google'
 import { cache } from 'react'
 import { LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
-import { RecipientThrottledError, checkPassword, sendEmailVerification } from '@/lib/auth/service'
+import {
+  RecipientThrottledError,
+  checkPassword,
+  loginSucceeded,
+  sendEmailVerification,
+} from '@/lib/auth/service'
 import { accountForGoogleEmail } from '@/lib/auth/google'
 import { env } from '@/lib/env'
 
@@ -55,7 +60,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
    */
   logger: {
     error(error) {
-      // instanceof also covers LoginThrottled, whose name is its own.
+      // One line, no stack, so a run of throttled sign-ins stays visible.
+      if (error instanceof LoginThrottled) {
+        console.warn('[auth] Sign-in refused: too many failed attempts for one address')
+        return
+      }
       if (error.name === 'CredentialsSignin' || error instanceof CredentialsSignin) return
       console.error(`[auth][error] ${error.name}:`, error)
     },
@@ -102,6 +111,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null
         }
 
+        loginSucceeded(email)
         return {
           id: user.id,
           email: user.email,

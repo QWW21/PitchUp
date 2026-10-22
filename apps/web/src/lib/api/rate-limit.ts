@@ -48,8 +48,9 @@ export const EMAIL_PER_ADDRESS_RATE_LIMIT: RateLimitRule = {
 
 /**
  * Ticket #188: failed sign-ins per email address, web and mobile together.
- * Counted on failures only (checkRateLimit) and checked with peekRateLimit,
- * so rotating IPs cannot buy more password guesses for one account.
+ * Every attempt is counted up front (checkRateLimit) and a successful sign-in
+ * is refunded (refundRateLimit), so rotating IPs cannot buy more password
+ * guesses for one account, and neither can sending them all at once.
  */
 export const ACCOUNT_LOGIN_RATE_LIMIT: RateLimitRule = {
   limit: AUTH.ACCOUNT_LOGIN_FAILURE_LIMIT,
@@ -110,26 +111,13 @@ export function checkRateLimit(
 }
 
 /**
- * Reads a counter without counting this call. With checkRateLimit called only
- * on the outcomes that count, a limit can count failed sign-ins only (#188).
+ * Gives back one request counted by checkRateLimit. A limit on failures only
+ * reserves its slot up front, so concurrent attempts cannot all slip under it,
+ * and refunds it when the attempt succeeds (#188).
  */
-export function peekRateLimit(key: string, rule: RateLimitRule): RateLimitResult {
-  const now = Date.now()
+export function refundRateLimit(key: string): void {
   const existing = counters.get(key)
-  if (!existing || existing.resetAt <= now) {
-    return {
-      allowed: true,
-      remaining: rule.limit,
-      resetAt: now + rule.windowMs,
-      retryAfterSeconds: Math.ceil(rule.windowMs / 1000),
-    }
-  }
-  return {
-    allowed: existing.count < rule.limit,
-    remaining: Math.max(0, rule.limit - existing.count),
-    resetAt: existing.resetAt,
-    retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
-  }
+  if (existing && existing.resetAt > Date.now() && existing.count > 0) existing.count -= 1
 }
 
 /**

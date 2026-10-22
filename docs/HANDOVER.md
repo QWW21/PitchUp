@@ -1032,16 +1032,21 @@ address (a stranger can lock an address out for 15 minutes; accepted),
 - **Per-account limit**: `checkPassword` in `lib/auth/service.ts`, used by
   the mobile login (`loginWithPassword`) and the web `authorize`. Key
   `login-account:<email lowercased and trimmed>`, any address counted,
-  registered or not. Read with `peekRateLimit` **before** the password is
-  compared (while throttled, even the right password is refused); only
-  wrong passwords and unknown addresses are counted (`checkRateLimit`).
+  registered or not. Every attempt is counted with `checkRateLimit`
+  **before** the password is compared, so concurrent guesses cannot all pass
+  together, and while throttled even the right password is refused. Only an
+  attempt that opens a session is given back (`loginSucceeded` →
+  `refundRateLimit`); a right password on an unverified, suspended or
+  deleted account counts like a wrong one, so the limit tells a probing
+  attacker nothing about which addresses are verified accounts.
   Limit in `AUTH.ACCOUNT_LOGIN_FAILURE_LIMIT` / `ACCOUNT_LOGIN_WINDOW_MINUTES`.
   `LoginSchema` now trims the email, so ` a@x.ro` is the same address.
 - Mobile gets the IP limit's answer: 429 `RATE_LIMITED`, `api.tooManyLogins`,
   `details.retryAfterSeconds`; no new reason, no app change.
 - Web: `authorize` throws `LoginThrottled` (a `CredentialsSignin`, code
   `rate_limited`); `LoginForm` shows `auth.login.tooMany` instead of
-  `auth.login.wrong`, without the "not verified" hint.
+  `auth.login.wrong`, without the "not verified" hint. The Auth.js logger
+  prints one warning line per throttled web sign-in (no address).
 - Per-IP limits are unchanged and still apply on top; web sign-in still has
   no per-IP limit (separate ticket). `POST /dev/reset-rate-limits` clears
   the per-account counters too (one map).
