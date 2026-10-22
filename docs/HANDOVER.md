@@ -1018,6 +1018,36 @@ webhook handles `customer.subscription.*`, `invoice.paid`,
 `Booking.platformFee` and `PlatformConfig.platformFeePercent` (`prisma db
 push --accept-data-loss`, then `pnpm db:seed` to give venues their month).
 
+### #188 Client IP and the per-account sign-in limit
+
+Owner's decisions of 2026-10-22: 10 failed sign-ins per 15 minutes per
+address (a stranger can lock an address out for 15 minutes; accepted),
+`TRUSTED_PROXY_HOPS` defaults to 1, a throttled web sign-in says so.
+
+- **Client IP**: `getClientIp` (`lib/api/rate-limit.ts`) returns the
+  `X-Forwarded-For` entry `TRUSTED_PROXY_HOPS` from the right (the leftmost
+  if the header is shorter), then `x-real-ip`, then `'unknown'`.
+  `TRUSTED_PROXY_HOPS` is a server variable in `lib/env.ts`, an integer ≥ 1.
+  No Vercel special case: Vercel overwrites the header, so 1 is right there.
+- **Per-account limit**: `checkPassword` in `lib/auth/service.ts`, used by
+  the mobile login (`loginWithPassword`) and the web `authorize`. Key
+  `login-account:<email lowercased and trimmed>`, any address counted,
+  registered or not. Read with `peekRateLimit` **before** the password is
+  compared (while throttled, even the right password is refused); only
+  wrong passwords and unknown addresses are counted (`checkRateLimit`).
+  Limit in `AUTH.ACCOUNT_LOGIN_FAILURE_LIMIT` / `ACCOUNT_LOGIN_WINDOW_MINUTES`.
+  `LoginSchema` now trims the email, so ` a@x.ro` is the same address.
+- Mobile gets the IP limit's answer: 429 `RATE_LIMITED`, `api.tooManyLogins`,
+  `details.retryAfterSeconds`; no new reason, no app change.
+- Web: `authorize` throws `LoginThrottled` (a `CredentialsSignin`, code
+  `rate_limited`); `LoginForm` shows `auth.login.tooMany` instead of
+  `auth.login.wrong`, without the "not verified" hint.
+- Per-IP limits are unchanged and still apply on top; web sign-in still has
+  no per-IP limit (separate ticket). `POST /dev/reset-rate-limits` clears
+  the per-account counters too (one map).
+
+No new endpoints, no schema change.
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.
@@ -1485,10 +1515,14 @@ AssetCatalogSimulatorAgent`).
   backend and web; mobile has unit/component tests with mocked native modules
   only. Nothing runs the app on a device yet (#187). `pnpm format:check` is
   not in CI until its CRLF noise on Windows is sorted out (docs/TESTING.md).
-- **Rate limits trust `X-Forwarded-For` as sent** (`getClientIp` in
-  `lib/api/rate-limit.ts`), so any client can dodge every limit by setting
-  the header. Filed as a bug; the fix depends on how the app is deployed
-  (only trust the header from a known proxy).
+- **The per-IP limits trust `X-Forwarded-For` only as far as the proxies
+  in front** (#188): `getClientIp` reads the entry `TRUSTED_PROXY_HOPS`
+  (default 1) from the right, which is right on Vercel and behind one
+  appending proxy. A directly exposed `next start` keeps a header the client
+  sent, so there the per-IP limits are still spoofable. Sign-ins are also
+  limited **per address** (10 failures per 15 minutes, web and mobile
+  together), which no header changes. Counters stay per process (Redis in
+  v1.1).
 - **Lighthouse not run** for the web pitch page (E04-08 asks for SEO ≥ 90) or
   `/discover`. Titles, descriptions and Open Graph images are set per page.
 - **Web auth was walked through in a browser** against a production build

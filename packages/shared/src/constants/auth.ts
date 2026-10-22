@@ -12,4 +12,7 @@ export const AUTH = {
   /** Rate limit on login. PRD §6.6: 5 attempts per 15 min per IP. */
   LOGIN_RATE_LIMIT_ATTEMPTS: 5,
   LOGIN_RATE_LIMIT_WINDOW_MINUTES: 15,
+  /** #188: failed sign-ins per email address, web and mobile together. */
+  ACCOUNT_LOGIN_FAILURE_LIMIT: 10,
+  ACCOUNT_LOGIN_WINDOW_MINUTES: 15,
 } as const

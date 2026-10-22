@@ -5,25 +5,23 @@
  * E02; the JWT session strategy here is what makes both possible.
  */
 import type { Role } from '@prisma/client'
-import NextAuth from 'next-auth'
+import NextAuth, { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
-import bcrypt from 'bcryptjs'
 import { cache } from 'react'
-import { AUTH, LoginSchema } from '@pitchup/shared'
+import { LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
-import { RecipientThrottledError, sendEmailVerification } from '@/lib/auth/service'
+import { RecipientThrottledError, checkPassword, sendEmailVerification } from '@/lib/auth/service'
 import { accountForGoogleEmail } from '@/lib/auth/google'
 import { env } from '@/lib/env'
 
 /**
- * A bcrypt hash of a throwaway value, compared against when no user matched.
- *
- * Without this, "unknown email" returns in microseconds while "wrong password"
- * takes the ~250ms bcrypt costs, and the difference tells an attacker which
- * emails are registered. PRD §6.6.
+ * Too many failed sign-ins for this address (#188). Reaches the login form
+ * as `result.code`, so it can say so instead of "wrong password".
  */
-const DUMMY_HASH = bcrypt.hashSync('invalid-password-placeholder', AUTH.BCRYPT_COST)
+class LoginThrottled extends CredentialsSignin {
+  code = 'rate_limited'
+}
 
 /**
  * A page asks for the session several times (the top bar, the page, a
@@ -57,7 +55,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
    */
   logger: {
     error(error) {
-      if (error.name === 'CredentialsSignin') return
+      // instanceof also covers LoginThrottled, whose name is its own.
+      if (error.name === 'CredentialsSignin' || error instanceof CredentialsSignin) return
       console.error(`[auth][error] ${error.name}:`, error)
     },
   },
@@ -78,17 +77,14 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         const { email, password } = parsed.data
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        })
-
-        // Always run a comparison so the response time does not reveal
-        // whether the email exists.
-        const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
+        // Timing-safe, and limited per address together with the mobile login.
+        const check = await checkPassword(email, password)
+        if (check.throttled) throw new LoginThrottled()
+        const { user } = check
 
         // One null for both "no such user" and "wrong password": NextAuth
         // turns it into the same CredentialsSignin error. PRD §6.6.
-        if (!user || !passwordMatches) return null
+        if (!user) return null
 
         // Deleted, or suspended by an admin (E15).
         if (user.deletedAt || user.suspendedAt) return null

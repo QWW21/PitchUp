@@ -66,6 +66,13 @@ export const env = createEnv({
     /** The language when nobody has chosen one. Romanian; the tests run in English. */
     DEFAULT_LOCALE: z.enum(['ro', 'en']).optional(),
 
+    /**
+     * #188: proxies in front of the app that add to X-Forwarded-For; the
+     * client IP is read this many entries from the right. 1 on Vercel or
+     * behind one nginx.
+     */
+    TRUSTED_PROXY_HOPS: z.coerce.number().int().min(1).default(1),
+
     /** E2E only: enables /api/v1/dev/* on a production build. Never set in a real deployment. */
     ALLOW_TEST_HOOKS: z.enum(['1']).optional(),
     /** Bearer token the nightly auto-complete job must send (E11-10). */
@@ -112,6 +119,7 @@ export const env = createEnv({
     GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID || undefined,
     ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
     DEFAULT_LOCALE: process.env.DEFAULT_LOCALE || undefined,
+    TRUSTED_PROXY_HOPS: process.env.TRUSTED_PROXY_HOPS,
     ALLOW_TEST_HOOKS: process.env.ALLOW_TEST_HOOKS,
     CRON_SECRET: process.env.CRON_SECRET || undefined,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

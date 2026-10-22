@@ -30,6 +30,12 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
 
   if ('failure' in result) {
     switch (result.failure) {
+      case 'RATE_LIMITED':
+        // #188: too many failures for this address. Same answer as the IP
+        // limit above, for registered and unknown addresses alike.
+        return err('RATE_LIMITED', 'api.tooManyLogins', 429, {
+          retryAfterSeconds: result.retryAfterSeconds,
+        })
       case 'EMAIL_NOT_VERIFIED':
         return err('FORBIDDEN', 'api.verifyEmailFirst', 403, {
           reason: 'EMAIL_NOT_VERIFIED',

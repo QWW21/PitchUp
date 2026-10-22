@@ -6,6 +6,8 @@
  * throttle, not a security boundary — it will not stop a distributed attempt.
  */
 import type { NextRequest } from 'next/server'
+import { AUTH } from '@pitchup/shared'
+import { env } from '@/lib/env'
 
 export interface RateLimitRule {
   /** Requests allowed inside the window. */
@@ -42,6 +44,16 @@ export const PASSWORD_RESET_RATE_LIMIT: RateLimitRule = {
 export const EMAIL_PER_ADDRESS_RATE_LIMIT: RateLimitRule = {
   limit: 5,
   windowMs: 60 * 60 * 1000,
+}
+
+/**
+ * Ticket #188: failed sign-ins per email address, web and mobile together.
+ * Counted on failures only (checkRateLimit) and checked with peekRateLimit,
+ * so rotating IPs cannot buy more password guesses for one account.
+ */
+export const ACCOUNT_LOGIN_RATE_LIMIT: RateLimitRule = {
+  limit: AUTH.ACCOUNT_LOGIN_FAILURE_LIMIT,
+  windowMs: AUTH.ACCOUNT_LOGIN_WINDOW_MINUTES * 60 * 1000,
 }
 
 interface Counter {
@@ -98,17 +110,47 @@ export function checkRateLimit(
 }
 
 /**
- * Best-effort client IP.
+ * Reads a counter without counting this call. With checkRateLimit called only
+ * on the outcomes that count, a limit can count failed sign-ins only (#188).
+ */
+export function peekRateLimit(key: string, rule: RateLimitRule): RateLimitResult {
+  const now = Date.now()
+  const existing = counters.get(key)
+  if (!existing || existing.resetAt <= now) {
+    return {
+      allowed: true,
+      remaining: rule.limit,
+      resetAt: now + rule.windowMs,
+      retryAfterSeconds: Math.ceil(rule.windowMs / 1000),
+    }
+  }
+  return {
+    allowed: existing.count < rule.limit,
+    remaining: Math.max(0, rule.limit - existing.count),
+    resetAt: existing.resetAt,
+    retryAfterSeconds: Math.max(1, Math.ceil((existing.resetAt - now) / 1000)),
+  }
+}
+
+/**
+ * Best-effort client IP, ticket #188.
  *
- * x-forwarded-for is client-controlled unless a trusted proxy overwrites it.
- * On Vercel it is trustworthy; behind another proxy, confirm before relying
- * on this for anything stricter than throttling.
+ * Every X-Forwarded-For entry left of what our own proxies added is whatever
+ * the client sent, so the IP is read TRUSTED_PROXY_HOPS entries from the
+ * right (default 1: Vercel overwrites the header, nginx appends to it). A
+ * header shorter than that gives its leftmost entry. A bare `next start`
+ * with no proxy keeps a header the client sent, so there the per-IP limits
+ * are spoofable; the per-account login limit is not.
  */
 export function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
-    const first = forwarded.split(',')[0]
-    if (first) return first.trim()
+    const entries = forwarded
+      .split(',')
+      .map(entry => entry.trim())
+      .filter(Boolean)
+    const ip = entries[Math.max(0, entries.length - env.TRUSTED_PROXY_HOPS)]
+    if (ip) return ip
   }
   return request.headers.get('x-real-ip') ?? 'unknown'
 }

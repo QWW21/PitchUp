@@ -17,15 +17,18 @@ export function LoginForm({ google }: { google: boolean }) {
   const [email, setEmail] = useState(() => searchParams.get('email') ?? '')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [throttled, setThrottled] = useState(false)
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
     setError(null)
+    setThrottled(false)
     setLoading(true)
 
+    let result
     try {
-      const result = await signIn('credentials', { email, password, redirect: false })
+      result = await signIn('credentials', { email, password, redirect: false })
 
       // `ok` alone is not success: Auth.js answers a rejected sign-in with
       // HTTP 200 and the reason in the redirect URL, so next-auth/react
@@ -51,7 +54,14 @@ export function LoginForm({ google }: { google: boolean }) {
     // unverified account — telling them apart here would reinstate the
     // enumeration oracle the backend closes. An unverified account is sent
     // a fresh code server-side, so the hint below is actionable either way.
-    setError(t('auth.login.wrong'))
+    // The one exception is too many failures for the address (#188), said
+    // the same way for every address, so it reveals nothing.
+    if (result?.code === 'rate_limited') {
+      setThrottled(true)
+      setError(t('auth.login.tooMany'))
+    } else {
+      setError(t('auth.login.wrong'))
+    }
     setLoading(false)
     // The password is left in place: making someone retype it after a typo
     // in the email field is a poor trade for no security gain.
@@ -101,7 +111,9 @@ export function LoginForm({ google }: { google: boolean }) {
       {error && (
         <div>
           <Alert>{error}</Alert>
-          <p className="mt-1.5 text-sm text-neutral-500">{t('auth.login.notVerified')}</p>
+          {!throttled && (
+            <p className="mt-1.5 text-sm text-neutral-500">{t('auth.login.notVerified')}</p>
+          )}
         </div>
       )}
 

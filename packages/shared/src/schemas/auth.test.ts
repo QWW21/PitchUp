@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { RegisterManagerSchema, RegisterPlayerSchema } from './auth'
+import { LoginSchema, RegisterManagerSchema, RegisterPlayerSchema } from './auth'
 import { passwordSchema, phoneSchema } from './common'
 import { sharedT } from '../i18n'
 
@@ -67,5 +67,12 @@ describe('RegisterManagerSchema', () => {
         password: 'Parola123',
       }).success
     ).toBe(true)
+  })
+})
+
+describe('LoginSchema (#188)', () => {
+  it('trims the email, so the same address is signed in and counted', () => {
+    const r = LoginSchema.safeParse({ email: '  foo@x.ro ', password: 'x' })
+    expect(r.success && r.data.email).toBe('foo@x.ro')
   })
 })

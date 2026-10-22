@@ -11,10 +11,12 @@ import type { Role, User } from '@prisma/client'
 import { AUTH, type RegisterManagerInput, type RegisterPlayerInput } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import {
+  ACCOUNT_LOGIN_RATE_LIMIT,
   EMAIL_PER_ADDRESS_RATE_LIMIT,
   PASSWORD_RESET_RATE_LIMIT,
   SMS_PER_PHONE_RATE_LIMIT,
   checkRateLimit,
+  peekRateLimit,
 } from '@/lib/api/rate-limit'
 import {
   getEmailProvider,
@@ -51,6 +53,35 @@ import { randomBytes } from 'node:crypto'
 const DUMMY_HASH = bcrypt.hashSync('invalid-password-placeholder', AUTH.BCRYPT_COST)
 
 export type LoginFailure = 'INVALID_CREDENTIALS' | 'EMAIL_NOT_VERIFIED' | 'ACCOUNT_SUSPENDED'
+
+export type PasswordCheck =
+  { throttled: true; retryAfterSeconds: number } | { throttled: false; user: User | null }
+
+/**
+ * The email and password check shared by the mobile login and the web
+ * sign-in, with the per-address limit on failures (#188).
+ *
+ * The limit is read before the password is compared: while throttled even
+ * the right password is refused, or the limit would not stop a guesser. Any
+ * address is counted, registered or not, so the 429 tells nobody which
+ * addresses have an account. Only failures count, so frequent sign-ins
+ * are never throttled. `user` is null for a wrong password or unknown address.
+ */
+export async function checkPassword(email: string, password: string): Promise<PasswordCheck> {
+  const address = email.toLowerCase().trim()
+  const key = `login-account:${address}`
+  const limit = peekRateLimit(key, ACCOUNT_LOGIN_RATE_LIMIT)
+  if (!limit.allowed) return { throttled: true, retryAfterSeconds: limit.retryAfterSeconds }
+
+  const user = await prisma.user.findUnique({ where: { email: address } })
+  // Always run a comparison so the response time does not reveal whether
+  // the email exists.
+  const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
+  if (user && passwordMatches) return { throttled: false, user }
+
+  checkRateLimit(key, ACCOUNT_LOGIN_RATE_LIMIT)
+  return { throttled: false, user: null }
+}
 
 export interface LoginSuccess {
   user: Pick<User, 'id' | 'name' | 'email' | 'role'>
@@ -284,14 +315,15 @@ export async function loginWithPassword(
   email: string,
   password: string,
   userAgent?: string
-): Promise<LoginSuccess | { failure: LoginFailure }> {
-  const user = await prisma.user.findUnique({
-    where: { email: email.toLowerCase().trim() },
-  })
+): Promise<
+  LoginSuccess | { failure: LoginFailure } | { failure: 'RATE_LIMITED'; retryAfterSeconds: number }
+> {
+  const check = await checkPassword(email, password)
+  if (check.throttled)
+    return { failure: 'RATE_LIMITED', retryAfterSeconds: check.retryAfterSeconds }
+  const { user } = check
 
-  const passwordMatches = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH)
-
-  if (!user || !passwordMatches) return { failure: 'INVALID_CREDENTIALS' }
+  if (!user) return { failure: 'INVALID_CREDENTIALS' }
   if (user.deletedAt || user.suspendedAt) return { failure: 'ACCOUNT_SUSPENDED' }
 
   if (!user.emailVerified) {

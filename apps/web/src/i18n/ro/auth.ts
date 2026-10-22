@@ -21,6 +21,7 @@ export const authRo: CatalogShape<typeof authEn> = {
     password: 'Parolă',
     forgot: 'Ai uitat parola?',
     wrong: 'Email sau parolă greșită.',
+    tooMany: 'Prea multe încercări eșuate pentru această adresă. Încearcă din nou peste 15 minute.',
     notVerified: 'Încă neconfirmat? Verifică-ți emailul — ți-am trimis un cod nou.',
     signingIn: 'Se conectează…',
     signIn: 'Conectare',

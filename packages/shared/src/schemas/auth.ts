@@ -55,7 +55,8 @@ export const RegisterManagerSchema = z.object({
 })
 
 export const LoginSchema = z.object({
-  email: emailSchema,
+  /** Trimmed, so ' a@x.ro' signs in, and counts against, the same address (#188). */
+  email: z.string().trim().email(),
   /** Not passwordSchema: never reveal policy details on the login form. */
   password: z.string().min(1, 'v.passwordRequired'),
 })
