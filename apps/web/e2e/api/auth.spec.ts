@@ -547,3 +547,86 @@ test.describe('client IP and the per-account login limit (#188)', () => {
     expect(statuses.every(s => s === 401 || s === 429)).toBe(true)
   })
 })
+
+/**
+ * #211: the right password on an unverified account answers like a wrong
+ * one, and re-sends the code while the address's email quota (5 an hour)
+ * allows. Once the quota is used up the send is skipped quietly: still the
+ * same 401, never a 500 that would reveal the account exists.
+ */
+test.describe('mobile login on an unverified account (#211)', () => {
+  const INVALID = { code: 'UNAUTHORIZED', message: 'Incorrect email or password' }
+  let ipSeq = 0
+  /** A fresh rightmost X-Forwarded-For entry, so the per-IP limit (5/15 min) never applies. */
+  const nextIp = () => {
+    ipSeq += 1
+    return `10.211.${Math.floor(ipSeq / 250)}.${(ipSeq % 250) + 1}`
+  }
+  const login = (request: Parameters<typeof post>[0], email: string, password: string) =>
+    post(request, '/auth/mobile/login', { email, password }, { 'X-Forwarded-For': nextIp() })
+
+  /** Made in the database, so no verification email has used the quota yet. */
+  const createUnverified = async (email: string) => {
+    await createPlayer(email, PASSWORD)
+    await db.user.update({ where: { email }, data: { emailVerified: false } })
+  }
+  const emailCodes = (email: string) =>
+    db.verificationCode.count({ where: { user: { email }, channel: 'EMAIL' } })
+
+  test('AC1: the right password answers like a wrong one, also after the email quota is used up', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('unv-quota')
+    await createUnverified(email)
+
+    const wrong = await login(request, email, 'WrongPass1')
+    expect(wrong.status).toBe(401)
+    expect(wrong.error).toEqual(INVALID)
+
+    const answers = []
+    for (let i = 0; i < 7; i++) {
+      const r = await login(request, email, PASSWORD)
+      answers.push({ status: r.status, error: r.error })
+    }
+    expect(answers).toEqual(Array(7).fill({ status: 401, error: INVALID }))
+  })
+
+  test('AC2: once the quota is used up, an address with no account gets the identical 401', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('unv-compare')
+    await createUnverified(email)
+    for (let i = 0; i < 5; i++) await login(request, email, PASSWORD)
+
+    const sixth = await login(request, email, PASSWORD)
+    const nobody = await login(request, uniqueEmail('unv-nobody'), PASSWORD)
+    expect(nobody.status).toBe(401)
+    expect(sixth.status).toBe(nobody.status)
+    expect(sixth.error?.code).toBe(nobody.error?.code)
+    expect(sixth.error?.message).toBe(nobody.error?.message)
+    expect(sixth.error).toEqual(nobody.error)
+  })
+
+  test('AC3: a fresh code is emailed on each such login while the quota allows', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('unv-resend')
+    await createUnverified(email)
+    expect(await emailCodes(email)).toBe(0)
+
+    for (let i = 1; i <= 5; i++) {
+      expect((await login(request, email, PASSWORD)).status).toBe(401)
+      expect(await emailCodes(email)).toBe(i)
+    }
+    // Only the newest code is live: each send supersedes the one before.
+    expect(
+      await db.verificationCode.count({
+        where: { user: { email }, channel: 'EMAIL', usedAt: null },
+      })
+    ).toBe(1)
+
+    // The 6th is over the quota: answered the same, with nothing sent.
+    expect((await login(request, email, PASSWORD)).status).toBe(401)
+    expect(await emailCodes(email)).toBe(5)
+  })
+})
