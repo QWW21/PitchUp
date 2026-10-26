@@ -1053,6 +1053,20 @@ address (a stranger can lock an address out for 15 minutes; accepted),
 
 No new endpoints, no schema change.
 
+### #211 Mobile login on an unverified account
+
+The right password on an unverified account re-sends the verification code
+and answers like a wrong password. On the mobile login
+(`loginWithPassword`) the send was awaited with no catch, so a used-up
+`email-to:` quota (5 an hour) or a failing provider became a 500, which
+revealed that the address had an account. Both `loginWithPassword` and web
+`authorize` now call `resendCodeQuietly` (`lib/auth/service.ts`): a
+`RecipientThrottledError` is skipped quietly, any other error is
+`console.error`ed, and the answer is the usual 401 `UNAUTHORIZED` /
+`null`. Registration and `resend-code` keep their own handling (registration
+deletes the new account on a failed send; `resend-code` answers 429). No new
+endpoints, no schema change.
+
 ## Deviations from the tickets, and why
 
 Each is also recorded on its GitHub issue.

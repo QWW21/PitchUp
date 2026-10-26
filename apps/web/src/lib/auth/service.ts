@@ -144,6 +144,21 @@ export async function sendEmailVerification(userId: string, email: string): Prom
 }
 
 /**
+ * Re-sends the code when the right password is used on an unverified account,
+ * for the mobile login and the web sign-in alike (#211). Neither a used-up
+ * quota nor a failing provider may change the answer, or it would reveal that
+ * the address has an account: a throttle is skipped quietly, anything else is
+ * logged.
+ */
+export async function resendCodeQuietly(userId: string, email: string): Promise<void> {
+  await sendEmailVerification(userId, email).catch((caught: unknown) => {
+    if (!(caught instanceof RecipientThrottledError)) {
+      console.error('[auth] Could not re-send a verification code:', caught)
+    }
+  })
+}
+
+/**
  * Sent when someone tries to register with an address that already has an
  * account. The registration endpoint returns the same 201 as a real signup,
  * so this message is the only place the fact surfaces — and it goes to the
@@ -342,7 +357,7 @@ export async function loginWithPassword(
     // So it answers as a credential failure and re-sends the code. Someone
     // holding the real password gets a fresh code in their inbox, which is
     // the action they needed; someone probing learns nothing.
-    await sendEmailVerification(user.id, user.email)
+    await resendCodeQuietly(user.id, user.email)
     return { failure: 'INVALID_CREDENTIALS' }
   }
 

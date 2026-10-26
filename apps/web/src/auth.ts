@@ -11,12 +11,7 @@ import Google from 'next-auth/providers/google'
 import { cache } from 'react'
 import { LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
-import {
-  RecipientThrottledError,
-  checkPassword,
-  loginSucceeded,
-  sendEmailVerification,
-} from '@/lib/auth/service'
+import { checkPassword, loginSucceeded, resendCodeQuietly } from '@/lib/auth/service'
 import { accountForGoogleEmail } from '@/lib/auth/google'
 import { env } from '@/lib/env'
 
@@ -103,11 +98,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           // "not verified" answer would reveal that the address has an
           // account, so it fails like a wrong password and a fresh code goes
           // to the inbox. A throttled or failed send must not change the answer.
-          await sendEmailVerification(user.id, user.email).catch((caught: unknown) => {
-            if (!(caught instanceof RecipientThrottledError)) {
-              console.error('[auth] Could not re-send a verification code:', caught)
-            }
-          })
+          await resendCodeQuietly(user.id, user.email)
           return null
         }
 
