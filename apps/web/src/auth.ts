@@ -12,15 +12,20 @@ import { cache } from 'react'
 import { LoginSchema } from '@pitchup/shared'
 import { prisma } from '@/lib/prisma'
 import { checkPassword, loginSucceeded, resendCodeQuietly } from '@/lib/auth/service'
+import { AUTH_RATE_LIMIT, checkRateLimit, loginIpKey, refundRateLimit } from '@/lib/api/rate-limit'
 import { accountForGoogleEmail } from '@/lib/auth/google'
 import { env } from '@/lib/env'
 
 /**
- * Too many failed sign-ins for this address (#188). Reaches the login form
- * as `result.code`, so it can say so instead of "wrong password".
+ * Too many failed sign-ins for this address (#188) or from this IP (#208).
+ * Reaches the login form as `result.code`, so it can say so instead of
+ * "wrong password"; `limit` only tells the log which one refused it.
  */
 class LoginThrottled extends CredentialsSignin {
   code = 'rate_limited'
+  constructor(readonly limit: 'address' | 'IP') {
+    super()
+  }
 }
 
 /**
@@ -57,7 +62,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     error(error) {
       // One line, no stack, so a run of throttled sign-ins stays visible.
       if (error instanceof LoginThrottled) {
-        console.warn('[auth] Sign-in refused: too many failed attempts for one address')
+        console.warn(`[auth] Sign-in refused: too many failed attempts for one ${error.limit}`)
         return
       }
       if (error.name === 'CredentialsSignin' || error instanceof CredentialsSignin) return
@@ -75,15 +80,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { type: 'password' },
       },
 
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = LoginSchema.safeParse(credentials)
         if (!parsed.success) return null
 
         const { email, password } = parsed.data
 
+        // Per IP, in one budget with the mobile login (#208). Checked first,
+        // so a refused attempt counts against neither the IP nor the address.
+        const ipKey = loginIpKey(request)
+        if (!checkRateLimit(ipKey, AUTH_RATE_LIMIT).allowed) throw new LoginThrottled('IP')
+
         // Timing-safe, and limited per address together with the mobile login.
         const check = await checkPassword(email, password)
-        if (check.throttled) throw new LoginThrottled()
+        if (check.throttled) throw new LoginThrottled('address')
         const { user } = check
 
         // One null for both "no such user" and "wrong password": NextAuth
@@ -103,6 +113,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         loginSucceeded(email)
+        refundRateLimit(ipKey)
         return {
           id: user.id,
           email: user.email,

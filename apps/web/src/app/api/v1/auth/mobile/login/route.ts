@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server'
 import { LoginSchema } from '@pitchup/shared'
 import { ok, err, withErrorHandling } from '@/lib/api/response'
 import { validateBody } from '@/lib/api/validate'
-import { AUTH_RATE_LIMIT, checkRateLimit, getClientIp } from '@/lib/api/rate-limit'
+import { AUTH_RATE_LIMIT, checkRateLimit, loginIpKey, refundRateLimit } from '@/lib/api/rate-limit'
 import { loginWithPassword } from '@/lib/auth/service'
 
 export const dynamic = 'force-dynamic'
@@ -12,7 +12,9 @@ export const dynamic = 'force-dynamic'
  * gets a JWT pair it stores in the device keychain (E02-12).
  */
 export const POST = withErrorHandling(async (request: NextRequest) => {
-  const rate = checkRateLimit(`login:${getClientIp(request)}`, AUTH_RATE_LIMIT)
+  // Shared with the web sign-in; a successful login is given back below (#208).
+  const ipKey = loginIpKey(request)
+  const rate = checkRateLimit(ipKey, AUTH_RATE_LIMIT)
   if (!rate.allowed) {
     return err('RATE_LIMITED', 'api.tooManyLogins', 429, {
       retryAfterSeconds: rate.retryAfterSeconds,
@@ -50,5 +52,6 @@ export const POST = withErrorHandling(async (request: NextRequest) => {
     }
   }
 
+  refundRateLimit(ipKey)
   return ok(result)
 })

@@ -279,7 +279,10 @@ passwords.
 ## 7. Rate limiting, and being honest about it
 
 `lib/api/rate-limit.ts` keeps counters in a `Map`. PRD §6.6 asks for 5 login
-attempts per 15 minutes per IP.
+attempts per 15 minutes per IP. The web sign-in and the mobile login share
+one such budget (`login:<ip>`, #208), and a successful sign-in is given back,
+so only failures count: staff at one venue sharing an IP never lock each
+other out by signing in often.
 
 What it genuinely does: stops a single client hammering one server instance.
 

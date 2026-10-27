@@ -18,7 +18,7 @@ export const authEn = {
     password: 'Password',
     forgot: 'Forgot password?',
     wrong: 'Incorrect email or password.',
-    tooMany: 'Too many failed sign-ins for this address. Try again in 15 minutes.',
+    tooMany: 'Too many failed sign-in attempts. Try again in 15 minutes.',
     notVerified: 'Not verified yet? Check your inbox — we have sent a new code.',
     signingIn: 'Signing in…',
     signIn: 'Sign in',

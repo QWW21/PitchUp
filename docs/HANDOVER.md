@@ -1047,8 +1047,8 @@ address (a stranger can lock an address out for 15 minutes; accepted),
   `rate_limited`); `LoginForm` shows `auth.login.tooMany` instead of
   `auth.login.wrong`, without the "not verified" hint. The Auth.js logger
   prints one warning line per throttled web sign-in (no address).
-- Per-IP limits are unchanged and still apply on top; web sign-in still has
-  no per-IP limit (separate ticket). `POST /dev/reset-rate-limits` clears
+- Per-IP limits are unchanged and still apply on top; the web sign-in got
+  its per-IP limit in #208. `POST /dev/reset-rate-limits` clears
   the per-account counters too (one map).
 
 No new endpoints, no schema change.
@@ -1066,6 +1066,34 @@ revealed that the address had an account. Both `loginWithPassword` and web
 `null`. Registration and `resend-code` keep their own handling (registration
 deletes the new account on a failed send; `resend-code` answers 429). No new
 endpoints, no schema change.
+
+### #208 Per-IP limit on the web sign-in
+
+Owner's decision of 2026-10-26: a successful sign-in is refunded on web and
+mobile, so the per-IP limit counts failures only.
+
+- Web `authorize(credentials, request)` checks
+  `checkRateLimit(loginIpKey(request), AUTH_RATE_LIMIT)` (5 per 15 minutes)
+  **before** `checkPassword`, and throws `LoginThrottled` when refused, so
+  the form shows the same `auth.login.tooMany` as the per-address limit and
+  even the right password is refused. A refused attempt counts against
+  neither the IP nor the address.
+- `loginIpKey` (`lib/api/rate-limit.ts`) is `login:<getClientIp>`, the key
+  the mobile login already used, so web and app share one budget per IP.
+  `getClientIp` now takes `{ headers: Headers }`, which fits both
+  `NextRequest` and the plain `Request` NextAuth passes.
+- Refund on success: `authorize` and `POST /auth/mobile/login` call
+  `refundRateLimit` on the IP key once a session/tokens are issued, next to
+  #188's `loginSucceeded`. The mobile route keeps its IP check first (before
+  body validation) and its 429 `RATE_LIMITED` / `api.tooManyLogins` answer.
+- `auth.login.tooMany` no longer says "for this address" (en and ro), since
+  either limit can refuse; the Auth.js warning line names which one
+  (`… for one IP` / `… for one address`).
+- E2E sign-in helpers are unaffected: successful sign-ins are refunded, and
+  specs that fail sign-ins on purpose either send their own
+  `X-Forwarded-For` or stay well under five from one IP.
+
+No new endpoints, no schema change.
 
 ## Deviations from the tickets, and why
 

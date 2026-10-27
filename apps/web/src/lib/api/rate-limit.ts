@@ -5,7 +5,6 @@
  * between serverless instances. Accepted for v1.0; Redis in v1.1. This is a
  * throttle, not a security boundary — it will not stop a distributed attempt.
  */
-import type { NextRequest } from 'next/server'
 import { AUTH } from '@pitchup/shared'
 import { env } from '@/lib/env'
 
@@ -16,7 +15,11 @@ export interface RateLimitRule {
   windowMs: number
 }
 
-/** PRD §6.6: 5 login attempts per 15 minutes per IP. */
+/**
+ * PRD §6.6: 5 login attempts per 15 minutes per IP, web and mobile together
+ * (key loginIpKey). A successful sign-in is refunded, so only failures count
+ * (#208).
+ */
 export const AUTH_RATE_LIMIT: RateLimitRule = { limit: 5, windowMs: 15 * 60 * 1000 }
 
 export const GENERAL_RATE_LIMIT: RateLimitRule = { limit: 60, windowMs: 60 * 1000 }
@@ -130,7 +133,7 @@ export function refundRateLimit(key: string): void {
  * with no proxy keeps a header the client sent, so there the per-IP limits
  * are spoofable; the per-account login limit is not.
  */
-export function getClientIp(request: NextRequest): string {
+export function getClientIp(request: { headers: Headers }): string {
   const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
     const entries = forwarded
@@ -142,6 +145,9 @@ export function getClientIp(request: NextRequest): string {
   }
   return request.headers.get('x-real-ip') ?? 'unknown'
 }
+
+/** The per-IP login counter (AUTH_RATE_LIMIT), one for the web sign-in and the mobile login. */
+export const loginIpKey = (request: { headers: Headers }) => `login:${getClientIp(request)}`
 
 /** Clears all counters. Test helper. */
 export function resetRateLimits(): void {
