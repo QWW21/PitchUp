@@ -327,6 +327,9 @@ test.describe('per-account sign-in limit (#188)', () => {
     await createPlayer(email, PASSWORD)
     await page.goto('/login')
     for (let i = 0; i < 10; i++) {
+      // A fresh IP for each try, so the per-IP limit (#208) never refuses
+      // one before it reaches the per-address count.
+      await page.context().setExtraHTTPHeaders({ 'X-Forwarded-For': nextIp() })
       const answered = page.waitForResponse(r => r.url().includes('/api/auth/callback/credentials'))
       await loginWithForm(page, email, 'WrongPass123')
       await answered
@@ -362,5 +365,91 @@ test.describe('per-account sign-in limit (#188)', () => {
     await expect(page).toHaveURL(/\/login$/)
     await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
     await snap(page, info, AREA, '18-login-too-many')
+  })
+})
+
+/**
+ * #208: failed web sign-ins are limited per IP too (5 per 15 minutes), in the
+ * budget the mobile login uses. The browser picks its IP with the
+ * X-Forwarded-For header; this server trusts one hop, so the rightmost entry.
+ */
+test.describe('per-IP sign-in limit (#208)', () => {
+  const PASSWORD = 'Testing123'
+  const WRONG = 'WrongPass123'
+  let ipSeq = 0
+  const nextIp = () => `10.208.100.${++ipSeq}`
+
+  const useIp = (page: Page, forwardedFor: string) =>
+    page.context().setExtraHTTPHeaders({ 'X-Forwarded-For': forwardedFor })
+
+  /** Submits the form and waits for its answer; returns the query NextAuth sent back. */
+  async function attempt(page: Page, email: string, password: string) {
+    const answered = page.waitForResponse(r => r.url().includes('/api/auth/callback/credentials'))
+    await loginWithForm(page, email, password)
+    const { url } = await (await answered).json()
+    await expect(page.getByRole('button', { name: 'Sign in' })).toBeEnabled()
+    return new URL(String(url), 'http://localhost').searchParams.toString()
+  }
+
+  test('AC1: the 6th failed sign-in from one IP is refused, each with a different address', async ({
+    page,
+  }, info) => {
+    await useIp(page, nextIp())
+    await page.goto('/login')
+    for (let i = 0; i < 5; i++) {
+      await attempt(page, uniqueEmail('ip-web'), WRONG)
+      await expect(formAlert(page)).toHaveText('Incorrect email or password.')
+    }
+
+    await attempt(page, uniqueEmail('ip-web'), WRONG)
+    await expect(formAlert(page)).toContainText(/too many/i)
+    await expect(formAlert(page)).not.toHaveText('Incorrect email or password.')
+    await expect(page).toHaveURL(/\/login$/)
+    await snap(page, info, AREA, '19-login-too-many-ip')
+  })
+
+  test('AC2: the refusal is the same whether the addresses have accounts or not', async ({
+    page,
+  }) => {
+    // One IP spends its budget on real accounts, another on addresses with none.
+    await useIp(page, nextIp())
+    await page.goto('/login')
+    for (let i = 0; i < 5; i++) {
+      const email = uniqueEmail('ip-real')
+      await createPlayer(email, PASSWORD)
+      await attempt(page, email, WRONG)
+    }
+    // Even the right password on a real account is refused now.
+    const real = uniqueEmail('ip-real')
+    await createPlayer(real, PASSWORD)
+    const realAnswer = await attempt(page, real, PASSWORD)
+    const realText = await formAlert(page).textContent()
+    await expect(page).toHaveURL(/\/login$/)
+
+    await page.context().clearCookies()
+    await useIp(page, nextIp())
+    await page.goto('/login')
+    for (let i = 0; i < 5; i++) await attempt(page, uniqueEmail('ip-nobody'), WRONG)
+    const nobodyAnswer = await attempt(page, uniqueEmail('ip-nobody'), PASSWORD)
+    const nobodyText = await formAlert(page).textContent()
+
+    expect(realText).toMatch(/too many/i)
+    expect(nobodyText).toBe(realText)
+    expect(nobodyAnswer).toBe(realAnswer)
+  })
+
+  test('AC5: a client-sent X-Forwarded-For entry cannot reset the count', async ({ page }) => {
+    // The proxy appends the real address; the client rotates what it sends before it.
+    const real = '198.51.100.208'
+    await page.goto('/login')
+    for (let i = 1; i <= 5; i++) {
+      await useIp(page, `203.0.113.${i}, ${real}`)
+      await attempt(page, uniqueEmail('ip-spoof'), WRONG)
+      await expect(formAlert(page)).toHaveText('Incorrect email or password.')
+    }
+
+    await useIp(page, `203.0.113.99, ${real}`)
+    await attempt(page, uniqueEmail('ip-spoof'), WRONG)
+    await expect(formAlert(page)).toContainText(/too many/i)
   })
 })

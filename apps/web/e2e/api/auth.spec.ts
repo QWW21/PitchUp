@@ -630,3 +630,84 @@ test.describe('mobile login on an unverified account (#211)', () => {
     expect(await emailCodes(email)).toBe(5)
   })
 })
+
+/**
+ * #208: failed sign-ins are also limited per IP on the web (5 per 15
+ * minutes, key `login:<ip>`), in one budget with the mobile login. A
+ * successful sign-in is given back on both, so only failures count.
+ */
+test.describe('per-IP sign-in limit, web and mobile together (#208)', () => {
+  const WRONG = 'WrongPass1'
+  let ipSeq = 0
+  /** A fresh rightmost X-Forwarded-For entry: the IP this server sees (TRUSTED_PROXY_HOPS=1). */
+  const nextIp = () => {
+    ipSeq += 1
+    return `10.208.${Math.floor(ipSeq / 250)}.${(ipSeq % 250) + 1}`
+  }
+  type Request = Parameters<typeof post>[0]
+
+  const mobileLogin = (request: Request, email: string, password: string, ip: string) =>
+    post<Tokens>(request, '/auth/mobile/login', { email, password }, { 'X-Forwarded-For': ip })
+
+  /**
+   * A web sign-in: the request the login form makes. Answers the query of
+   * the URL NextAuth sends back (`error`, and `code=rate_limited` when
+   * throttled; neither on success).
+   */
+  const webSignIn = async (request: Request, email: string, password: string, ip: string) => {
+    const { csrfToken } = await (await request.get('/api/auth/csrf')).json()
+    const res = await request.post('/api/auth/callback/credentials', {
+      form: { csrfToken, email, password, callbackUrl: '/' },
+      headers: { 'X-Auth-Return-Redirect': '1', 'X-Forwarded-For': ip },
+    })
+    const { url } = await res.json()
+    return new URL(String(url), 'http://localhost').searchParams
+  }
+
+  test('AC3: failed mobile logins count towards the web limit', async ({ request }) => {
+    const ip = nextIp()
+    for (let i = 0; i < 5; i++) {
+      expect((await mobileLogin(request, uniqueEmail('ip-m2w'), WRONG, ip)).status).toBe(401)
+    }
+    // A different address, so the per-address limit (#188) is not what refuses it.
+    const answer = await webSignIn(request, uniqueEmail('ip-m2w'), WRONG, ip)
+    expect(answer.get('code')).toBe('rate_limited')
+  })
+
+  test('AC3: failed web sign-ins count towards the mobile limit', async ({ request }) => {
+    const ip = nextIp()
+    for (let i = 0; i < 5; i++) {
+      const answer = await webSignIn(request, uniqueEmail('ip-w2m'), WRONG, ip)
+      expect(answer.get('error')).toBeTruthy()
+      expect(answer.get('code')).not.toBe('rate_limited')
+    }
+    const r = await mobileLogin(request, uniqueEmail('ip-w2m'), WRONG, ip)
+    expect(r.status).toBe(429)
+    expect(r.error?.code).toBe('RATE_LIMITED')
+  })
+
+  test('AC4: ten successful sign-ins in a row from one IP all work, on web and mobile', async ({
+    request,
+  }) => {
+    const email = uniqueEmail('ip-ok')
+    await createPlayer(email, PASSWORD)
+    const ip = nextIp()
+
+    const web = []
+    for (let i = 0; i < 10; i++)
+      web.push((await webSignIn(request, email, PASSWORD, ip)).get('error'))
+    expect(web).toEqual(Array(10).fill(null))
+
+    const mobile = []
+    for (let i = 0; i < 10; i++)
+      mobile.push((await mobileLogin(request, email, PASSWORD, ip)).status)
+    expect(mobile).toEqual(Array(10).fill(200))
+
+    // Twenty successes later the budget is still whole: five failures, then refused.
+    const failures = []
+    for (let i = 0; i < 6; i++) {
+      failures.push((await mobileLogin(request, uniqueEmail('ip-ok-fail'), WRONG, ip)).status)
+    }
+    expect(failures).toEqual([401, 401, 401, 401, 401, 429])
+  })
+})

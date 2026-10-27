@@ -73,3 +73,25 @@ describe('refundRateLimit (#188)', () => {
     expect(checkRateLimit('fresh', RULE).remaining).toBe(1)
   })
 })
+
+describe('the per-IP login limit (#208)', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('AC6: five failures per IP, then refused until the 15-minute window ends', async () => {
+    vi.useFakeTimers()
+    const { AUTH_RATE_LIMIT, checkRateLimit } = await load('')
+    const key = 'login:198.51.100.208'
+    for (let i = 0; i < 5; i++) expect(checkRateLimit(key, AUTH_RATE_LIMIT).allowed).toBe(true)
+    expect(checkRateLimit(key, AUTH_RATE_LIMIT).allowed).toBe(false)
+
+    vi.advanceTimersByTime(15 * 60 * 1000 - 1000)
+    expect(checkRateLimit(key, AUTH_RATE_LIMIT).allowed).toBe(false)
+
+    vi.advanceTimersByTime(1000)
+    const after = checkRateLimit(key, AUTH_RATE_LIMIT)
+    expect(after.allowed).toBe(true)
+    expect(after.remaining).toBe(4)
+  })
+})
